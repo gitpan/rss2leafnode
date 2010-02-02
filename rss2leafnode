@@ -1,0 +1,319 @@
+#!/usr/bin/perl
+
+# RSS2Leafnode -- copy RSS feeds to a local news spool
+
+# Copyright 2007, 2008, 2009, 2010 Kevin Ryde
+#
+# This file is part of RSS2Leafnode.
+#
+# RSS2Leafnode is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 3, or (at your option) any later
+# version.
+#
+# RSS2Leafnode is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
+
+use 5.010;
+use strict;
+use warnings;
+use App::RSS2Leafnode;
+
+our $VERSION = 18;
+
+my $r2l = App::RSS2Leafnode->new;
+exit $r2l->command_line;
+
+__END__
+
+=head1 NAME
+
+RSS2Leafnode -- post RSS feeds to newsgroups
+
+=head1 SYNOPSIS
+
+ rss2leafnode [--options]
+
+=head1 DESCRIPTION
+
+RSS2Leafnode downloads RSS feeds and posts the items to an NNTP news server.
+It's designed to make them available in local newsgroups, not propagated
+anywhere (though that's not enforced).
+
+Desired feeds are specified in a configuration file F<.rss2leafnode.conf> in
+your home directory.  For example to post a feed to group "r2l.surfing" on
+your "localhost"
+
+    fetch_rss ('r2l.surfing',
+               'http://www.coastalwatch.com/rss/cwreports_330.xml');
+
+This is actually Perl code, so you can put comment lines with C<#> or write
+some conditionals, etc.  The target newsgroup must exist (see L</Leafnode>
+below).  With that done, run C<rss2leafnode> as
+
+    rss2leafnode
+
+You can automate with C<cron> or similar.  If you do it under user C<news>
+it could be just after a normal news fetch.  The C<--config> option below
+lets you run different config files at different times, etc.
+A sample config file is included in the RSS2Leafnode sources.
+
+Messages are added to the news spool using NNTP "POST" commands.  When a
+feed is re-downloaded any items previously added are not repeated.  Multiple
+feeds can be put into a single newsgroup.  Feeds are inserted as they're
+downloaded, so the first articles appear while the rest are still in
+progress.
+
+=head2 Web Pages
+
+Plain web pages can be downloaded too.  Each time the page changes a new
+article is injected.  This is good for news or status pages which don't have
+an RSS feed.  For example
+
+    fetch_html ('r2l.finance,
+                'http://www.baresearch.com/free/index.php?category=1');
+
+If you've got C<URI::Title> then it's used for the message "Subject".  It
+has special cases for good parts of some unhelpful sites.  Otherwise it's
+the HTML C<< <title> >>.
+
+=head2 Re-Downloading
+
+HTTP C<ETag> and C<Last-Modified> headers are used, if provided by the
+server, to avoid re-downloading unchanged content (RSS or web pages).
+Values seen from the last run are saved in F<.rss2leafnode.status> in your
+home directory.
+
+If you've got C<XML::RSS::Timing> then it's used for RSS C<ttl>,
+C<updateFrequency>, etc from a feed.  This means the feed is not
+re-downloaded until its specified update times.  But only a few feeds have
+useful timing info, most merely give a C<ttl> advising for instance 5
+minutes between rechecks.
+
+With C<--verbose> the next calculated update time is printed, in case you're
+wondering why nothing is happening.  The easiest way to force a re-download
+is to delete the F<.rss2leafnode.status> file.  Old status file entries are
+automatically dropped if you don't fetch a particular feed for a while, so
+that file should otherwise need no maintenance.
+
+=head2 Leafnode
+
+C<rss2leafnode> was originally created with the C<leafnode> program in mind,
+but can be used with any server accepting posts.  It's your responsibility
+to be careful where a target newsgroup propagates.  Don't make automated
+postings to the world!
+
+For leafnode see its F<README> on "LOCAL NEWSGROUPS" for creating local-only
+groups.  Basically you add a line to F</etc/news/leafnode/local.groups> like
+
+    r2l.stuff	y	My various feeds
+
+The group name is arbitrary and the description is optional, but note there
+must be a tab character between the name and the "y" and between the "y" and
+any description.  "y" means posting is allowed.
+
+=head1 COMMAND LINE OPTIONS
+
+The command line options are
+
+=over 4
+
+=item C<--config=/some/filename>
+
+Read the specified configuration file instead of F<~/.rss2leafnode.conf>.
+
+=item C<--help>
+
+Print some brief help information.
+
+=item C<--verbose>
+
+Print some diagnostics about what's being done.  With C<--verbose=2> print
+various technical details.
+
+=item C<--version>
+
+Print the program version number and exit.
+
+=back
+
+=head1 CONFIG OPTIONS
+
+The following variables can be set in the configuration file
+
+=over 4
+
+=item $rss_get_links (default 0)
+
+If true then download the "link" in each item and include it in the news
+message.  For example,
+
+    $rss_get_links = 1;
+    fetch_rss ('r2l.finance',
+      'http://au.biz.yahoo.com/financenews/htt/financenews.xml');
+
+Not all feeds have interesting things at their link, but for those which do
+this can make the full article ready to read immediately, instead of having
+to click through from the message.
+
+Only the immediate link target URL is retrieved, no images within the page
+are downloaded (which is often a good thing), and you'll probably have
+trouble if the link uses frames (a set of HTML pages instead of just one).
+
+=item $render (default 0)
+
+If true then render HTML to text for the news messages.  Normally item text,
+any C<$rss_get_links> downloaded parts, and C<fetch_html> pages are all
+presented as MIME C<text/html>.  But if your newsreader doesn't handle HTML
+very well then C<$render> is a good way to see just the text.
+
+Setting C<1> uses C<HTML::FormatText> (you must have that module).
+
+    $render = 1;
+    fetch_rss ('r2l.weather',
+      'http://xml.weather.yahoo.com/forecastrss?p=ASXX0001&u=f');
+
+Setting C<"WithLinks"> uses the C<HTML::FormatText::WithLinks> variant (you
+must have that module), which shows links as footnotes.
+
+    $render = 'WithLinks';
+    fetch_rss ('r2l.finance',
+               'http://movies.hsx.com/hsx_news.xml');
+
+Settings C<elinks>, C<lynx> or C<w3m> dump through the respective external
+program (you must have C<HTML::FormatExternal> and the program).
+
+    $render = 'lynx';
+    $rss_get_links = 1;
+    fetch_rss ('r2l.sport',
+               'http://fr.news.yahoo.com/rss/rugby.xml');
+
+=item $render_width (default 60)
+
+The number of columns to use when rendering HTML to plain text.  You can set
+this for whatever width you find easiest to read, or any special width
+needed by a particular feed.
+
+=back
+
+=head2 Obscure Options
+
+=over 4
+
+=item $rss_charset_override (default undef)
+
+If set then force RSS content to be interpreted in this charset,
+irrespective of what the document says.  This can be used when the document
+is wrong, or when it has no charset specified and isn't the default utf-8.
+Usually you'll only want this for a particular offending feed.  For example,
+
+    # AIR is latin-1, but doesn't have a <?xml> saying that
+    $rss_charset_override = 'iso-8859-1';
+    fetch_rss ('r2l.finance', 'http://www.aireview.com.au/rss.php');
+    $rss_charset_override = undef;
+
+The symptom of a bad character is usually an XML parser error like
+
+    not well-formed (invalid token) at line 37, column 158, byte 2690 at /usr/lib/perl5/XML/Parser.pm line 187
+
+but you'll have to nose around the RSS bytes to see whether it's a bad
+charset or something else bad like unescaped entities.
+
+=item $html_charset_from_content (default 0)
+
+If true then the charset used for C<fetch_html> content is taken from the
+HTML itself, rather than the server's HTTP headers.  Normally the server
+should be believed, but if a particular server is misconfigured then you can
+try this.
+
+    $html_charset_from_content = 1;
+    fetch_rss ('r2l.stuff',
+               'http://www.somebadserver.com/newspage.html');
+
+=back
+
+=head2 Variable Extent
+
+Variables take effect from the point they're set, through to the end of the
+file, or until a new setting.  The Perl C<local> feature and a braces block
+can be used to confine a setting to a particular few feeds.  Eg.
+
+    { local $rss_get_links = 1;
+      fetch_rss ('r2l.finance',
+                 'http://www.debian.org/News/weekly/dwn.en.rdf');
+    }
+
+=head1 OTHER NOTES
+
+RSS text is encoded as utf-8 in the generated messages, so you'll need a
+newsreader which supports that if reading any non-ascii.  Unrendered HTML is
+left in the charset the server gave, to ensure it matches any C<meta
+http-equiv> in the document.  HTML rendered to text is recoded to utf-8, the
+same as the RSS text.  In all cases of course the charset is specified in
+the MIME message headers and/or attachment parts.
+
+Google Groups mailing list feeds such as
+L<http://groups.google.com/group/cake-php/feed/rss_v2_0_msgs.xml> get a
+"List-Post" header pointing to the list like "foolist@googlegroups.com".
+This may let you followup to the list, depending on your newsreader.
+(A followup to the newsgroup goes nowhere.)
+
+Yahoo Finance items repeated in different feeds are noticed using a special
+match of the link in each item, so just one copy of each is posted.
+(Yahoo's items don't offer RSS C<guid> identifiers which normally protect
+against duplication.)
+
+Some pre-releases of leafnode 2 have trouble with posts to local newsgroups
+while a C<fetchnews> run is in progress.  The local articles don't show up
+until after a subsequent further C<fetchnews>.
+
+=head1 FILES
+
+=over 4
+
+=item F<~/.rss2leafnode.conf>
+
+Configuration file.
+
+=item F<~/.rss2leafnode.status>
+
+Status file, recording "last modified" dates for downloads.  This can be
+deleted if something bad seems to have happened to it; the next
+C<rss2leafnode> run will recreate it.
+
+=back
+
+=head1 SEE ALSO
+
+C<leafnode(8)>,
+L<HTML::FormatText>, L<HTML::FormatText::WithLinks>, L<HTML::FormatExternal>,
+C<lynx(1)>,
+L<URI::Title>
+
+=head1 HOME PAGE
+
+L<http://user42.tuxfamily.org/rss2leafnode/index.html>
+
+=head1 LICENSE
+
+Copyright 2007, 2008, 2009, 2010 Kevin Ryde
+
+RSS2Leafnode is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 3, or (at your option) any later
+version.
+
+RSS2Leafnode is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+more details.
+
+You should have received a copy of the GNU General Public License along with
+RSS2Leafnode.  If not, see L<http://www.gnu.org/licenses/>.
+
+=cut

@@ -1,0 +1,101 @@
+--- #YAML:1.0
+name:               rss2leafnode
+version:            18
+abstract:           Download RSS feeds into Leafnode news.
+author:
+    - Kevin Ryde <user42@zip.com.au>
+license:            gpl
+distribution_type:  module
+configure_requires:
+    ExtUtils::MakeMaker:  0
+build_requires:
+    ExtUtils::MakeMaker:  0
+requires:
+    Date::Parse:         0
+    File::HomeDir:       0
+    HTTP::Message:       0
+    HTTP::Request:       0
+    HTTP::Response:      0
+    Locale::TextDomain:  0
+    LWP:                 5.832
+    LWP::UserAgent:      0
+    MIME::Entity:        0
+    MIME::Tools:         0
+    MIME::Words:         0
+    perl:                5.010
+    Scope::Guard:        0
+    URI:                 0
+    URI::Escape:         0
+    XML::RSS::LibXML:    0
+resources:
+    homepage:  http://user42.tuxfamily.org/rss2leafnode/index.html
+    license:   http://www.gnu.org/licenses/gpl.html
+no_index:
+    directory:
+        - t
+        - inc
+        - devel
+        - examples
+generated_by:       ExtUtils::MakeMaker version 6.55_02
+meta-spec:
+    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
+    version:  1.4
+optional_features:
+    fetch_html_uri_title:
+        description:   A better Subject for fetch_html() messages using URI::Title.
+        requires:
+            URI::Title:  0
+    maximum_devel:
+        description:  Stuff used variously for development.
+        requires:
+            HTML::Entities:     0
+            HTML::FormatText:   0
+            HTML::TreeBuilder:  0
+            Perl6::Slurp:       0
+            URI::file:          0
+            URI::Title:         0
+            XML::Atom:          0
+            XML::Atom::Feed:    0
+            XML::LibXML:        0
+            XML::RSS:           0
+    maximum_tests:
+        description:  Have "make test" do as much as possible.
+        requires:
+            Parse::CPAN::Meta:   0
+            Test::DistManifest:  0
+            Test::NoWarnings:    0
+            Test::Pod:           1.00
+            Test::Synopsis:      0
+            Test::YAML::Meta:    0.13
+            URI::Title:          0
+            XML::RSS:            0
+            YAML:                0
+            YAML::Syck:          0
+            YAML::Tiny:          0
+            YAML::XS:            0
+    render_text:
+        description:  Optionally render HTML to text.
+        requires:
+            HTML::FormatText:  0
+    render_text_external:
+        description:  Optionally render HTML to text using external programs like lynx.
+        requires:
+            HTML::FormatExternal:  0
+    render_text_with_links:
+        description:  Optionally render HTML to text using FormatText::WithLinks.
+        requires:
+            HTML::FormatText::WithLinks:  0
+    xml_rss_timing:
+        description:  Check RSS feed advertised update times before redownloading.
+        requires:
+            XML::RSS::Timing:  0
+    xml_rss_timing_print:
+        description:  A prettier print of time to next RSS update.
+        requires:
+            Time::Duration:  0
+    xml_rss_timing_print_locale:
+        description:  A prettier print of time to next RSS update, with language-specific print.
+        requires:
+            Time::Duration::ja:   0
+            Time::Duration::Locale:  0
+            Time::Duration::sv:   0

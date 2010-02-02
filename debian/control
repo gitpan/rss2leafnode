@@ -1,0 +1,47 @@
+# Copyright 2007, 2008, 2009, 2010 Kevin Ryde
+#
+# This file is part of RSS2Leafnode.
+#
+# RSS2Leafnode is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 3, or (at your option) any later
+# version.
+#
+# RSS2Leafnode is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
+
+
+# libxml-rss-perl is first in the deps in case that makes apt prefer
+# it over libxml-rss-libxml-perl, since the latter will drag in libxml
+# too.  But either is fine.
+#
+# "leafnode | news-transport-system" is only recommended so as not to
+# force removal of rss2leafnode if switching news servers, and since
+# in theory the $news_host option makes it possible to connect to a
+# nearby remote news server.
+
+Source: rss2leafnode
+Section: news
+Priority: optional
+Build-Depends: cdbs, debhelper (>= 5)
+Maintainer: Kevin Ryde <user42@zip.com.au>
+Standards-Version: 3.8.3
+Homepage: http://user42.tuxfamily.org/rss2leafnode/index.html
+Bugs: mailto:user42@zip.com.au
+
+Package: rss2leafnode
+Architecture: all
+Depends: perl (>= 5.10), libmime-tools-perl, liburi-perl, libwww-perl (>= 5.832), libxml-rss-libxml-perl| libxml-rss-perl (>= 1.40), libfile-homedir-perl, libscope-guard-perl, libtimedate-perl, libintl-perl, ${misc:Depends}
+Recommends: leafnode (>= 2) | news-transport-system, libcompress-zlib-perl, libxml-rss-timing-perl, libtime-duration-perl, libtime-duration-locale-perl
+Suggests: libhtml-format-perl | libhtml-formattext-withlinks-perl, libhtml-formatexternal-perl, lynx | w3m | elinks, liburi-title-perl, libhtml-tree-perl
+Description: Post RSS articles to local newsgroups
+ RSS2Leafnode reads specified RSS feeds and posts items to local
+ newsgroups.  It's named after the leafnode program, but can post to
+ any server.  The intention is that articles aren't propagated
+ anywhere, it's just a convenient way to get them into a local spool
+ for later reading.

@@ -1,0 +1,75 @@
+This file contains message digests of all files listed in MANIFEST,
+signed via the Module::Signature module, version 0.61.
+
+To verify the content in this distribution, first make sure you have
+Module::Signature installed, then type:
+
+    % cpansign -v
+
+It will check each file's integrity, as well as the signature's
+validity.  If "==> Signature verified OK! <==" is not displayed,
+the distribution may already have been compromised, and you should
+not run its Makefile.PL or Build.PL.
+
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+SHA1 842745cb706f8f2126506f544492f7a80dbe29b3 COPYING
+SHA1 11597aa7b3599b93eeb35e7f7db74242ba954096 Changes
+SHA1 aae464ad9db536912bc61fe748bc047782ac6481 MANIFEST
+SHA1 a5702ed4c66c943b47354756b340812302d15e6f MANIFEST.SKIP
+SHA1 5911c201e7748b27fa5b96bdf492742468e78f5d META.yml
+SHA1 84a0a2da7e7f377ab867296ba37445f308cb1ee1 Makefile.PL
+SHA1 f007f18d793f5727952b0c68b9552eadb7da000a debian/changelog
+SHA1 ac3478d69a3c81fa62e60f5c3696165a4e5e6ac4 debian/compat
+SHA1 d58b9cf7e701f9f9174b51755cac75d2c48154f1 debian/control
+SHA1 9da591a1564e204cf062ddd55529b7b43d2d80a7 debian/copyright
+SHA1 ac9cf90cdc077b104cefbcc1d35d1848502f280f debian/patches/pod-sample-conf-file.diff
+SHA1 0128c016a525f21fff8083c48e6429041f5223f0 debian/prerm
+SHA1 61428a2eb5b75e50787da60b98c048ca98084864 debian/rules
+SHA1 039ae11f0b1bd7686a38cc08bce9241bb824b78e debian/watch
+SHA1 4c68751585c3e24cb3ed3d736967765ac976d5b4 devel/Leafnode.pm
+SHA1 3646dcdb2ad7ab4f02951a528a3e10c7fe8129a1 devel/Plagger.t
+SHA1 132b5aea8c3c828266029dfd48c735fb120f0a4d devel/atom.pl
+SHA1 3e2fe87c260e0a7880786838c5116f5909931364 devel/file-temp-debug.pl
+SHA1 dcb01f6623bf5a443ea7adc84f81ff7cc9ab21ce devel/html-enc.pl
+SHA1 96d65178455a21020bcf5531da534d4b3870a7d6 devel/html-formattext.pl
+SHA1 05ad5d4e3cecd919d0ceaaa505990ea6658a24ee devel/ihave.pl
+SHA1 7e73e3ae333250d13c06f3c78a28d2bf6353c886 devel/lib/Localize/GetSetMethod.pm
+SHA1 b0635c4018b34b6ae40fa32ce2f6789f50dfc762 devel/lib/Localize/ScalarRef.pm
+SHA1 89416242415f876c7a20f87069cf940d2650e947 devel/lib/News/Rnews.pm
+SHA1 cbf014d30d2ce92ea7a8b8bbd6440907303c0042 devel/lib/News/Rnews.t
+SHA1 a421408b78a92fdc46a0cae3487aba4c75902fb0 devel/lib/Plagger/Plugin/Filter/FormatText.pm
+SHA1 59e2b7f302339e22f9af7057ede3387d2aca75d1 devel/lib/Plagger/Plugin/Filter/GoogleListPost.pm
+SHA1 33a3a2996a40e6bfe8e5d515b944ca5e5d9df8c3 devel/lib/Plagger/Plugin/Filter/YahooLinks.pm
+SHA1 eaa0d77bb4f6d36fdd6b668c0b6ce917259b6c7e devel/lib/Plagger/Plugin/Publish/Rnews.pm
+SHA1 c422c467185035e990cf7a253eeda84172ee7c0b devel/libxml.pl
+SHA1 8a9456be5453312a39cc67fca6498be7351e51fe devel/lwp-title.html
+SHA1 00f35193503911a2e15d5eeb49bbbaa6f4aeb2b9 devel/lwp-title.pl
+SHA1 194a5c32fb9c50fc52e22a1551ccf9f0fe574873 devel/mime-entity.pl
+SHA1 f5a1a6d3a0e83e7a4989f4ad7a06e3d93e3e732a devel/rnews.pl
+SHA1 112aee89b7ee2ede4cbb0862b9b968929c9f0e83 devel/run-parse.pl
+SHA1 39b72b5db26a3e44bc59224952f58f04753f080a devel/samples.pl
+SHA1 2375555072eefc1553f0f5e93b3a01e94446c226 devel/single-entry.yaml
+SHA1 631dc0ef60a23ad6613ff1da9c79830beaffaab3 devel/unused.pl
+SHA1 3e9838166a9e8026472494d411d55a5152516fd7 devel/xml-encoding.pl
+SHA1 933d1189ef3e23b87393a056e9264a167a7c2597 devel/yahoolinks.yaml
+SHA1 23db4acb71a250b1adb087cb0c104814bb35841f examples/rss2leafnode.conf
+SHA1 04b47938da4980ca0da3d5560d7826ef3139e861 inc/MyMakeMakerExtras.pm
+SHA1 005d753dd1cb67538ded07931423b2e7cd1e25b3 inc/my_pod2html
+SHA1 5a86d308bb9b6d0feb3f561afcce7dac6fa315e2 lib/App/RSS2Leafnode.pm
+SHA1 f54e21852e948836cda575c58826dcd7d0d006e6 lib/App/RSS2Leafnode/Conf.pm
+SHA1 e4816db213fd9dcbada86556747304f9ae9c115a rss2leafnode
+SHA1 378b932305fb60823467c2af3c771fe3fc295a13 t/0-META-read.t
+SHA1 a343ed4dce96d05de51eed1ec065911584b96fce t/0-Test-DistManifest.t
+SHA1 bba0dc087cbe64d8f100ab77e6cef061c0bebf27 t/0-Test-Pod.t
+SHA1 5fa94e1e88e44064d1e6b21c88a4c9374a17bfd1 t/0-Test-Synopsis.t
+SHA1 39fb4f79da7687abc825c4ea646acb3ee9e3a342 t/0-Test-YAML-Meta.t
+SHA1 009e72e796ea225e15b631c812895bfb1b1f7e72 t/RSS2Leafnode.t
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iD8DBQFLZ12RLFMCIV9q3ToRAuHIAKCIedfgfdAbeTeuJmFnIjKOmFjYOwCgojQ+
+2UsRKGWMTJEckxC4b4v3Y+0=
+=/d2m
+-----END PGP SIGNATURE-----

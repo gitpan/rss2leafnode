@@ -1,0 +1,12 @@
+diff -Nur -x '*.orig' -x '*~' r2l/rss2leafnode r2l.new/rss2leafnode
+--- r2l/rss2leafnode	2009-12-15 09:37:33.000000000 +1100
++++ r2l.new/rss2leafnode	2009-12-15 09:40:59.000000000 +1100
+@@ -1182,7 +1182,7 @@
+ You can automate with C<cron> or similar.  If you do it under user C<news>
+ it could be just after a normal news fetch.  The C<--config> option below
+ lets you run different config files at different times, etc.
+-A sample config file is included in the RSS2Leafnode sources.
++A sample config file can be found in F</usr/share/doc/rss2leafnode/examples/rss2leafnode.conf>.
+ 
+ Messages are added to the news spool using NNTP "post" commands.  When a
+ feed is re-downloaded any items previously added are not repeated.  Multiple
