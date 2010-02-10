@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               rss2leafnode
-version:            18
+version:            19
 abstract:           Download RSS feeds into Leafnode news.
 author:
     - Kevin Ryde <user42@zip.com.au>
@@ -13,9 +13,11 @@ build_requires:
 requires:
     Date::Parse:         0
     File::HomeDir:       0
+    HTML::FormatText:    0
     HTTP::Message:       0
     HTTP::Request:       0
     HTTP::Response:      0
+    List::MoreUtils:     0
     Locale::TextDomain:  0
     LWP:                 5.832
     LWP::UserAgent:      0
@@ -26,7 +28,8 @@ requires:
     Scope::Guard:        0
     URI:                 0
     URI::Escape:         0
-    XML::RSS::LibXML:    0
+    URI::tag:            0
+    XML::Twig:           0
 resources:
     homepage:  http://user42.tuxfamily.org/rss2leafnode/index.html
     license:   http://www.gnu.org/licenses/gpl.html
@@ -48,16 +51,19 @@ optional_features:
     maximum_devel:
         description:  Stuff used variously for development.
         requires:
-            HTML::Entities:     0
-            HTML::FormatText:   0
-            HTML::TreeBuilder:  0
-            Perl6::Slurp:       0
-            URI::file:          0
-            URI::Title:         0
-            XML::Atom:          0
-            XML::Atom::Feed:    0
-            XML::LibXML:        0
-            XML::RSS:           0
+            DateTime:             0
+            DateTime::Format::Mail:  0
+            HTML::Entities:       0
+            HTML::FormatText:     0
+            HTML::TreeBuilder:    0
+            Perl6::Slurp:         0
+            URI::file:            0
+            URI::Title:           0
+            XML::Atom:            0
+            XML::Atom::Feed:      0
+            XML::LibXML:          0
+            XML::RSS:             0
+            XML::RSS::LibXML:     0
     maximum_tests:
         description:  Have "make test" do as much as possible.
         requires:
@@ -68,15 +74,10 @@ optional_features:
             Test::Synopsis:      0
             Test::YAML::Meta:    0.13
             URI::Title:          0
-            XML::RSS:            0
             YAML:                0
             YAML::Syck:          0
             YAML::Tiny:          0
             YAML::XS:            0
-    render_text:
-        description:  Optionally render HTML to text.
-        requires:
-            HTML::FormatText:  0
     render_text_external:
         description:  Optionally render HTML to text using external programs like lynx.
         requires:

@@ -22,6 +22,7 @@ use warnings;
 use App::RSS2Leafnode;
 use URI;
 use URI::file;
+use Getopt::Long;
 
 {
   no warnings 'redefine';
@@ -33,15 +34,31 @@ use URI::file;
   };
 }
 
-my $r2l = App::RSS2Leafnode->new;
+my $r2l = App::RSS2Leafnode->new
+  (
+   # rss_charset_override => 'iso-8859-1',
+   # verbose => 2,
+   # render => 'lynx',
+   rss_newest_only => 1,
+  );
 
 my @uris;
-if (@ARGV) {
-  @uris = map {URI->new($_,'file')} @ARGV;
-} else {
+
+GetOptions (require_order => 1,
+            'verbose:1'  => \$r2l->{'verbose'},
+            'msgid=s'    => \$r2l->{'msgidextra'},
+            'newest'     => \$r2l->{'rss_newest_only'},
+            '<>' => sub {
+              my ($arg) = @_;
+              push @uris, URI->new("$arg",'file');
+            },
+           ) or return 1;
+
+if (! @uris) {
   @uris = map {URI::file->new($_)} glob('samp/*');
   $r2l->{'rss_newest_only'} = 1;
 }
+
 foreach my $uri (@uris) {
   if ($uri->isa('URI::file')) {
     $uri = $uri->new_abs($uri);

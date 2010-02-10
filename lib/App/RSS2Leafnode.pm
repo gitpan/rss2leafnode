@@ -28,41 +28,64 @@ use List::Util;
 use Scalar::Util;
 use POSIX (); # ENOENT, etc
 use URI;
-use Date::Parse;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
-our $VERSION = 18;
+our $VERSION = 19;
 
 
 # Cribs:
 #
-# http://my.netscape.com/publish/help/
-#     RSS 0.9 spec.
-# http://my.netscape.com/publish/help/mnn20/quickstart.html
-#     RSS 0.91 spec.
-# http://purl.org/rss/1.0/
-#     RSS 1.0 spec.
-# http://www.rssboard.org/rss-specification
-# http://www.rssboard.org/files/rss-2.0-sample.xml
-#     RSS 2.0 spec and sample.
-# http://www.rssboard.org/rss-profile
-#     "Best practices."
+# RSS
+#   http://my.netscape.com/publish/help/
+#       RSS 0.9 spec.
+#   http://my.netscape.com/publish/help/mnn20/quickstart.html
+#       RSS 0.91 spec.
+#   http://purl.org/rss/1.0/
+#       RSS 1.0 spec.
+#   http://www.rssboard.org/rss-specification
+#   http://www.rssboard.org/files/rss-2.0-sample.xml
+#       RSS 2.0 spec and sample.
+#   http://www.rssboard.org/rss-profile
+#       "Best practices."
+#   http://www.meatballwiki.org/wiki/ModWiki
+#       wiki: namespace
+#   http://dublincore.org/documents/dcmi-terms/
+#       dc/terms: namespace
 #
-# RFC 850, RFC 1036 -- News message format, inc headers and rnews format
+# Dublin Core
+#   RFC 5013 -- summary
+#
+# Atom
+#   RFC 4287 -- Atom
+#   RFC 3339 -- ISO timestamps as used in Atom
+#   http://diveintomark.org/archives/2004/05/28/howto-atom-id
+#      Making an <id>
+#
+# URIs
+#   RFC 1738, RFC 3986 -- URI formats
+#   RFC 2732 -- ipv6 "[]" hostnames
+#   RFC 2141 -- urn:
+#   RFC 4122 -- uuid format (as under urn:uuid:)
+#   RFC 4151 -- tag:
+#
+# XML
+#   http://www.w3.org/TR/xmlbase/
+#       xml:base
+#
+# Mail Messages
+#   RFC 850, RFC 1036 -- News message format, inc headers and rnews format
+#   RFC 2076, RFC 4021 -- headers summary.
+#   RFC 1327 -- X.400 to RFC822 introducing Language header
+#   RFC 2557 -- MHTML Content-Location
+#   RFC 1864 -- Content-MD5 header
+#   RFC 3282 -- Content-Language header
+#   RFC 2369 -- List-Post header and friends
+#   http://www3.ietf.org/proceedings/98dec/I-D/draft-ietf-drums-mail-followup-to-00.txt
+#       Draft "Mail-Followup-To" header.
+#
 # RFC 977 -- NNTP
-# RFC 1327 - X.400 to RFC822 introducing Language header
-# RFC 1738 -- URL formats
-# RFC 1864 -- Content-MD5 header
-# RFC 2557 -- MHTML Content-Location
 # RFC 2616 -- HTTP/1.1 Accept-Encoding header
-# RFC 2369 -- List-Post header and friends
-# RFC 3282 -- Content-Language header
 #
-# RFC 2076 -- headers summary
-# RFC 4021 -- headers summary
-#
-# http://www3.ietf.org/proceedings/98dec/I-D/draft-ietf-drums-mail-followup-to-00.txt
-#     Draft Mail-Followup-To header.
 #
 
 
@@ -85,6 +108,44 @@ sub launder {
   my ($str) = @_;
   my %laundry = ($str=>1);
   return keys %laundry;
+}
+
+sub is_empty {
+  my ($str) = @_;
+  return (! defined $str || $str =~ /^\s*$/);
+}
+sub is_non_empty {
+  my ($str) = @_;
+  return ! is_empty($str);
+}
+sub non_empty {
+  my ($str) = @_;
+  return (is_non_empty($str) ? $str : ());
+}
+
+sub join_non_empty {
+  my $sep = shift;
+  return non_empty (join($sep, map {non_empty($_)} @_));
+}
+
+sub trim_whitespace {
+  my ($str) = @_;
+  defined $str or return;
+  $str =~ s/^\s+//; # leading whitespace
+  $str =~ s/\s+$//; # trailing whitespace
+  return $str;
+}
+sub _choose {
+  my @choices = @_;
+  # require Data::Dumper;
+  # print Data::Dumper->new([\@choices],['choices'])->Dump;
+  foreach my $str (@choices) {
+    is_non_empty($str) or next;
+    $str = trim_whitespace($str);
+    next if $str eq '';
+    return $str;
+  }
+  return;
 }
 
 #------------------------------------------------------------------------------
@@ -236,9 +297,7 @@ sub ua {
 
 
 #------------------------------------------------------------------------------
-# misc
-
-use constant sy => 'http://purl.org/rss/1.0/modules/syndication/';
+# dates
 
 use constant RFC822_STRFTIME_FORMAT => '%a, %d %b %Y %H:%M:%S %z';
 
@@ -247,25 +306,75 @@ sub rfc822_time_now {
   return POSIX::strftime (RFC822_STRFTIME_FORMAT, localtime(time()));
 }
 
-# $a and $b are XML::RSS feed items (hash references).
-# Return the one with the greatest pubDate, or $a if they're equal or they
-# don't both have a pubDate.
-# The dates ought to be RFC822 format, but let Date::Parse figure that out.
-#
-sub item_pubdate_max {
-  my ($a, $b) = @_;
+sub isodate_to_rfc822 {
+  my ($isodate) = @_;
+  my $date = $isodate // return;  # the original goes through if unrecognised
 
-  my $a_time = $a->{'pubDate'};
-  if ($a_time) { $a_time = Date::Parse::str2time($a_time); }
-
-  my $b_time = $b->{'pubDate'};
-  if ($b_time) { $b_time = Date::Parse::str2time($b_time); }
-
-  if ($a_time && $b_time && $b_time > $a_time) {
-    return $b;
-  } else {
-    return $a;
+  if ($isodate =~ /\dT\d/ || $isodate =~ /^\d{4}-\d{2}-\d{2}$/) {
+    # eg. "2000-01-01T12:00+00:00"
+    #     "2000-01-01T12:00:00Z"
+    #     "2000-01-01"
+    my $zonestr = ($isodate =~ s/([+-][0-9][0-9]):([0-9][0-9])$// ? " $1$2"
+                   : $isodate =~ s/Z$// ? ' +0000'
+                   : '');
+    require Date::Parse;
+    my $time_t = Date::Parse::str2time($isodate);
+    if (defined $time_t) {
+      $date = POSIX::strftime ("%a, %d %b %Y %H:%M:%S$zonestr",
+                               localtime ($time_t));
+    }
   }
+  return $date;
+}
+
+# $a and $b are XML::Twig::Elt items
+# Return the one with the greatest date, or $a if they're equal or don't
+# both have a pubDate.
+#
+sub item_date_max {
+  my ($self, $a_item, $b_item) = @_;
+
+  # prefer $a_item if both undef so as to get first in feed
+  my $b_time = $self->item_to_timet($b_item) // return $a_item;
+  my $a_time = $self->item_to_timet($a_item) // return $b_item;;
+
+  if ($b_time > $a_time) {
+    return $b_item;
+  } else {
+    return $a_item;
+  }
+}
+sub item_to_timet {
+  my ($self, $item) = @_;
+  my $str = $self->item_to_date($item) // return;
+  require Date::Parse;
+  my $timet = Date::Parse::str2time($str) // do {
+    print __x("Ignoring unrecognised date \"{date}\" from {url}\n",
+              date => $str,
+              url => $self->{'uri'});
+    return;
+  };
+  return $timet;
+}
+
+# return an RFC822 date string
+# this is primarily to get a sensible sort-by-date in the newsreader
+sub item_to_date {
+  my ($self, $item) = @_;
+  my $date;
+  foreach my $elt ($item, item_to_channel($item)) {
+    $date = (non_empty    ($elt->first_child_text('pubDate'))
+             // non_empty ($elt->first_child_text('dc:date'))
+             # Atom
+             // non_empty ($elt->first_child_text('modified'))
+             // non_empty ($elt->first_child_text('updated'))
+             // non_empty ($elt->first_child_text('issued'))
+             // non_empty ($elt->first_child_text('created'))
+             # channel
+             // non_empty ($elt->first_child_text('lastBuildDate')));
+    last if defined $date;
+  }
+  return isodate_to_rfc822($date // $self->{'now822'});
 }
 
 #-----------------------------------------------------------------------------
@@ -284,28 +393,63 @@ sub item_pubdate_max {
 # even across multiple feeds on the same server.
 #
 sub url_to_msgid {
-  my ($self, $uri, $str) = @_;
-  $uri = URI->new($uri)->canonical;
+  my ($self, $url, $str) = @_;
 
-  # $host can be empty if you test from a file:/// url
-  # "localhost" is a bit bogus and in particular leafnode won't accept it
   my $host;
-  if ($uri->can('host')) { $host = $uri->host; }
-  if (! defined $host || $host eq '' || $host eq 'localhost') {
-    require Sys::Hostname;
-    eval { $host = Sys::Hostname::hostname() };
+  my $pathbit = $url;
+
+  if (my $uri = eval { URI->new($url) }) {
+    $uri = $uri->canonical;
+    if ($uri->can('host')) {
+      $host = $uri->host;
+      $uri->host('');
+      $pathbit = $uri->as_string;
+
+      # If the $uri schema has a host part but it's empty or "localhost"
+      # then try expanding that to hostname().
+      #
+      # $uri schemas without a host part, like "urn:" in an Atom <id> don't
+      # get hostname(), since want the generated msgid to come out the same
+      # if such a urn: appears from different downloaded locations.
+      #
+      if (is_empty($host) || $host eq 'localhost') {
+        require Sys::Hostname;
+        eval { $host = Sys::Hostname::hostname() };
+      }
+
+    } elsif ($uri->can('authority')) {
+      # the "authority" part of a "tag:" schema
+      $host = $uri->authority;
+      $uri->authority('');
+      $pathbit = $uri->as_string;
+    }
   }
-  if (! defined $host || $host eq '' || $host eq 'localhost') {
+
+  # $host can be empty if running from a file:///
+  # "localhost" is a bit bogus and in particular leafnode won't accept it.
+  if (is_empty($host) || $host eq 'localhost') {
     $host = 'rss2leafnode.invalid';
   }
-  my $pathbit = $uri->scheme.':'.$uri->path;
-  $str //= '';
-  if ($str ne '') { $str = ".$str"; }
 
-  return ('<' . msgid_chars("rss2leafnode"
-                            . $self->{'msgidextra'}
-                            . ".$pathbit$str")
-          . '@' . msgid_chars($host)
+  # ipv6 dotted hostname "[1234:5678::0000]" -> "1234.5678.0000..ipv6",
+  # because [ and : are not allowed (RFC 2822 "Atom" atext)
+  # $uri->canonical above lower cases any hex, for consistency
+  if (($host =~ s/^\[|\]$//g) | ($host =~ tr/:/./)) {
+    $host .= '.ipv6';
+  }
+
+  # leafnode 2.0.0.alpha20070602a seems to insist on a "." in the host name
+  unless ($host =~ /\./) {
+    $host .= '.withadot';
+  }
+
+  return ('<'
+          . msgid_chars(join_non_empty('.',
+                                       "rss2leafnode" . $self->{'msgidextra'},
+                                       $pathbit,
+                                       $str))
+          . '@'
+          . msgid_chars($host)
           . '>');
 }
 # msgid_chars($str) returns $str with invalid Message-ID characters munged.
@@ -414,38 +558,6 @@ sub nntp_post {
     return 0;
   }
   return 1;
-}
-
-
-#------------------------------------------------------------------------------
-# "Dublin core"
-
-use constant dc => 'http://purl.org/dc/elements/1.1/';
-
-sub item_dc_date_to_pubdate {
-  my ($item) = @_;   # a channel item hashref
-  if ($item->{'pubDate'}) { return; }
-  my $isodate = $item->{(dc)}{'date'} // return;
-  $item->{'pubDate'} = isodate_to_rfc822($isodate);
-}
-
-sub isodate_to_rfc822 {
-  my ($isodate) = @_;
-  $isodate =~ /\dT\d/ or return $isodate; # not an iso format
-
-  # eg. "2000-01-01T12:00+00:00"
-  #     "2000-01-01T12:00:00Z"
-  my $date = $isodate;  # the original goes through if unrecognised
-  my $zonestr = ($isodate =~ s/([+-][0-9][0-9]):([0-9][0-9])$// ? " $1$2"
-                 : $isodate =~ s/Z$// ? ' +0000'
-                 : '');
-  require Date::Parse;
-  my $time_t = Date::Parse::str2time($isodate);
-  if (defined $time_t) {
-    $date = POSIX::strftime ("%a, %d %b %Y %H:%M:%S$zonestr",
-                             localtime ($time_t));
-  }
-  return $date;
 }
 
 
@@ -590,16 +702,16 @@ sub status_geturl {
 }
 
 # $resp is a HTTP::Response object from retrieving $url.
-# Optional $feed is $resp parsed to an XML:RSS object.
-# Record against $url any ETag, Last-Modified and ttl from $resp and $feed.
+# Optional $channel is an XML::Twig.
+# Record against $url any ETag, Last-Modified and ttl from $resp and $twig.
 # If $resp is an error return, or is undef, then do nothing.
 sub status_etagmod_resp {
-  my ($self, $url, $resp, $feed) = @_;
+  my ($self, $url, $resp, $twig) = @_;
   if ($resp && $resp->is_success) {
     my $status = $self->status_geturl ($url);
     $status->{'Last-Modified'} = $resp->header('Last-Modified');
     $status->{'ETag'}          = $resp->header('ETag');
-    $status->{'timingfields'}  = feed_to_timingfields ($feed);
+    $status->{'timingfields'}  = $self->channel_to_timingfields ($twig);
     $self->status_save($status);
   }
 }
@@ -624,7 +736,7 @@ sub status_etagmod_req {
   my $status = $self->{'global_status'}->{$url}
     or return 1; # no information about $url, download it
 
-  if (my $timing = timingfields_to_timing ($status->{'timingfields'})) {
+  if (my $timing = $self->timingfields_to_timing ($status->{'timingfields'})) {
     my $next = $timing->nextUpdate;
     my $now = time();
     if ($next > $now) {
@@ -651,60 +763,45 @@ sub status_etagmod_req {
 
 
 #------------------------------------------------------------------------------
-
-# XML::RSS and XML::RSS::LibXML are compatible, you can use whichever you've
-# got installed.  XML::RSSLite can't be used, it's a bit different.  If it
-# got a new() and parse() interface similar to XML::RSS it could be ok,
-# though as of version 0.11 it has a hard time on CDATA and maybe other xml
-# obscurities.
-#
-sub XML_RSS_class {
-  my ($self) = @_;
-  if (defined $self->{'XML_RSS_class'}) {
-    return $self->{'XML_RSS_class'};
-  }
-
-  my @classes = ('XML::RSS::LibXML', 'XML::RSS');
-  my @errors;
-  require Module::Load;
-  foreach my $class (@classes) {
-    if (eval { Module::Load::load ($class); 1 }) {
-      if ($self->{'verbose'}) { print "xml use $class\n"; }
-      return $class;
-    }
-    push @errors, $@;
-  }
-  croak "Cannot load ",join(' or ',@classes),"\n",
-    @errors,"  ";
-}
-
-
-#------------------------------------------------------------------------------
 # XML::RSS::Timing
 
-sub feed_to_timingfields {
-  my ($feed) = @_;
+sub channel_to_timingfields {
+  my ($self, $twig) = @_;
+  return if ! defined $twig;
+  my $root = $twig->root;
   my %timingfields;
-  my $channel = $feed->{'channel'};
-  $timingfields{'ttl'} = $channel->{'ttl'};
-  # LibXML has empty strings under $channel but arrayrefs under $feed
-  if (my $skipHours = $feed->{'skipHours'}->{'hour'}) {
-    $timingfields{'skipHours'} = $skipHours;
+
+  if (my $ttl = $root->first_descendant('ttl')) {
+    $timingfields{'ttl'} = $ttl->text;
   }
-  if (my $skipDays = $feed->{'skipDays'}->{'day'}) {
-    $timingfields{'skipDays'} = $skipDays;
+  if (my $skipHours = $root->first_descendant('skipHours')) {
+    $timingfields{'skipHours'} = [map {$_->text} $skipHours->children('hour')];
   }
+  if (my $skipDays = $root->first_descendant('skipDays')) {
+    $timingfields{'skipDays'} = [map {$_->text} $skipDays->children('day')];
+  }
+
+  # "syn:updatePeriod" etc
   foreach my $key (qw(updatePeriod updateFrequency updateBase)) {
-    $timingfields{$key} = $channel->{(sy)}->{$key}; # "syn" spec fields
+    if (my $update = $root->first_descendant("syn:$key")) {
+      $timingfields{$key} = $update->text;
+    }        
   }
-  delete @timingfields{grep {! defined $timingfields{$_}} keys %timingfields};
+  if ($self->{'verbose'} >= 2) {
+    require Data::Dumper;
+    print Data::Dumper->new([\%timingfields],['timingfields'])
+      ->Indent(1)->Sortkeys(1)->Dump;
+  }
+
   # if XML::RSS::Timing doesn't like the values then don't record them
-  return timingfields_to_timing (\%timingfields) && \%timingfields;
+  return unless $self->timingfields_to_timing(\%timingfields);
+
+  return \%timingfields;
 }
 
 # return an XML::RSS::Timing object, or undef
 sub timingfields_to_timing {
-  my ($timingfields) = @_;
+  my ($self, $timingfields) = @_;
   eval { require XML::RSS::Timing } || return undef;
   my $timing = XML::RSS::Timing->new;
   $timing->use_exceptions(0);
@@ -716,11 +813,11 @@ sub timingfields_to_timing {
     }
   }
   if (my @complaints = $timing->complaints) {
+    print __x("XML::RSS::Timing complains on {url}\n",
+              url => $self->{'uri'});
     foreach my $complaint (@complaints) {
-      print __x("XML::RSS::Timing complains: {error}\n",
-                error => $complaint);
+      print "  $complaint\n";
     }
-    print __("  ... ignore timing\n");
     return undef;
   }
   return $timing;
@@ -897,7 +994,7 @@ sub fetch_html {
 #
 sub item_yahoo_permalink {
   my ($item) = @_;
-  my $link = $item->{'link'} // return;
+  my $link = $item->first_child_text('link') // return;
   $link =~ m{^http://[^/]*yahoo\.com/.*\*(http://.*yahoo\.com.*)$} or return;
   return $1;
 }
@@ -956,24 +1053,55 @@ sub aireview_follow {
 #------------------------------------------------------------------------------
 # fetch RSS
 
-sub _trim_whitespace {
-  my ($str) = @_;
-  defined $str or return;
-  $str =~ s/^\s+//; # leading whitespace
-  $str =~ s/\s+$//; # trailing whitespace
-  return $str;
-}
-sub _choose {
-  my @choices = @_;
-  # require Data::Dumper;
-  # print Data::Dumper->new([\@choices],['choices'])->Dump;
-  foreach my $str (@choices) {
-    next if ! defined $str;
-    $str = _trim_whitespace("$str"); # stringize LibXML stuff
-    next if $str eq '';
-    return $str;
+my $map_xmlns
+  = {
+     'http://www.w3.org/2005/Atom'                  => 'atom',
+     'http://purl.org/dc/elements/1.1/'             => 'dc',
+     'http://purl.org/dc/terms/'                    => 'dcterms',
+     'http://www.w3.org/1999/02/22-rdf-syntax-ns#'  => 'rdf',
+     'http://purl.org/rss/1.0/modules/syndication/' => 'syn',
+     'http://purl.org/rss/1.0/modules/wiki/'        => 'wiki',
+     'http://www.usemod.com/cgi-bin/mb.pl?ModWiki'  => 'wiki',
+    };
+
+sub twig_parse {
+  my ($self, $xml) = @_;
+  require XML::Twig;
+  my $twig = XML::Twig->new (map_xmlns => $map_xmlns);
+  if (! eval { $twig->parse($xml); 1 }) {
+    # XML::Parser seems to stick some spurious leading whitespace
+    my $err = trim_whitespace($@);
+    if ($self->{'verbose'} >= 1) {
+      print __x("rss2leafnode: parse error on URL {url}\n{error}",
+                url => $self->{'uri'},
+                error => $err);
+    }
+    return (undef, $err);
   }
-  return;
+
+  # Mangle any explicit "atom:" namespace down to bare part.  Should be
+  # unambiguous and is a lot easier than giving tag names both with and
+  # without the namespace.
+  foreach my $elt ($twig->root->descendants_or_self) {
+    if ($elt->tag =~ /^atom:(.*)/) {
+      $elt->set_tag($1);
+    }
+    foreach my $attname ($elt->att_names) {
+      if ($attname =~ /^atom:(.*)/) {
+        $elt->change_att_name($attname, $1);
+      }
+    }
+  }
+
+  return ($twig, undef);
+}
+
+sub item_to_channel {
+  my ($item) = @_;
+  # parent for RSS or Atom, but sibling "channel" for RDF
+  my $channel = $item->parent;
+  return ($channel->first_child('channel')
+          // $channel);
 }
 
 # return a Message-ID string for this $item coming from $self->{'uri'}
@@ -981,144 +1109,266 @@ sub _choose {
 sub item_to_msgid {
   my ($self, $item) = @_;
 
-  if (defined (my $permalink = $item->{'permaLink'})) {
-    # <guid isPermaLink="true">
-    return $self->url_to_msgid ($permalink);
+  if (is_non_empty (my $id = $item->first_child_text('id'))) {
+    # Atom <id> is supposed to be a url
+    return $self->url_to_msgid ($id, $item->first_child_text('updated'));
+  }
+
+  my $guid = $item->first_child('guid');
+  my $isPermaLink = 0;
+  if (defined $guid) {
+    $isPermaLink = (lc($guid->att('isPermaLink') // 'true') eq 'true');
+    $guid = collapse_whitespace ($guid->text);
+  }
+
+  if ($isPermaLink) {   # <guid isPermaLink="true">
+    return $self->url_to_msgid ($guid);
   }
   if (my $link = item_yahoo_permalink ($item)) {
     return $self->url_to_msgid ($link);
   }
-  if (defined (my $guid = $item->{'guid'})) {
-    # <guid isPermaLink="false">
+  if (defined $guid) {  # <guid isPermaLink="false">
     return $self->url_to_msgid ($self->{'uri'}, $guid);
   }
 
   # nothing in the item, use the feed url and MD5 of some fields which
   # will hopefully distinguish it from other items at this url
   if ($self->{'verbose'} >= 2) { print "msgid from MD5\n"; }
-  return $self->url_to_msgid ($self->{'uri'},
-                              md5_of_utf8 (($item->{'title'} // '')
-                                           . ($item->{'author'} // '')
-                                           . ($item->{(dc)}{'creator'} // '')
-                                           . ($item->{'description'} // '')
-                                           . ($item->{'link'} // '')
-                                           . ($item->{'pubDate'} // '')));
+  return $self->url_to_msgid
+    ($self->{'uri'},
+     md5_of_utf8 (join_non_empty ('',
+                                  map {$item->first_child_text($_)}
+                                  qw(title
+                                     author dc:creator
+                                     description content
+                                     link
+                                     pubDate published updated
+                                   ))));
 }
 
 # return the host part of $self->{'uri'}, or "localhost" if none
 sub uri_to_host {
   my ($self) = @_;
   my $uri = $self->{'uri'};
-  return _choose ($uri->can('host') && $uri->host,
-                  'localhost');
+  return (non_empty ($uri->can('host') && $uri->host)
+          // 'localhost');
 }
 
-sub atom_person_to_email {
-  my ($person) = @_;
-  (Scalar::Util::blessed($person) && $person->isa('XML::Atom::Person'))
-    or return $person;
-  my $name  = _choose ($person->name);
-  my $email = _choose ($person->email);
-  if (! defined $name) { return $email; }
-  if (defined $email) { $name .= " <$email>"; }
-  return $name;
-}
+# $elt is an XML::Twig::Elt
+# return an email address, either just the text part of $elt or Atom style
+# <name> and <email> sub-elements
+#
+sub elt_to_email {
+  my ($elt) = @_;
+  return unless defined $elt;
+  my $email = $elt->first_child_text('email');
+  my $rdfdesc = $elt->first_child('rdf:Description');
 
-# return email addr string
-sub item_to_from {
-  my ($self, $feed, $item) = @_;
-  my $channel = $feed->{'channel'};
+  my $ret = join
+    (' ',
+     non_empty ($elt->text_only),
+     non_empty ($elt->first_child_text('name')),
+     non_empty ($rdfdesc && $rdfdesc->first_child_text('rdf:value')));
 
-  my $from = _choose
-    (# from the item
-     (Scalar::Util::blessed($item)
-      && $item->can('author')  # XML::Atom::Entry
-      && atom_person_to_email($item->author)),
-     $item->{'author'},
-     $item->{(dc)}{'creator'},
-
-     # from the feed
-     (Scalar::Util::blessed($feed)
-      && $feed->can('author')  # XML::Atom::Feed
-      && atom_person_to_email($feed->author)),
-     $channel->{'managingEditor'},
-     $channel->{'webMaster'},
-     $channel->{(dc)}{'publisher'},
-     # scraping the bottom of the barrel ...
-     $channel->{'title'},
-
-     'nobody@'.$self->uri_to_host);
+  if (is_non_empty($email)) {
+    if (is_non_empty ($ret)) {
+      $ret = "$ret <$email>";
+    } else {
+      $ret = $email;
+    }
+  }
+  return unless is_non_empty($ret);
 
   # eg.     "Rael Dornfest (mailto:rael@oreilly.com)"
   # becomes "Rael Dornfest <rael@oreilly.com>"
-  $from =~ s/\(mailto:(.*)\)/<$1>/;
+  $ret =~ s/\(mailto:(.*)\)/<$1>/;
 
   # Collapse whitespace against possible tabs and newlines in a <author> as
   # from googlegroups for instance.  MIME::Entity seems to collapse
   # newlines, but not tabs.
-  $from =~ s/\s+/ /g;
+  return collapse_whitespace($ret);
+}
 
-  return $from;
+# return email addr string
+sub item_to_from {
+  my ($self, $item) = @_;
+  my $channel = item_to_channel($item);
+
+  # "author" is supposed to be an email address whereas "dc:creator" is
+  # looser.  The RSS recommendation is to use author when revealing an email
+  # and dc:creator when hiding it.
+  #
+  # <dc:contributor> in wiki: feeds
+  #
+  return (elt_to_email ($item->first_child('author'))
+          // elt_to_email ($item   ->first_child('dc:creator'))
+          // elt_to_email ($item   ->first_child('dc:contributor'))
+          // non_empty ($item->first_child_text('wiki:username'))
+
+          // elt_to_email ($channel->first_child('dc:creator'))
+          // elt_to_email ($channel->first_child('author'))
+          // elt_to_email ($channel->first_child('managingEditor'))
+          // elt_to_email ($channel->first_child('webMaster'))
+
+          // elt_to_email ($item   ->first_child('dc:publisher'))
+          // elt_to_email ($channel->first_child('dc:publisher'))
+
+          // non_empty ($channel->first_child_text('title'))
+
+          # RFC822
+          // 'nobody@'.$self->uri_to_host
+         );
+}
+
+sub collapse_whitespace {
+  my ($str) = @_;
+  $str =~ s/(\s+)/($1 eq '  ' ? $1 : ' ')/ge;
+  return trim_whitespace($str);
+}
+
+sub elt_to_rendered_text {
+  my ($elt) = @_;
+  defined $elt or return;
+
+  my $type = $elt->att('type') // '';
+  if ($type eq 'text') {
+    return $elt->text;
+  }
+  my $html;
+  if ($type eq 'xhtml') {
+    $html = $elt->xml_string;
+  } else {
+    # default to html if no type specified
+    $html = $elt->text;
+  }
+  require HTML::FormatText;
+  my $str = HTML::FormatText->format_string ($html,
+                                             leftmargin => 0,
+                                             rightmargin => 999);
+  return non_empty(collapse_whitespace($str));
 }
 
 sub item_to_subject {
   my ($self, $item) = @_;
 
-  return _choose ((Scalar::Util::blessed($item)
-                   && $item->can('title')  # XML::Atom::Entry
-                   && $item->title),
-                  $item->{'title'},
-                  __('no subject'));
+  # Debian http://www.debian.org/News/weekly/dwn.en.rdf circa Feb 2010 had
+  # some html in its <title>
+  # Atom <title> can have type="html" in the usual way
+  return
+    (elt_to_rendered_text    ($item->first_child('title'))
+     // elt_to_rendered_text ($item->first_child('dc:subject'))
+     // __('no subject'));
 }
 
-sub item_to_date {
-  my ($self, $feed, $item) = @_;
-  my $channel = $feed->{'channel'};
+# atom <link rel="foo"> attribute values to exclude
+my %link_rel_exclude
+  = ('self'         => 1, # the feed itself (in the channel normally)
+     'service.edit' => 1, # to edit the item
+     'service.post' => 1, # to add comments
+    );
 
-  my $date = _choose
-    (# item dates
-     (Scalar::Util::blessed($item)
-      && $item->can('modified')   # XML::Atom::Entry
-      && $item->modified),
-     (Scalar::Util::blessed($item)
-      && $item->can('issued')  # XML::Atom::Entry
-      && $item->issued),
-     (Scalar::Util::blessed($item)
-      && $item->can('created')  # XML::Atom::Entry
-      && $item->created),
-     $item->{'pubDate'},
-     $item->{(dc)}{'date'},
+# return list of strings
+#
+# <wfw:commentRss>, Atom service.post, and other comment-postings might be
+# worthwhile, but would want $rss_fetch_links not to download those
+#
+sub item_to_links {
+  my ($self, $item) = @_;
+  my @links = ($item->children('link'),
+               $item->children('wiki:diff'));
 
-     # feed dates
-     $channel->{'pubDate'},
-     $channel->{'lastBuildDate'},
+  # Atom link types to exclude
+  #
+  # "alternate" is supposed to be the content as the entry, but in a web
+  # page or something.  Not sure that's always quite true, so show it as a
+  # link.  If no <content> then an "alternate" is supposed to be mandatory.
+  #
+  @links = grep { ! $link_rel_exclude{$_->att('rel') // ''} } @links;
 
-     $self->{'now822'});
+  # Atom <link href="http:.."/> or RSS <link>http:..</link>
+  @links = map {
+    my $link = $_;
+    non_empty ($self->elt_url_to_absolute ($item, $link->att('href'))
+               // $link->text)
+  } @links;
 
-  return isodate_to_rfc822($date);
+  # not sure if multiple Atom <link> could have duplicates, check against that
+  if (@links) {
+    require List::MoreUtils;
+    @links = List::MoreUtils::uniq (@links);
+  }
+
+  return @links;
+}
+
+# $elt is an XML::Twig::Elt, $url is a string or undef
+# return $url made absolute according to xml:base in $elt and its parents
+#
+sub elt_url_to_absolute {
+  my ($self, $elt, $url) = @_;
+  return if ! defined $url;
+
+  my $base = $self->{'uri'};
+  foreach my $e (reverse $elt->ancestors_or_self) {
+    my $next_base = $e->att('base') // next;
+    $base = eval { URI->new_abs($next_base,$base) } // $base; # in case invalid
+  }
+  $url = (eval { URI->new_abs($url,$base) }
+          // return $url); # if invalid
+  return $url->as_string
 }
 
 # return language code string or undef
 sub item_to_language {
-  my ($self, $feed, $item) = @_;
-  return _choose ((Scalar::Util::blessed($feed)
-                   && $feed->can('language')  # XML::Atom::Feed
-                   && $feed->language),
-                  $feed->{'channel'}->{'language'},
-                  scalar $self->{'resp'}->content_language);
+  my ($self, $item) = @_;
+  my $content;
+  my $ret = (elt_to_language($item)
+             // elt_to_language($item->first_child('content')));
+  for (;;) {
+    $item = $item->parent // last;
+    $ret //= elt_to_language($item);
+  }
+  $ret //= $self->{'resp'}->content_language;
+  return $ret;
+}
+sub elt_to_language {
+  my ($elt) = @_;
+  return if ! defined $elt;
+  return (non_empty ($elt->first_child_text('language'))
+          // non_empty ($elt->att('lang')));
 }
 
 # return copyright string or undef
 sub item_to_copyright {
-  my ($self, $feed, $item) = @_;
-  return _choose ((Scalar::Util::blessed($feed)
-                   && $feed->can('copyright')  # XML::Atom::Feed
-                   && $feed->copyright),
-                  (Scalar::Util::blessed($feed)
-                   && $feed->can('rights')     # XML::Atom::Feed
-                   && $feed->rights),
-                  $item->{(dc)}{'rights'},
-                  $feed->{'channel'}->{'copyright'});
+  my ($self, $item) = @_;
+  my $channel = item_to_channel($item);
+
+  # <dcterms:license> supposedly supercedes <dc:rights>, so check it first.
+  #
+  # Atom <rights> can be type="html" etc in its usual way, but think RSS is
+  # always plain text
+  #
+  return (non_empty ($item->first_child_text('dcterms:license'))
+          // non_empty ($item->first_child_text('dc:rights'))
+          // elt_to_rendered_text ($item->first_child('rights'))   # Atom
+          # Atom sub-elem <source><rights>...</rights> when from another feed
+          // elt_to_rendered_text (($item->get_xpath('source/rights'))[0])
+
+          // non_empty ($channel->first_child_text('dcterms:license'))
+          // non_empty ($channel->first_child_text('dc:rights'))
+          // non_empty ($channel->first_child_text('copyright')) # RSS
+          // elt_to_rendered_text ($channel->first_child('rights')));  # Atom
+}
+# return copyright string or undef
+sub item_to_generator {
+  my ($self, $item) = @_;
+  my $channel = item_to_channel($item);
+
+  # both RSS and Atom use <generator>
+  # Atom can include version="" and uri=""
+  my $elt = $channel->first_child('generator') // return;
+  return join_non_empty (' ',
+                         $elt->text, $elt->att('version'), $elt->att('uri'));
 }
 
 # $self->{'rss_charset_override'}, if set, means the bytes are actually in
@@ -1142,7 +1392,7 @@ sub enforce_rss_charset_override {
         print "insert encoding=$charset\n";
       }
     } else {
-      my $str = "<?xml encoding=\"$charset\"?>\n";
+      my $str = "<?xml version=\"1.0\" encoding=\"$charset\"?>\n";
       if ($self->{'verbose'} >= 2) {
         print "insert $str";
       }
@@ -1153,15 +1403,15 @@ sub enforce_rss_charset_override {
   return $xml;
 }
 
-# $feed is an XML::RSS hashref, the parsed RSS feed from $url
-# $item is a hashref, one of the $feed->{'items'}
+my %mime_html_types = ('text/html'  => 1,
+                       'text/xhtml' => 1,
+                       'application/xhtml+xml' => 1);
+
+
+# $item is an XML::Twig::Elt
 #
 sub fetch_rss_process_one_item {
-  my ($self, $feed, $item) = @_;
-
-  # $req->uri can be a URI object or a string, use URI->new to make an object
-  my $uri = URI->new ($self->{'resp'}->request->uri);
-  local $self->{'uri'} = $uri;
+  my ($self, $item) = @_;
 
   my $msgid = $self->item_to_msgid ($item);
   return 0 if $self->nntp_message_id_exists ($msgid);
@@ -1170,19 +1420,17 @@ sub fetch_rss_process_one_item {
   if ($self->{'verbose'} >= 1) { print __x(" item: {subject}\n",
                                            subject => $subject); }
 
-  my $channel = $feed->{'channel'};
+  my $channel = item_to_channel($item);
   local $self->{'now822'} = rfc822_time_now();
 
-  item_dc_date_to_pubdate ($item);
-  my $date = $self->item_to_date ($feed, $item);
-
-  my $link = $item->{'link'};
-
-  my $from = $self->item_to_from ($feed, $item);
-  my $list_email = googlegroups_link_email($link);
-  my $copyright = $self->item_to_copyright ($feed, $item);
-  my $generator = $channel->{'generator'};
-  my $pics = $channel->{'rating'};
+  my $date       = $self->item_to_date ($item);
+  my $from       = $self->item_to_from ($item);
+  my $copyright  = $self->item_to_copyright ($item);
+  my $language   = $self->item_to_language ($item);
+  my $pics       = $channel->first_child_text('rating');
+  my @links      = $self->item_to_links ($item);
+  my $list_email = List::Util::first {googlegroups_link_email($_)} @links;
+  my $generator  = $self->item_to_generator ($item);
 
   # Headers in utf-8, the same as other text.  The docs of
   # encode_mimewords() isn't clear, but seems to expect bytes of the
@@ -1195,107 +1443,146 @@ sub fetch_rss_process_one_item {
     }
   }
 
-  # dunno if many newsreaders look at Content-Language, but put it through
-  # if we've got it
-  my $language = $self->item_to_language ($feed, $item);
+  # FIXME: atom <content> can be just a link
 
-  my $body = <<'HERE';
+  # <media:text> is another possibility, but have seen it from Yahoo as just
+  # a copy of <description>, though with type="html" to make the format clear
+  my $body_charset = 'utf-8';
+  my $body = ($item->first_child('description')
+              // $item->first_child('dc:description')
+              // $item->first_child('content')    # Atom
+              // $item->first_child('summary'));  # Atom
+  my $body_type;
+  if ($body) {
+    $body_type = $body->att('type') // '';
+    if ($body_type eq 'xhtml') {
+      # xml_string() include nested elements for Atom type="xhtml"
+      $body = $body->xml_string;
+    } else {
+      $body = $body->text;
+    }
+  }
+  if (is_empty($body_type)) {
+    # not sure if RSS description content is actually defined to be html,
+    # but in practice it's used that way, as a fragment without <body> etc.
+    $body_type = 'text/html';
+  }
+  if ($body_type !~ m{/}) {
+    # Atom type="html" becomes text/html
+    $body_type = "text/$body_type";
+  }
+  if ($mime_html_types{$body_type}) {
+    $body_type = 'text/html';
+  }
+
+  my $body_is_html = ($body_type eq 'text/html');
+  $body //= '';
+  if ($body_is_html) {
+    $body = <<"HERE";;
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
-<meta http-equiv=Content-Type content="text/html; charset=utf-8">
+<meta http-equiv=Content-Type content="text/html; charset=$body_charset">
 </head
 <body>
+$body
 HERE
-  # ought to have a description, but sometimes missing
-  if (defined $item->{'description'}) {
-    $body .= $item->{'description'};
-  }
-  # <pre> and <nobr> on the link with the idea of not letting the displayed
-  # form get chopped up
-  if ($link && !$self->{'render'}) { # link appended if not rendering to text
-    $body .= "\n\n<p><a href=\"$link\"><nobr><pre>$link</pre></nobr><br><br></a></p>";
-  }
-  $body .= "\n</body></html>\n";
+    # <pre> and <nobr> on the link with the idea of not letting the displayed
+    # form get chopped up
+    if (! $self->{'render'}) { # link append if not rendering to text
+      $body .= "\n\n<p>\n";
+      my $sep = "";
+      foreach my $link (@links) {
+        $body .= "$sep<a href=\"$link\"><nobr><pre>$link</pre></nobr></a>\n";
+        $sep = "<br>\n";
+      }
+      $body .= "</p>";
+    }
+    $body .= "\n</body></html>\n";
 
-  my $body_charset = 'utf-8';
-  $body = Encode::encode_utf8 ($body);
-  my $body_type = 'text/html';
+    $body = Encode::encode ($body_charset, $body);
+  }
 
   ($body, $body_type, $body_charset)
     = $self->render_maybe ($body, $body_type, $body_charset);
 
-  # Link appended as text if rendered to text, rather than rely on
+  # Links appended as text if rendered to text, rather than rely on
   # <a href="">...</a> to come out looking good.  In particular it doesn't
   # come out looking good with lynx.
-  if ($link && $self->{'render'}) {
-    $body =~ s/[ \t\r\n]+$//;
-    $body .= Encode::encode_utf8 ("\n\n$link\n");
+  if ((!$body_is_html || $self->{'render'}) && @links) {
+    $body =~ s/\s+$//; # trailing whitespace
+    $body .= "\n\n";
+    foreach my $link (@links) {
+      $body .= Encode::encode ($body_charset, "$link\n");
+    }
   }
 
   # Crib: an undef value for a header means omit that header, which is good
   # for say the merely optional $language
   #
   require MIME::Entity;
-  my $top = MIME::Entity->build('Path:'        => $self->uri_to_host,
-                                'Newsgroups:'  => $self->{'nntp_group'},
-                                From           => $from,
-                                Subject        => $subject,
-                                Date           => $date,
-                                'Message-ID'   => $msgid,
-                                'Content-Language:' => $language,
-                                'Date-Received:'    => $self->{'now822'},
-                                'List-Post:'        => $list_email,
-                                'PICS-Label:'       => $pics,
-                                'X-Copyright:'      => $copyright,
-                                'X-RSS-URL:'        => $uri->as_string,
-                                'X-RSS-Feed-Link:'  => $channel->{'link'},
-                                'X-RSS-Generator:'  => $generator,
+  my $top = MIME::Entity->build
+    ('Path:'        => $self->uri_to_host,
+     'Newsgroups:'  => $self->{'nntp_group'},
+     From           => $from,
+     Subject        => $subject,
+     Date           => $date,
+     'Message-ID'   => $msgid,
+     'Content-Language:' => $language,
+     'Date-Received:'    => $self->{'now822'},
+     'List-Post:'        => $list_email,
+     'PICS-Label:'       => $pics,
+     'X-Copyright:'      => $copyright,
+     'X-RSS-URL:'        => $self->{'uri'}->as_string,
+     'X-RSS-Feed-Link:'  => $channel->{'link'},
+     'X-RSS-Generator:'  => $generator,
 
-                                Type           => $body_type,
-                                Encoding       => '-SUGGEST',
-                                Charset        => $body_charset,
-                                Data           => $body);
+     Type           => $body_type,
+     Encoding       => '-SUGGEST',
+     Charset        => $body_charset,
+     Data           => $body);
   $self->mime_mailer_rss2leafnode ($top);
 
-  if ($link && $self->{'rss_get_links'}) {
-    if ($self->{'verbose'}) { print __x("  link: {link}\n",
-                                        link => $link); }
-    require HTTP::Request;
-    my $req = HTTP::Request->new (GET => $link);
-    my $resp = $self->ua->request($req);
-    $resp = $self->aireview_follow ($link, $resp);
+  if ($self->{'rss_get_links'}) {
+    foreach my $link (@links) {
+      if ($self->{'verbose'}) { print __x("  link: {link}\n",
+                                          link => $link); }
+      require HTTP::Request;
+      my $req = HTTP::Request->new (GET => $link);
+      my $resp = $self->ua->request($req);
+      $resp = $self->aireview_follow ($link, $resp);
 
-    my ($down, $down_type, $down_charset);
-    if ($resp->is_success) {
-      $self->enforce_html_charset_from_content ($resp);
-      $down = $resp->decoded_content (charset=>'none');
-      $down_type = $resp->content_type;
-      $down_charset = $resp->content_charset ($resp);
-      ($down, $down_type, $down_charset)
-        = $self->render_maybe ($down, $down_type, $down_charset);
-    } else {
-      print __x("rss2leafnode: {url}\n {status}\n",
-                url => $link,
-                status => $resp->status_line);
-      $down = "\n" . __x("Cannot download link:\n{status}",
-                         status => $resp->status_line);
-      $down_type = 'text/plain';
-      $down_charset = 'us-ascii';
-    }
+      my ($down, $down_type, $down_charset);
+      if ($resp->is_success) {
+        $self->enforce_html_charset_from_content ($resp);
+        $down = $resp->decoded_content (charset=>'none');
+        $down_type = $resp->content_type;
+        $down_charset = $resp->content_charset ($resp);
+        ($down, $down_type, $down_charset)
+          = $self->render_maybe ($down, $down_type, $down_charset);
+      } else {
+        print __x("rss2leafnode: {url}\n {status}\n",
+                  url => $link,
+                  status => $resp->status_line);
+        $down = "\n" . __x("Cannot download link:\n{status}",
+                           status => $resp->status_line);
+        $down_type = 'text/plain';
+        $down_charset = 'us-ascii';
+      }
 
-    if ($body_type eq 'text/plain'
-        && $down_type eq 'text/plain'
-        && ($down_charset eq $body_charset || $down_charset eq 'us-ascii')) {
-      mime_body_append ($top->bodyhandle, $down);
-    } else {
-      $top->attach (Type     => $down_type,
-                    Encoding => '-SUGGEST',
-                    Charset  => $down_charset,
-                    Data     => $down,
-                    # only really applicable to text/html content type, but
-                    # shouldn't hurt to include it always
-                    'Content-Location:' => $link);
+      if ($body_type eq 'text/plain'
+          && $down_type eq 'text/plain'
+          && ($down_charset eq $body_charset || $down_charset eq 'us-ascii')) {
+        mime_body_append ($top->bodyhandle, $down);
+      } else {
+        $top->attach (Type     => $down_type,
+                      Encoding => '-SUGGEST',
+                      Charset  => $down_charset,
+                      Data     => $down,
+                      # only really applicable to text/html content type, but
+                      # shouldn't hurt to include it always
+                      'Content-Location:' => $link);
+      }
     }
   }
 
@@ -1325,6 +1612,10 @@ sub fetch_rss {
   require HTTP::Request;
   my $req = HTTP::Request->new (GET => $url);
   $self->status_etagmod_req ($req) || return;
+
+  # $req->uri can be a URI object or a string
+  local $self->{'uri'} = URI->new ($req->uri);
+
   my $resp = $self->ua->request($req);
   if ($resp->code == 304) {
     $self->status_unchanged ($url);
@@ -1341,19 +1632,11 @@ sub fetch_rss {
   my $xml = $resp->decoded_content (charset => 'none');  # raw bytes
   $xml = $self->enforce_rss_charset_override ($xml);
 
-  my $xml_rss_class = $self->XML_RSS_class;
-  my $feed = $xml_rss_class->new;
-  if (! eval { $feed->parse($xml); 1 }) {
-    my $err = $@;
-    $err = _trim_whitespace($err);  # spurious leading newlines from XML::RSS
-    if ($self->{'verbose'} >= 1) {
-      print __x("rss2leafnode: {url}\n", url => $url);
-      print __x(" parse error: {error}\n", error => $err);
-    }
+  my ($twig, $err) = $self->twig_parse($xml);
+  if (defined $err) {
     $self->error_message
       (__x("Error parsing {url}", url => $url),
-       __x("{class} parse error on:\n\n    {url}\n\n{error}",
-           class => $xml_rss_class,
+       __x("XML::Twig parse error on:\n\n    {url}\n\n{error}",
            url => $url,
            error => $err));
     # after successful error message to news
@@ -1362,20 +1645,22 @@ sub fetch_rss {
   }
   if ($self->{'verbose'} >= 2) {
     require Data::Dumper;
-    print Data::Dumper->new([$feed],["$xml_rss_class feed"])
+    print Data::Dumper->new([$twig->root],['root'])
       ->Indent(1)->Sortkeys(1)->Dump;
   }
-  my $items = $feed->{'items'};
+
+  # "item" for RSS/RDF, "entry" for Atom
+  my @items = $twig->descendants(qr/^(item|entry)$/);
 
   if ($self->{'rss_newest_only'}) {
-    my ($a,$b);
-    my $newest = List::Util::reduce { item_pubdate_max ($a, $b) } @$items[0];
-    $items = [ $newest ];
+    our ($a,$b);
+    my $newest = List::Util::reduce { $self->item_date_max($a,$b) } @items;
+    @items = ($newest);
   }
 
   my $new = 0;
-  foreach my $item (@$items) {
-    $new += $self->fetch_rss_process_one_item ($feed, $item);
+  foreach my $item (@items) {
+    $new += $self->fetch_rss_process_one_item ($item);
   }
 
   if ($self->{'verbose'} >= 2) {
@@ -1389,7 +1674,7 @@ sub fetch_rss {
   }
   $self->ua->cookie_jar (undef);
 
-  $self->status_etagmod_resp ($url, $resp, $feed);
+  $self->status_etagmod_resp ($url, $resp, $twig);
   print __xn("{group}: {count} new article\n",
              "{group}: {count} new articles\n",
              $new,
@@ -1444,8 +1729,7 @@ the C<fetch_rss> and C<fetch_html> operations for F<~/.rss2leafnode.conf>.
 =head1 SEE ALSO
 
 L<rss2leafnode>,
-L<XML::RSS::LibXML>,
-L<XML::RSS>,
+L<XML::Twig>
 
 =head1 HOME PAGE
 

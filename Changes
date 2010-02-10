@@ -16,6 +16,9 @@ You should have received a copy of the GNU General Public License along
 with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
+Version 19, February 2010
+    - new Atom support, better RDF, switch to XML::Twig
+
 Version 18, February 2010
     - modularize a bit, prefer XML::RSS::LibXML for guid default
 

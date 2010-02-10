@@ -33,6 +33,7 @@ devel/samples.pl
 devel/single-entry.yaml
 devel/unused.pl
 devel/xml-encoding.pl
+devel/xml.pl
 devel/yahoolinks.yaml
 examples/rss2leafnode.conf
 inc/my_pod2html

@@ -35,19 +35,7 @@ MyMakeMakerExtras::WriteMakefile
    MIN_PERL_VERSION => '5.010',
 
    PREREQ_PM    => {
-                    'File::HomeDir' => 0,
-                    'Scope::Guard' => 0,
-                    'Locale::TextDomain' => 0,
-
-                    # XML::RSS::LibXML or XML::RSS can be used.  Prefer
-                    # LibXML as it correctly takes the <guid> default to be
-                    # isPermaLink="true", where XML::RSS 1.47 takes it to be
-                    # false.
-                    'XML::RSS::LibXML' => 0,
-                    #
-                    # For XML::RSS would want 1.38 for skipDays parsing, and
-                    # maybe 1.40 for fixes relating to that.
-                    # 'XML::RSS' => '1.40',
+                    'XML::Twig' => 0,
 
                     # LWP 5.832 for content_charset()
                     'LWP' => '5.832',
@@ -56,8 +44,12 @@ MyMakeMakerExtras::WriteMakefile
                     'HTTP::Message' => 0,
                     'HTTP::Request' => 0,
                     'HTTP::Response' => 0,
+
+                    # maybe URI 1.13 circa 2001 for dotted ipv6 support, if
+                    # using that
                     'URI' => 0,
                     'URI::Escape' => 0,
+                    'URI::tag' => 0, # for hostname of atom <id>s
 
                     # MIME-Tools
                     'MIME::Entity' => 0,
@@ -66,6 +58,12 @@ MyMakeMakerExtras::WriteMakefile
 
                     # this is required by MIME-Tools anyway
                     'Date::Parse' => 0,
+
+                    'HTML::FormatText' => 0,
+                    'List::MoreUtils' => 0,
+                    'Scope::Guard' => 0,
+                    'File::HomeDir' => 0,
+                    'Locale::TextDomain' => 0,
                    },
 
    META_MERGE
@@ -90,10 +88,6 @@ MyMakeMakerExtras::WriteMakefile
                               },
                 },
 
-             render_text
-             => { description => 'Optionally render HTML to text.',
-                  requires => { 'HTML::FormatText' => 0 },
-                },
              render_text_with_links
              => { description => 'Optionally render HTML to text using FormatText::WithLinks.',
                   requires => { 'HTML::FormatText::WithLinks' => 0 },
@@ -112,22 +106,23 @@ MyMakeMakerExtras::WriteMakefile
              => { description => 'Have "make test" do as much as possible.',
                   requires => { 'Test::NoWarnings' => 0,
                                 'URI::Title' => 0,
-                                'XML::RSS' => 0,
-                                # 'XML::RSS::LibXML' => 0,
                               },
                 },
              maximum_devel
              => { description => 'Stuff used variously for development.',
                   requires => { 'XML::Atom' => 0,
+                                'XML::LibXML' => 0,
+                                'XML::Atom::Feed' => 0,
+                                'XML::RSS' => 0,
+                                'XML::RSS::LibXML' => 0,
                                 'Perl6::Slurp' => 0,
                                 'URI::file' => 0, # part of URI
                                 'URI::Title' => 0,
-                                'XML::Atom::Feed' => 0,
-                                'XML::LibXML' => 0,
-                                'XML::RSS' => 0,
                                 'HTML::TreeBuilder' => 0,
                                 'HTML::FormatText' => 0,
                                 'HTML::Entities' => 0,
+                                'DateTime' => 0,
+                                'DateTime::Format::Mail' => 0,
                               },
                 },
            },

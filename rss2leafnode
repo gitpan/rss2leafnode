@@ -24,7 +24,7 @@ use strict;
 use warnings;
 use App::RSS2Leafnode;
 
-our $VERSION = 18;
+our $VERSION = 19;
 
 my $r2l = App::RSS2Leafnode->new;
 exit $r2l->command_line;
@@ -33,7 +33,7 @@ __END__
 
 =head1 NAME
 
-RSS2Leafnode -- post RSS feeds to newsgroups
+RSS2Leafnode -- post RSS/Atom feeds and web page updates to newsgroups
 
 =head1 SYNOPSIS
 
@@ -41,9 +41,9 @@ RSS2Leafnode -- post RSS feeds to newsgroups
 
 =head1 DESCRIPTION
 
-RSS2Leafnode downloads RSS feeds and posts the items to an NNTP news server.
-It's designed to make them available in local newsgroups, not propagated
-anywhere (though that's not enforced).
+RSS2Leafnode downloads RSS or Atom feeds and posts the items to an NNTP news
+server.  It's designed to make them available in local newsgroups, not
+propagated anywhere (though that's not enforced).
 
 Desired feeds are specified in a configuration file F<.rss2leafnode.conf> in
 your home directory.  For example to post a feed to group "r2l.surfing" on
@@ -85,7 +85,7 @@ the HTML C<< <title> >>.
 =head2 Re-Downloading
 
 HTTP C<ETag> and C<Last-Modified> headers are used, if provided by the
-server, to avoid re-downloading unchanged content (RSS or web pages).
+server, to avoid re-downloading unchanged content (feeds or web pages).
 Values seen from the last run are saved in F<.rss2leafnode.status> in your
 home directory.
 
@@ -170,9 +170,8 @@ trouble if the link uses frames (a set of HTML pages instead of just one).
 If true then render HTML to text for the news messages.  Normally item text,
 any C<$rss_get_links> downloaded parts, and C<fetch_html> pages are all
 presented as MIME C<text/html>.  But if your newsreader doesn't handle HTML
-very well then C<$render> is a good way to see just the text.
-
-Setting C<1> uses C<HTML::FormatText> (you must have that module).
+very well then C<$render> is a good way to see just the text.  Setting C<1>
+uses C<HTML::FormatText>
 
     $render = 1;
     fetch_rss ('r2l.weather',
@@ -208,21 +207,23 @@ needed by a particular feed.
 =item $rss_charset_override (default undef)
 
 If set then force RSS content to be interpreted in this charset,
-irrespective of what the document says.  This can be used when the document
-is wrong, or when it has no charset specified and isn't the default utf-8.
-Usually you'll only want this for a particular offending feed.  For example,
+irrespective of what the document says.  Use this if the document is wrong
+or if it has no charset specified and isn't the XML default utf-8.  Usually
+you'll only want this for a particular offending feed.  For example,
 
     # AIR is latin-1, but doesn't have a <?xml> saying that
     $rss_charset_override = 'iso-8859-1';
     fetch_rss ('r2l.finance', 'http://www.aireview.com.au/rss.php');
     $rss_charset_override = undef;
 
-The symptom of a bad character is usually an XML parser error like
+The symptom of a bad character is usually an C<XML::Parser> error like
 
     not well-formed (invalid token) at line 37, column 158, byte 2690 at /usr/lib/perl5/XML/Parser.pm line 187
 
-but you'll have to nose around the RSS bytes to see whether it's a bad
-charset or something else bad like unescaped entities.
+but you'll have to nose around the feed bytes to see whether it's a bad
+charset or something else bad like unescaped entities.  See
+L<XML::Parser/ENCODINGS> on available charsets (F<.enc> files under
+F</usr/lib/perl5/XML/Parser/Encodings/> plus some builtins).
 
 =item $html_charset_from_content (default 0)
 
@@ -250,9 +251,9 @@ can be used to confine a setting to a particular few feeds.  Eg.
 
 =head1 OTHER NOTES
 
-RSS text is encoded as utf-8 in the generated messages, so you'll need a
-newsreader which supports that if reading any non-ascii.  Unrendered HTML is
-left in the charset the server gave, to ensure it matches any C<meta
+RSS/Atom text is encoded as utf-8 in the generated messages, so you'll need
+a newsreader which supports that if reading any non-ascii.  Unrendered HTML
+is left in the charset the server gave, to ensure it matches any C<meta
 http-equiv> in the document.  HTML rendered to text is recoded to utf-8, the
 same as the RSS text.  In all cases of course the charset is specified in
 the MIME message headers and/or attachment parts.
@@ -293,7 +294,7 @@ C<rss2leafnode> run will recreate it.
 C<leafnode(8)>,
 L<HTML::FormatText>, L<HTML::FormatText::WithLinks>, L<HTML::FormatExternal>,
 C<lynx(1)>,
-L<URI::Title>
+L<URI::Title>, L<XML::Parser>
 
 =head1 HOME PAGE
 

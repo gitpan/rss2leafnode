@@ -30,18 +30,18 @@ Section: news
 Priority: optional
 Build-Depends: cdbs, debhelper (>= 5)
 Maintainer: Kevin Ryde <user42@zip.com.au>
-Standards-Version: 3.8.3
+Standards-Version: 3.8.4
 Homepage: http://user42.tuxfamily.org/rss2leafnode/index.html
 Bugs: mailto:user42@zip.com.au
 
 Package: rss2leafnode
 Architecture: all
-Depends: perl (>= 5.10), libmime-tools-perl, liburi-perl, libwww-perl (>= 5.832), libxml-rss-libxml-perl| libxml-rss-perl (>= 1.40), libfile-homedir-perl, libscope-guard-perl, libtimedate-perl, libintl-perl, ${misc:Depends}
-Recommends: leafnode (>= 2) | news-transport-system, libcompress-zlib-perl, libxml-rss-timing-perl, libtime-duration-perl, libtime-duration-locale-perl
-Suggests: libhtml-format-perl | libhtml-formattext-withlinks-perl, libhtml-formatexternal-perl, lynx | w3m | elinks, liburi-title-perl, libhtml-tree-perl
-Description: Post RSS articles to local newsgroups
- RSS2Leafnode reads specified RSS feeds and posts items to local
- newsgroups.  It's named after the leafnode program, but can post to
- any server.  The intention is that articles aren't propagated
- anywhere, it's just a convenient way to get them into a local spool
- for later reading.
+Depends: perl (>= 5.10), libfile-homedir-perl, libhtml-format-perl, libintl-perl, liblist-moreutils-perl, libmime-tools-perl, libscope-guard-perl, libtimedate-perl, liburi-perl, liburi-tag-perl, libwww-perl (>= 5.832), libxml-twig-perl, ${misc:Depends}
+Recommends: leafnode (>= 2) | news-transport-system, libxml-rss-timing-perl, libtime-duration-perl, libtime-duration-locale-perl
+Suggests: libhtml-formattext-withlinks-perl, libhtml-formatexternal-perl, lynx | w3m | elinks, liburi-title-perl
+Description: Post RSS or Atom articles to local newsgroups
+ RSS2Leafnode reads specified RSS or Atom feeds and posts items to
+ local newsgroups.  It's named for the leafnode program, but can post
+ to any server.  The idea is that articles aren't propagated anywhere,
+ just a convenient way to get them into a local spool for later
+ reading.

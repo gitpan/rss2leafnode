@@ -19,7 +19,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 84;
+use Test::More tests => 86;
 
 SKIP: { eval 'use Test::NoWarnings; 1'
           or skip 'Test::NoWarnings not available', 1; }
@@ -31,7 +31,7 @@ require App::RSS2Leafnode;
 # VERSION
 
 {
-  my $want_version = 18;
+  my $want_version = 19;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -52,6 +52,21 @@ require App::RSS2Leafnode;
 
 
 #------------------------------------------------------------------------------
+# new()
+
+{
+  my $r2l = App::RSS2Leafnode->new;
+  is ($r2l->{'verbose'}, 0,
+      "new() verbose default value");
+}
+{
+  my $r2l = App::RSS2Leafnode->new (verbose => 123);
+  is ($r2l->{'verbose'}, 123,
+      "new() verbose specified");
+}
+
+
+#------------------------------------------------------------------------------
 # isodate_to_rfc822()
 
 foreach my $data (['Sun, 29 Jan 2006 17:17:44 GMT',
@@ -59,7 +74,9 @@ foreach my $data (['Sun, 29 Jan 2006 17:17:44 GMT',
                   ['2000-01-01T12:00+00:00',
                    'Sat, 01 Jan 2000 12:00:00 +0000'],
                   ['2000-01-01T12:00Z',
-                   'Sat, 01 Jan 2000 12:00:00 +0000']) {
+                   'Sat, 01 Jan 2000 12:00:00 +0000'],
+                  ['2000-01-01',
+                   'Sat, 01 Jan 2000 00:00:00']) {
   my ($isodate, $want) = @$data;
 
   is (App::RSS2Leafnode::isodate_to_rfc822($isodate),
@@ -69,66 +86,187 @@ foreach my $data (['Sun, 29 Jan 2006 17:17:44 GMT',
 
 
 #------------------------------------------------------------------------------
-# item_dc_date_to_pubdate()
+# item_to_copyright()
 
-{ my $dc = 'http://purl.org/dc/elements/1.1/';
+{
+  my $r2l = App::RSS2Leafnode->new;
 
-  { my $item = { pubDate => 'Sun, 13 Apr 2008 13:58:33 +1000' };
-    App::RSS2Leafnode::item_dc_date_to_pubdate($item);
-    is ($item->{'pubDate'}, 'Sun, 13 Apr 2008 13:58:33 +1000');
-  }
-  { my $item = { $dc => { date => '2000-01-01T00:00+00:00' } };
-    App::RSS2Leafnode::item_dc_date_to_pubdate($item);
-    is ($item->{'pubDate'}, 'Sat, 01 Jan 2000 00:00:00 +0000');
-  }
-  { my $item = { $dc => { date => '2000-01-01T00:00-06:00' } };
-    App::RSS2Leafnode::item_dc_date_to_pubdate($item);
-    is ($item->{'pubDate'}, 'Sat, 01 Jan 2000 00:00:00 -0600');
-  }
-}
+  foreach my $data (
+                    [<<'HERE', 'some thing'],
+<?xml version="1.0"?>
+<feed xmlns:dcterms="http://purl.org/dc/terms/">
+  <entry><title>Item One</title>
+         <dcterms:license>some thing</dcterms:license>
+  </entry>
+</feed>
+HERE
 
-#------------------------------------------------------------------------------
-# mailto_parens_to_angles()
+                    [<<'HERE', 'some thing'],
+<?xml version="1.0"?>
+<feed xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <entry><title>Item One</title>
+         <dc:rights>some thing</dc:rights>
+  </entry>
+</feed>
+HERE
 
-# is (App::RSS2Leafnode::mailto_parens_to_angles('foo@bar.com'),
-#     'foo@bar.com');
-# is (App::RSS2Leafnode::mailto_parens_to_angles('Foo Bar'),
-#     'Foo Bar');
-# is (App::RSS2Leafnode::mailto_parens_to_angles('Foo Bar (mailto:foo@bar.com)'),
-#     'Foo Bar <foo@bar.com>');
+                    [<<'HERE', 'some thing'],
+<?xml version="1.0"?>
+<feed>
+  <entry><title>Item One</title>
+         <rights>some thing</rights>
+  </entry>
+</feed>
+HERE
 
-
-#------------------------------------------------------------------------------
-# atom_person_to_email()
-
-my $have_xml_atom_person = eval { require XML::Atom::Person; 1 };
-if (! $have_xml_atom_person) {
-  diag "XML::Atom::Person not available -- $@";
-}
-
-SKIP: {
-  $have_xml_atom_person
-    or skip 'XML::Atom::Person not available', 7;
-
-  foreach my $data (['Foo Bar', 'foo@bar.com', 'Foo Bar <foo@bar.com>'],
-                    ['00',      'foo@bar.com', '00 <foo@bar.com>'],
-                    ['',        'foo@bar.com', 'foo@bar.com'],
-                    [undef,     'foo@bar.com', 'foo@bar.com'],
-
-                    ['Foo Bar', undef, 'Foo Bar'],
-                    ['Foo Bar', '',    'Foo Bar'],
-                    ['00',      '0',   '00 <0>'],
+                    [<<'HERE', 'some thing'],
+<?xml version="1.0"?>
+<feed>
+  <entry>
+    <title>Item One</title>
+    <source>
+      <rights>some thing</rights>
+    </source>
+  </entry>
+</feed>
+HERE
                    ) {
-    my ($name, $email, $want) = @$data;
+    my ($xml, $want) = @$data;
 
-    my $person = XML::Atom::Person->new;
-    if (defined $name)  { $person->name  ($name); }
-    if (defined $email) { $person->email ($email); }
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+    if ($err) { diag $err; }
+    my $item = ($twig->root->first_descendant('item')
+                || $twig->root->first_descendant('entry'));
 
-    is (App::RSS2Leafnode::atom_person_to_email($person),
+    is ($r2l->item_to_copyright ($item),
         $want,
-        ("atom_person_to_email() name=" . (defined $name ? "'$name'" : 'undef')
-         . " email=" . (defined $email ? "'$email'" : 'undef')));
+        "item_to_copyright() xml=$xml");
+  }
+}
+
+
+#------------------------------------------------------------------------------
+# item_to_links()
+
+{
+  my $r2l = App::RSS2Leafnode->new;
+
+  foreach my $data (
+                    # nothing
+                    [<<'HERE', ["http://foo.com/itemone.html"]],
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<atom:feed xmlns:atom="http://www.w3.org/2005/Atom">
+  <atom:entry>
+    <atom:title>Item One</atom:title>
+    <atom:link href="http://foo.com/itemone.html"/>
+  </atom:entry>
+</atom:feed>
+HERE
+                   ) {
+    my ($xml, $want) = @$data;
+
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+    if ($err) { diag $err; }
+    my $item = ($twig->root->first_descendant('item')
+                || $twig->root->first_descendant('entry'));
+
+    is_deeply ([$r2l->item_to_links ($item)],
+               $want,
+               "item_to_links() xml=$xml");
+  }
+}
+
+
+#------------------------------------------------------------------------------
+# item_to_language()
+
+{
+  my $r2l = App::RSS2Leafnode->new;
+  require HTTP::Response;
+
+  foreach my $data (
+                    # nothing
+                    [<<'HERE', [], undef],
+<?xml version="1.0"?>
+<feed version="0.3" xmlns="http://purl.org/atom/ns#">
+  <entry><title>Item One</title></entry>
+</feed>
+HERE
+
+                    # item <language>
+                    [<<'HERE', [], 'de'],
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item><title>Item One</title>
+        <language>de</language></item>
+ </channel>
+</rss>
+HERE
+
+                    # channel <language>
+                    [<<'HERE', [], 'de'],
+<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <language>de</language>
+  <item><title>Item One</title></item>
+</rdf:RDF>
+HERE
+
+                    # <feed xml:lang="">
+                    [<<'HERE', [], 'de'],
+<?xml version="1.0"?>
+<feed version="0.3" xmlns="http://purl.org/atom/ns#" xml:lang="de">
+  <entry><title>Item One</title></entry>
+</feed>
+HERE
+
+                    # <item xml:lang="">
+                    [<<'HERE', [], 'de'],
+<?xml version="1.0"?>
+<feed version="0.3" xmlns="http://purl.org/atom/ns#">
+  <entry xml:lang="de"><title>Item One</title></entry>
+</feed>
+HERE
+
+                    # <content xml:lang="">
+                    [<<'HERE', [], 'de'],
+<?xml version="1.0"?>
+<feed version="0.3" xmlns="http://purl.org/atom/ns#">
+  <entry>
+   <title>Item One</title>
+   <content xml:lang="de">Hello</content>
+  </entry>
+</feed>
+HERE
+
+                    # headers
+                    [<<'HERE', ['Content-Language','ja'], 'ja'],
+<?xml version="1.0"?>
+<feed version="0.3" xmlns="http://purl.org/atom/ns#">
+  <entry><title>Item One</title></entry>
+</feed>
+HERE
+
+                    # doubled header
+                    [<<'HERE', ['Content-Language','ja','Content-Language','de'], 'ja'],
+<?xml version="1.0"?>
+<feed version="0.3" xmlns="http://purl.org/atom/ns#">
+  <entry><title>Item One</title></entry>
+</feed>
+HERE
+                   ) {
+    my ($xml, $headers, $want) = @$data;
+
+    my $resp = $r2l->{'resp'} = HTTP::Response->new (200, 'Ok', $headers);
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+    if ($err) { diag $err; }
+    my $item = ($twig->root->first_descendant('item')
+                || $twig->root->first_descendant('entry'));
+
+    is ($r2l->item_to_language ($item),
+        $want,
+        "item_to_language() xml=$xml headers=".$resp->headers->as_string);
   }
 }
 
@@ -139,72 +277,82 @@ SKIP: {
 {
   require URI;
   my $r2l = App::RSS2Leafnode->new;
+
+  foreach my $data ([ 'http://feedhost.com',            'feedhost.com'],
+                    [ 'file://host.name/some/file.txt', 'host.name' ],
+                    [ 'file:///some/file.txt',          'localhost' ],
+
+                    # URI.pm object without host() method
+                    [ 'data:,Foo',                      'localhost' ],
+                   ) {
+    my ($url, $want) = @$data;
+    $r2l->{'uri'} = URI->new($url);
+
+    is ($r2l->uri_to_host, $want,
+        "uri_to_host() $url");
+  }
+}
+
+
+#------------------------------------------------------------------------------
+# elt_to_email()
+
+{
+  my $r2l = App::RSS2Leafnode->new;
   $r2l->{'uri'} = URI->new('http://feedhost.com');
-  is ($r2l->uri_to_host, 'feedhost.com');
+  my $host = $r2l->{'uri'}->host;
 
-  $r2l->{'uri'} = URI->new('file://host.name/some/file.txt');
-  is ($r2l->uri_to_host, 'host.name');
+  foreach my $data
+    (# Atom
+     ['<author><name>Foo Bar</name><email>foo@bar.com</email></author>',
+      'Foo Bar <foo@bar.com>'],
+     ['<author><name>00</name><email>foo@bar.com</email></author>',
+      '00 <foo@bar.com>'],
+     ['<author><name></name><email>foo@bar.com</email></author>',
+      'foo@bar.com'],
+     ['<author><email>foo@bar.com</email></author>',
+      'foo@bar.com'],
+     ['<author><email>00</email></author>',
+      '00'],
 
-  $r2l->{'uri'} = URI->new('file:///some/file.txt');
-  is ($r2l->uri_to_host, 'localhost');
+     # Atom
+     ['<author><name>Foo Bar</name><email></email></author>',
+      'Foo Bar'],
+     ['<author><name>Foo Bar</name></author>',
+      'Foo Bar'],
 
-  $r2l->{'uri'} = URI->new('data:,Foo');
-  is ($r2l->uri_to_host, 'localhost');
+     # RSS
+     ['<author>foo@bar.com (Foo)</author>',
+      'foo@bar.com (Foo)'],
+     ["<author>\t\nfoo\@bar.com\n\t(Foo)   </author>",
+      'foo@bar.com (Foo)'],
+     ['',
+      undef],
+    ) {
+    my ($fragment, $want) = @$data;
+
+    my $xml = <<"HERE";
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item><title>Item One</title> $fragment </item>
+ </channel>
+</rss>
+HERE
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+    my $elt = $twig->root->first_descendant('author');
+
+    is (App::RSS2Leafnode::elt_to_email($elt),
+        $want,
+        "elt_to_email() $fragment");
+  }
 }
 
 
 #------------------------------------------------------------------------------
 # item_to_from()
 
-foreach my $xml_rss_class ('XML::RSS', 'XML::RSS::LibXML') {
- SKIP: {
-    eval "require $xml_rss_class; 1"
-      or skip "$xml_rss_class not available", 3;
-
-    my $r2l = App::RSS2Leafnode->new;
-    $r2l->{'uri'} = URI->new('http://feedhost.com');
-    my $host = $r2l->{'uri'}->host;
-
-    foreach my $data (['<author>foo@bar.com (Foo)</author>',
-                       'foo@bar.com (Foo)'],
-                      ["<author>\t\nfoo\@bar.com\n\t(Foo)   </author>",
-                       'foo@bar.com (Foo)'],
-                      ['',
-                       'nobody@'.$host]) {
-      my ($author, $want) = @$data;
-
-      # Crib: XML::RSS::LibXML 0.3004 won't show an item with just an
-      # <author>, there has to be a <title> too, or something like that
-      my $xml = <<"HERE";
-<?xml version="1.0"?>
-<rss version="2.0">
- <channel>
-  <item><title>Item One</title>
-        $author</item>
- </channel>
-</rss>
-HERE
-      my $feed = $xml_rss_class->new;
-      $feed->parse($xml);
-      my $items = $feed->{'items'};
-      my $item = $items->[0];
-
-      is ($r2l->item_to_from ($feed, $item),
-          $want,
-          "item_to_from() $xml_rss_class '$author'");
-    }
-  }
-}
-
-my $have_xml_atom_feed = eval { require XML::Atom::Feed };
-if (! $have_xml_atom_feed) {
-  diag "XML::Atom::Feed not available -- $@";
-}
-
-SKIP: {
-  $have_xml_atom_feed
-    or skip 'XML::Atom::Feed not available', 5;
-
+{
   my $r2l = App::RSS2Leafnode->new;
   require URI;
   $r2l->{'uri'} = URI->new('http://feedhost.com');
@@ -220,21 +368,20 @@ SKIP: {
                      'nobody@'.$host],
                     ['',
                      'nobody@'.$host]) {
-    my ($author, $want) = @$data;
+    my ($fragment, $want) = @$data;
 
     my $xml = <<"HERE";
 <?xml version="1.0"?>
 <feed version="0.3" xmlns="http://purl.org/atom/ns#">
-  <entry><title>Item One</title>
-         $author</entry>
+  <entry><title>Item One</title> $fragment </entry>
 </feed>
 HERE
-    my $feed = XML::Atom::Feed->new (\$xml);
-    my ($item) = $feed->entries;
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+    my $item = $twig->root->first_descendant('entry');
 
-    is ($r2l->item_to_from ($feed, $item),
+    is ($r2l->item_to_from ($item),
         $want,
-        "item_to_from() atom $author");
+        "item_to_from() $fragment");
   }
 }
 
@@ -242,49 +389,9 @@ HERE
 #------------------------------------------------------------------------------
 # item_to_subject()
 
-foreach my $xml_rss_class ('XML::RSS', 'XML::RSS::LibXML') {
- SKIP: {
-    eval "require $xml_rss_class; 1"
-      or skip "$xml_rss_class not available", 4;
-
-    foreach my $data (['<title>Item One</title>',
-                       'Item One'],
-                      ['<title></title>',
-                       'no subject'],
-                      ['<title>000</title>',
-                       '000'],
-                      ['',
-                       'no subject']) {
-      my ($title, $want) = @$data;
-
-      my $xml = <<"HERE";
-<?xml version="1.0"?>
-<rss version="2.0">
- <channel>
-  <item>$title</item>
- </channel>
-</rss>
-HERE
-      my $feed = $xml_rss_class->new;
-      $feed->parse($xml);
-
-      my $r2l = App::RSS2Leafnode->new;
-      my $items = $feed->{'items'};
-      my $item = $items->[0];
-
-      is ($r2l->item_to_subject ($item),
-          $want,
-          "item_to_subject() $xml_rss_class $title");
-    }
-  }
-}
-
-SKIP: {
-  $have_xml_atom_feed
-    or skip 'XML::Atom::Feed not available', 4;
-
+{
   my $r2l = App::RSS2Leafnode->new;
-  my $host = 'some.where.com';
+  require URI;
 
   foreach my $data (['<title>Item One</title>',
                      'Item One'],
@@ -294,64 +401,23 @@ SKIP: {
                      '000'],
                     ['',
                      'no subject']) {
-    my ($title, $want) = @$data;
+    my ($fragment, $want) = @$data;
 
     my $xml = <<"HERE";
 <?xml version="1.0"?>
-<feed version="0.3" xmlns="http://purl.org/atom/ns#">
-  <entry>$title</entry>
-</feed>
+<rss version="2.0">
+ <channel>
+  <item>$fragment</item>
+ </channel>
+</rss>
 HERE
-    my $feed = XML::Atom::Feed->new (\$xml);
-    my ($item) = $feed->entries;
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+    my $item = $twig->root->first_descendant('item');
 
     is ($r2l->item_to_subject ($item),
         $want,
-        "item_to_subject() atom $title");
+        "item_to_subject() $fragment");
   }
-}
-
-
-#------------------------------------------------------------------------------
-# item_to_language()
-
-SKIP: {
-  $have_xml_atom_feed
-    or skip 'XML::Atom::Feed not available', 2;
-
-  my $r2l = App::RSS2Leafnode->new;
-  $r2l->{'resp'} = HTTP::Response->new;
-
-  foreach my $data ([' xml:lang="en"', 'en'],
-                    ['', undef]) {
-    my ($lang, $want) = @$data;
-
-    my $xml = <<"HERE";
-<?xml version="1.0"?>
-<feed version="0.3" xmlns="http://purl.org/atom/ns#" $lang>
-  <entry><title>Item One</title></entry>
-</feed>
-HERE
-    my $feed = XML::Atom::Feed->new (\$xml);
-    my ($item) = $feed->entries;
-
-    is ($r2l->item_to_language ($feed, $item),
-        $want,
-        "item_to_language() atom '$lang'");
-  }
-}
-
-
-#------------------------------------------------------------------------------
-# new()
-
-{
-  my $r2l = App::RSS2Leafnode->new;
-  is ($r2l->{'verbose'}, 0, "new() verbose default value");
-}
-{
-  my $r2l = App::RSS2Leafnode->new (verbose => 123);
-  is ($r2l->{'verbose'}, 123, "new() verbose specified");
 }
 
 
@@ -359,14 +425,30 @@ HERE
 # item_yahoo_permalink()
 
 {
-  my $item = { link => 'http://au.rd.yahoo.com/finance/news/rss/financenews/*http://au.biz.yahoo.com/071003/30/1fdvx.html' };
-  is (App::RSS2Leafnode::item_yahoo_permalink($item),
-      'http://au.biz.yahoo.com/071003/30/1fdvx.html');
-}
-{
-  my $item = { link => 'http://something.else.com/*http://foo.com/blah.html' };
-  is (App::RSS2Leafnode::item_yahoo_permalink($item),
-      undef);
+  my $r2l = App::RSS2Leafnode->new;
+
+  foreach my $data
+    ([ '<link>http://au.rd.yahoo.com/finance/news/rss/financenews/*http://au.biz.yahoo.com/071003/30/1fdvx.html</link>',
+       'http://au.biz.yahoo.com/071003/30/1fdvx.html' ],
+     [ '<link>http://something.else.com/*http://foo.com/blah.html</link>',
+       undef ]) {
+    my ($fragment, $want) = @$data;
+
+    my $xml = <<"HERE";
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item>$fragment</item>
+ </channel>
+</rss>
+HERE
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+    my $item = $twig->root->first_descendant('item');
+
+    is (App::RSS2Leafnode::item_yahoo_permalink($item),
+        $want,
+        "item_to_language() xml=$xml");
+  }
 }
 
 
@@ -471,7 +553,7 @@ diag "enforce_rss_charset_override()";
 
   $r2l->{'rss_charset_override'} = 'utf-8';
   is ($r2l->enforce_rss_charset_override($xml),
-      "<?xml encoding=\"utf-8\"?>\n$xml",
+      "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n$xml",
       'rss_charset_override utf-8, <?xml>');
 }
 {
@@ -499,84 +581,107 @@ is (App::RSS2Leafnode::msgid_chars('a<b>%c'), 'a%3Cb%3E%25c');
 #------------------------------------------------------------------------------
 # url_to_msgid()
 
+sub sys_hostname {
+  require Sys::Hostname;
+  return (eval { Sys::Hostname::hostname() } // 'rss2leafnode.invalid');
+}
 {
   my $r2l = App::RSS2Leafnode->new;
 
-  my $hostname;
-  {
-    my $got = $r2l->url_to_msgid('http://localhost','XX');
-    require Sys::Hostname;
-    $hostname = Sys::Hostname::hostname();
-    is ($got, "<rss2leafnode.http:/.XX\@$hostname>");
+  foreach my $data
+    (['http://foo.com/index.html','',
+      '<rss2leafnode.http:///index.html@foo.com>'],
+     ['http://FOO.COM/index.html','',
+      '<rss2leafnode.http:///index.html@foo.com>'],
+
+     ['http://1.2.3.4/index.html','',
+      '<rss2leafnode.http:///index.html@1.2.3.4>'],
+     ['http://[1080:0:0:0:8:800:200C:417A]/index.html','',
+      '<rss2leafnode.http:///index.html@1080.0.0.0.8.800.200c.417a.ipv6>'],
+
+     ['file:///foo/bar.html','Z',
+      sub { '<rss2leafnode.file:///foo/bar.html.Z@'.sys_hostname().'>' }],
+     ['http://localhost','XX',
+      sub { '<rss2leafnode.http:///.XX@'.sys_hostname().'>' }],
+
+     ['tag:foo.com,2010-02-09:something','',
+      '<rss2leafnode.tag:%2C2010-02-09:something@foo.com>'],
+
+    ) {
+    my ($url, $extra, $want) = @$data;
+    my $got = $r2l->url_to_msgid($url, $extra);
+    if (ref $want) { $want = $want->(); }
+    is ($got, $want,
+        "url_to_msgid() url=$url extra=$extra");
   }
-  is ($r2l->url_to_msgid('file:///foo/bar.html','Z'),
-      "<rss2leafnode.file:/foo/bar.html.Z\@$hostname>");
-  is ($r2l->url_to_msgid('http://foo.com/index.html',''),
-      "<rss2leafnode.http:/index.html\@foo.com>");
 }
 
 
 #------------------------------------------------------------------------------
 # item_to_msgid()
 
-foreach my $xml_rss_class ('XML::RSS', 'XML::RSS::LibXML') {
- SKIP: {
-    eval "require $xml_rss_class; 1"
-      or skip "$xml_rss_class not available", 3;
+{
+  my $r2l = App::RSS2Leafnode->new;
+  require URI;
+  $r2l->{'uri'} = URI->new('http://foo.com/feed.rss');
 
-    foreach my $data
-      (['<guid isPermaLink="false">1234</guid>',
-        '<rss2leafnode.http:/feed.rss.1234@foo.com>'],
+  foreach my $data
+    (
+     # explicit "false"
+     ['<guid isPermaLink="false">1234</guid>',
+      '<rss2leafnode.http:///feed.rss.1234@foo.com>'],
+     # trimmed whitespace
+     ["<guid isPermaLink=\"false\">  1234  \n</guid>",
+      '<rss2leafnode.http:///feed.rss.1234@foo.com>'],
 
-       ['<guid isPermaLink="true">http://foo.com/page.html</guid>',
-        '<rss2leafnode.http:/page.html@foo.com>'],
+     # explicit "true"
+     ['<guid isPermaLink="true">http://foo.com/page.html</guid>',
+      '<rss2leafnode.http:///page.html@foo.com>'],
 
-       # XML::RSS 1.47 wrongly takes the default false
-       # ['<guid>http://foo.com/page.html</guid>', # default true
-       #  '<rss2leafnode.http:/page.html@foo.com>'],
+     # default "true"
+     # (this one not for XML::RSS 1.47 as it wrongly takes the default false)
+     ['<guid>http://foo.com/page.html</guid>',
+      '<rss2leafnode.http:///page.html@foo.com>'],
 
-       ['', # some MD5
-        '<rss2leafnode.http:/feed.rss.Yd8/ilmPOF2/2ZA%2BcNG16Q@foo.com>'],
+     # using some MD5
+     ['',
+      '<rss2leafnode.http:///feed.rss.Yd8/ilmPOF2/2ZA%2BcNG16Q@foo.com>'],
 
-      ) {
-      my ($guid, $want) = @$data;
+     ['<id>urn:uuid:123456789</id>',
+      '<rss2leafnode.urn:uuid:123456789@rss2leafnode.invalid>'],
 
-      my $xml = <<"HERE";
+    ) {
+    my ($fragment, $want) = @$data;
+
+    my $xml = <<"HERE";
 <?xml version="1.0"?>
 <rss version="2.0">
  <channel>
   <title>Some Title</title>
   <item><title>Item One</title>
         <description>Some thing</description>
-        $guid</item>
+        $fragment</item>
  </channel>
 </rss>
 HERE
-      my $r2l = App::RSS2Leafnode->new;
-      $r2l->{'uri'} = 'http://foo.com/feed.rss';
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+    my $item = $twig->root->first_descendant('item');
 
-      my $feed = $xml_rss_class->new;
-      $feed->parse($xml);
-      my $items = $feed->{'items'};
-      my $item = $items->[0];
-
-      is ($r2l->item_to_msgid ($item),
-          $want,
-          "item_to_msgid() $xml_rss_class $guid");
-    }
+    is ($r2l->item_to_msgid ($item),
+        $want,
+        "item_to_msgid() $xml");
   }
 }
-
 
 exit 0;
 
 __END__
 
-{
-  my $top = MIME::Entity->build(Type           => $body_type,
-                                Encoding       => '-SUGGEST',
-                                Charset        => 'us-ascii',
-                                Data           => "hello");
-  mime_body_append ($top->bodyhandle, "world");
-  ok ($top->bodyhandle->as_string, "hello\nworld\n");
-}
+# {
+#   my $top = MIME::Entity->build(Type           => $body_type,
+#                                 Encoding       => '-SUGGEST',
+#                                 Charset        => 'us-ascii',
+#                                 Data           => "hello");
+#   mime_body_append ($top->bodyhandle, "world");
+#   ok ($top->bodyhandle->as_string, "hello\nworld\n");
+# }

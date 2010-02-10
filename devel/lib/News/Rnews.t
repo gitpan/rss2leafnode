@@ -26,11 +26,9 @@ SKIP: { eval 'use Test::NoWarnings; 1'
           or skip 'Test::NoWarnings not available', 1; }
 
 
-my $want_version = 17;
-cmp_ok ($News::Rnews::VERSION, '>=', $want_version,
-        'VERSION variable');
-cmp_ok (News::Rnews->VERSION,  '>=', $want_version,
-        'VERSION class method');
+my $want_version = 19;
+is ($News::Rnews::VERSION, $want_version, 'VERSION variable');
+is (News::Rnews->VERSION,  $want_version, 'VERSION class method');
 { ok (eval { News::Rnews->VERSION($want_version); 1 },
       "VERSION class check $want_version");
   my $check_version = $want_version + 1000;
