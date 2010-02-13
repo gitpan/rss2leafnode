@@ -24,7 +24,7 @@ use strict;
 use warnings;
 use App::RSS2Leafnode;
 
-our $VERSION = 19;
+our $VERSION = 20;
 
 my $r2l = App::RSS2Leafnode->new;
 exit $r2l->command_line;
@@ -41,9 +41,9 @@ RSS2Leafnode -- post RSS/Atom feeds and web page updates to newsgroups
 
 =head1 DESCRIPTION
 
-RSS2Leafnode downloads RSS or Atom feeds and posts the items to an NNTP news
-server.  It's designed to make them available in local newsgroups, not
-propagated anywhere (though that's not enforced).
+RSS2Leafnode downloads RSS or Atom feeds and posts items to an NNTP news
+server.  It's designed to make simple text entries available in local
+newsgroups (not propagated anywhere, though that's not enforced).
 
 Desired feeds are specified in a configuration file F<.rss2leafnode.conf> in
 your home directory.  For example to post a feed to group "r2l.surfing" on
@@ -68,6 +68,13 @@ feed is re-downloaded any items previously added are not repeated.  Multiple
 feeds can be put into a single newsgroup.  Feeds are inserted as they're
 downloaded, so the first articles appear while the rest are still in
 progress.
+
+The target newsgroup can also be a C<news:> or C<nntp:> URL for a server on
+a different host, or for a different port number if running a personal
+server on a high port.
+
+    fetch_rss('news://somehost.mydomain.org:8119/r2l.weather',
+              'http://feeds.feedburner.com/PTCC');
 
 =head2 Web Pages
 
@@ -208,22 +215,26 @@ needed by a particular feed.
 
 If set then force RSS content to be interpreted in this charset,
 irrespective of what the document says.  Use this if the document is wrong
-or if it has no charset specified and isn't the XML default utf-8.  Usually
-you'll only want this for a particular offending feed.  For example,
+or has no charset specified and isn't the XML default utf-8.  Usually you'll
+only want this for a particular offending feed.  For example,
 
     # AIR is latin-1, but doesn't have a <?xml> saying that
     $rss_charset_override = 'iso-8859-1';
     fetch_rss ('r2l.finance', 'http://www.aireview.com.au/rss.php');
     $rss_charset_override = undef;
 
-The symptom of a bad character is usually an C<XML::Parser> error like
+An attempt is made to cope with bad non-ascii by re-coding to the supposed
+document charset.  If that works then the text will have substituted
+characters (U+FFFD or ?) and a warning is given,
 
-    not well-formed (invalid token) at line 37, column 158, byte 2690 at /usr/lib/perl5/XML/Parser.pm line 187
+    Warning, recoded utf-8 to parse http://example.org/feed.xml
+      expect substitutions for bad non-ascii
+      (line 214, column 75, byte 13196)
 
-but you'll have to nose around the feed bytes to see whether it's a bad
-charset or something else bad like unescaped entities.  See
-L<XML::Parser/ENCODINGS> on available charsets (F<.enc> files under
-F</usr/lib/perl5/XML/Parser/Encodings/> plus some builtins).
+Nose around the feed bytes at the location shown to find what's actually
+wrong.  See L<XML::Parser/ENCODINGS> for charsets supported by the parser
+(basically F<.enc> files under F</usr/lib/perl5/XML/Parser/Encodings/> plus
+some builtins).
 
 =item $html_charset_from_content (default 0)
 

@@ -30,23 +30,12 @@ my $atom = 'http://www.w3.org/2005/Atom';
 #my $filename = "$FindBin::Bin/" . "../samp/adelaide";
 #my $filename = "$FindBin::Bin/" . "../samp/1226789508";
 #my $filename = "$FindBin::Bin/" . "../samp/atom03.xml";
-my $filename = "$FindBin::Bin/" . "../samp/fondantfancies.atom";
+#my $filename = "$FindBin::Bin/" . "../samp/fondantfancies.atom";
 #my $filename = "$FindBin::Bin/" . "../samp/dwn.en.rdf.1";
 #my $filename = "$FindBin::Bin/" . "../samp/dc-sample.rdf";
 #my $filename = '/so/plagger/Plagger-0.7.17/t/samples/atom10-example.xml';
-#$filename = '/etc/motd';
-
-{
-  require URI;
-  my $uri=URI->new('tag:freeke.org,2009:/tech/computers/os/linux/netbooking');
-  print ref($uri),"\n";
-  print "scheme ",$uri->scheme,"\n";
-  print "host ",$uri->can('host'),"\n";
-  print "authority ",$uri->authority,"\n";
-  print $uri->path,"\n";
-  print $uri->path_query,"\n";
-  exit 0;
-}
+#my $filename = '/tmp/tv_epg.xml';
+my $filename = "$FindBin::Bin/" . "../samp/andrew-weil.rss";
 
 {
   require XML::Twig;
@@ -72,8 +61,22 @@ my $filename = "$FindBin::Bin/" . "../samp/fondantfancies.atom";
                    'http://purl.org/dc/elements/1.1/' => 'dc',
                    'http://www.w3.org/2005/Atom' => 'atom',
                   });
-  eval { $twig->parsefile($filename); 1 }
-    or die $@;
+  $twig->safe_parsefile($filename);
+
+  my ($elem) = $twig->root->get_xpath('/rss/channel/item/description');
+  # $elem->print;
+  $,= ' ';
+  foreach ($elem->children) {
+    print $_->tag," -- ", ($_->is_text ? $_->text : $_->sprint), "\n";
+  }
+  exit 0;
+
+  my $err = $@;
+  print "charset ", $twig->encoding//'unspec', "\n";
+  if ($err) {
+    print $err;
+    exit 1;
+  };
 
   my $toplevel = $twig->root;
   print "toplevel ",ref($toplevel)," ",$toplevel->tag,"\n";
@@ -143,8 +146,15 @@ my $filename = "$FindBin::Bin/" . "../samp/fondantfancies.atom";
         $body_type = "text/plain";
       }
     } else { # RSS
-      $body = (non_empty ($item->first_child_text('description'))
-               // non_empty ($item->first_child_text('dc:description')));
+      #       sub first_child_string
+      #         my ($elt, $tag) = @_;
+      #         my $child = $elt->first_child($elt) // return;
+      #         return $child->string;
+      #       }
+      # $body = (non_empty ($item->first_child_text ('description'))
+      #                // non_empty ($item->first_child_text('dc:description')));
+      $body = $item->first_child('description')->xml_string;
+
     }
     print "  body  $body_type $body\n";
 
@@ -180,6 +190,18 @@ my $filename = "$FindBin::Bin/" . "../samp/fondantfancies.atom";
   #$twig->print;
   exit 0;
 
+}
+
+{
+  require URI;
+  my $uri=URI->new('tag:freeke.org,2009:/tech/computers/os/linux/netbooking');
+  print ref($uri),"\n";
+  print "scheme ",$uri->scheme,"\n";
+  print "host ",$uri->can('host'),"\n";
+  print "authority ",$uri->authority,"\n";
+  print $uri->path,"\n";
+  print $uri->path_query,"\n";
+  exit 0;
 }
 
 {

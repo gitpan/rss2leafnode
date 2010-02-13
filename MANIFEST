@@ -27,6 +27,7 @@ devel/lwp-title.html
 devel/lwp-title.pl
 devel/mime-entity.pl
 devel/Plagger.t
+devel/recode.pl
 devel/rnews.pl
 devel/run-parse.pl
 devel/samples.pl
@@ -38,11 +39,15 @@ devel/yahoolinks.yaml
 examples/rss2leafnode.conf
 inc/my_pod2html
 inc/MyMakeMakerExtras.pm
+inc/MyMakeMakerGettext.pm
 lib/App/RSS2Leafnode.pm
 lib/App/RSS2Leafnode/Conf.pm
 Makefile.PL
 MANIFEST			This list of files
 MANIFEST.SKIP
+po/App-RSS2Leafnode.pot
+po/header.pot
+po/README
 rss2leafnode
 SIGNATURE
 t/0-META-read.t

@@ -30,7 +30,7 @@ use POSIX (); # ENOENT, etc
 use URI;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
-our $VERSION = 19;
+our $VERSION = 20;
 
 
 # Cribs:
@@ -42,18 +42,18 @@ our $VERSION = 19;
 #       RSS 0.91 spec.
 #   http://purl.org/rss/1.0/
 #       RSS 1.0 spec.
+#
 #   http://www.rssboard.org/rss-specification
 #   http://www.rssboard.org/files/rss-2.0-sample.xml
 #       RSS 2.0 spec and sample.
 #   http://www.rssboard.org/rss-profile
 #       "Best practices."
-#   http://www.meatballwiki.org/wiki/ModWiki
-#       wiki: namespace
-#   http://dublincore.org/documents/dcmi-terms/
-#       dc/terms: namespace
+#   http://www.meatballwiki.org/wiki/ModWiki -- wiki
+#       
 #
 # Dublin Core
 #   RFC 5013 -- summary
+#   http://dublincore.org/documents/dcmi-terms/ -- dc/terms
 #
 # Atom
 #   RFC 4287 -- Atom
@@ -62,15 +62,15 @@ our $VERSION = 19;
 #      Making an <id>
 #
 # URIs
-#   RFC 1738, RFC 3986 -- URI formats
+#   RFC 1738, RFC 2396, RFC 3986 -- URI formats (news/nntp in 1738)
+#   draft-ellermann-news-nntp-uri-11.txt -- news/nntp update
 #   RFC 2732 -- ipv6 "[]" hostnames
 #   RFC 2141 -- urn:
 #   RFC 4122 -- uuid format (as under urn:uuid:)
 #   RFC 4151 -- tag:
 #
 # XML
-#   http://www.w3.org/TR/xmlbase/
-#       xml:base
+#   http://www.w3.org/TR/xmlbase/ -- xml:base
 #
 # Mail Messages
 #   RFC 850, RFC 1036 -- News message format, inc headers and rnews format
@@ -85,9 +85,38 @@ our $VERSION = 19;
 #
 # RFC 977 -- NNTP
 # RFC 2616 -- HTTP/1.1 Accept-Encoding header
+# RFC 4642 -- NNTP with SSL
 #
 #
-
+# For XML in Perl there's a few too many ways to do it!
+#   - XML::Parser looks likely for stream/event processing, but its builtin
+#     tree mode is very basic.
+#   - XML::Twig extends XML::Parser to quite a good tree, though the docs
+#     could be polished a bit.  It only does a subset of "XPath" but the
+#     functions/regexps are more perl-like for matching, and there's various
+#     handy shortcuts for common operations.
+#   - XML::LibXML is the full blown libxml and is rather a lot to learn.
+#     Because it's mainly C it's not easy to find where or how you're going
+#     wrong when your code doesn't work.  libxml also seems stricter about
+#     namespace matters than XML::Parser/XML::Twig.
+#   - XML::RSS uses XML::Parser to build its own style tree of RSS,
+#     including unifying differences among RSS/RDF 0.91, 1.0 and 2.0.
+#     Nested elements seem to need specific handling in its code, which can
+#     make it tricky for sub-element oddities.  A fair amount of it is about
+#     writing RSS too.
+#   - XML::RSS::LibXML uses libxml for XML::RSS compatible reading and
+#     writing.  It seems to do better on unrecognised sub-elements.
+#   - XML::Atom offers the basic Atom elements but doesn't seem to give
+#     access to extra stuff that might be in a feed.
+#   - XML::Feed tries to unify XML::RSS and XML::Atom but again doesn't seem
+#     to go much beyond the basics.  It too is geared towards writing as
+#     well as reading.
+# So the choice of XML::Twig is based on wanting both RSS and Atom, but
+# XML::Feed not going far enough.  Tree processing is easier than stream,
+# and an RSS isn't meant to be huge.  A tree may help if channel fields
+# follow items or something equally unnatural.  Then between the tree styles
+# XML::LibXML is harder to get into than Twig.
+#
 
 #------------------------------------------------------------------------------
 # generic
@@ -274,6 +303,7 @@ sub ua {
     require LWP::UserAgent;
     LWP::UserAgent->VERSION(5.832);  # 5.832 for content_charset()
 
+    # one connection kept alive
     my $ua = LWP::UserAgent->new (keep_alive => 1);
     $ua->agent('RSS2leafnode/' . $self->VERSION . ' ');
     $ua->add_handler
@@ -479,6 +509,12 @@ sub msgid_chars {
 # nntp_hosts list for the news server.  Maybe could have that here too,
 # instead of always defaulting to localhost (in $self->{'nntp_host'}).
 # Would want to find out the name chosen to show in diagnostics though.
+
+# return a string "host:port", suitable for the Host arg to Net::NNTP->new
+sub uri_to_nntp_host {
+  my ($uri) = @_;
+  return _choose ($uri->host, 'localhost') . ':' . $uri->port;
+}
 
 sub nntp {
   my ($self) = @_;
@@ -911,7 +947,7 @@ sub fetch_html {
   if ($self->{'verbose'} >= 1) { print "page: $url\n"; }
 
   my $group_uri = URI->new($group,'news');
-  local $self->{'nntp_host'} = _choose ($group_uri->host, 'localhost');
+  local $self->{'nntp_host'} = uri_to_nntp_host ($group_uri);
   local $self->{'nntp_group'} = $group = $group_uri->group;
   $self->nntp_group_check($group) or return;
 
@@ -1057,7 +1093,8 @@ my $map_xmlns
   = {
      'http://www.w3.org/2005/Atom'                  => 'atom',
      'http://purl.org/dc/elements/1.1/'             => 'dc',
-     'http://purl.org/dc/terms/'                    => 'dcterms',
+     # don't need to handle dcterms differently from plain dc as yet
+     'http://purl.org/dc/terms/'                    => 'dc',
      'http://www.w3.org/1999/02/22-rdf-syntax-ns#'  => 'rdf',
      'http://purl.org/rss/1.0/modules/syndication/' => 'syn',
      'http://purl.org/rss/1.0/modules/wiki/'        => 'wiki',
@@ -1068,11 +1105,43 @@ sub twig_parse {
   my ($self, $xml) = @_;
   require XML::Twig;
   my $twig = XML::Twig->new (map_xmlns => $map_xmlns);
-  if (! eval { $twig->parse($xml); 1 }) {
+  $twig->safe_parse ($xml);
+  my $err = $@;
+
+  # zap bad non-ascii chars by putting it through Encode::from_to()
+  # Encode::FB_DEFAULT substitutes U+FFFD for unicode, or ? for non-unicode
+  # mozilla does some sort of similar liberal byte interpretation so as to
+  # at least display something from a dodgy feed
+  #
+  if ($err && $err =~ /not well-formed \(invalid token\) at (line \d+, column \d+, byte (\d+))/) {
+    my $where = $1;
+    my $byte = ord(substr($xml,$2,1));
+    if ($byte >= 128) {
+      my $charset = $twig->encoding // 'utf-8';
+      if ($self->{'verbose'}) {
+        printf "parse error, attempt re-code $charset for byte 0x%02X\n",
+          $byte;
+      }
+      require Encode;
+      Encode::from_to($xml, $charset, $charset, Encode::);
+
+      $twig = XML::Twig->new (map_xmlns => $map_xmlns);
+      if ($twig->safe_parse ($xml)) {
+        undef $err;
+        print __x("Warning, recoded {charset} to parse {url}\n  expect substitutions for bad non-ascii ({where})\n",
+                  charset => $charset,
+                  url     => $self->{'uri'},
+                  where   => $where);
+      }
+    }
+  }
+
+  if ($err) {
     # XML::Parser seems to stick some spurious leading whitespace
-    my $err = trim_whitespace($@);
+    $err = trim_whitespace($err);
+
     if ($self->{'verbose'} >= 1) {
-      print __x("rss2leafnode: parse error on URL {url}\n{error}",
+      print __x("Parse error on URL {url}\n{error}",
                 url => $self->{'uri'},
                 error => $err);
     }
@@ -1226,6 +1295,21 @@ sub collapse_whitespace {
   return trim_whitespace($str);
 }
 
+# return the text of $elt, but with the whole xml of any child elements
+#
+# This helps html sub-elements in <description> etc.  It's supposed to be
+# just text, so the sub <p> etc escaped, but have seen sub-elements for
+# instance Feb 2010 http://www.drweil.com/drw/ecs/rss.xml.  Any need to
+# watch out for <rdf:value>?
+#
+sub elt_subtext {
+  my ($elt) = @_;
+  defined $elt or return;
+  if ($elt->is_text) { return $elt->text; }
+  return join ('',
+               map {$_->is_text ? $_->text : $_->sprint} $elt->children);
+}
+
 sub elt_to_rendered_text {
   my ($elt) = @_;
   defined $elt or return;
@@ -1239,7 +1323,7 @@ sub elt_to_rendered_text {
     $html = $elt->xml_string;
   } else {
     # default to html if no type specified
-    $html = $elt->text;
+    $html = elt_subtext($elt);
   }
   require HTML::FormatText;
   my $str = HTML::FormatText->format_string ($html,
@@ -1269,8 +1353,9 @@ my %link_rel_exclude
 
 # return list of strings
 #
-# <wfw:commentRss>, Atom service.post, and other comment-postings might be
-# worthwhile, but would want $rss_fetch_links not to download those
+# <comments>, <wfw:comment>, <slash:comments>, Atom service.post, or other
+# comment-postings might be worthwhile, but would want $rss_fetch_links not
+# to download those
 #
 sub item_to_links {
   my ($self, $item) = @_;
@@ -1289,7 +1374,7 @@ sub item_to_links {
   @links = map {
     my $link = $_;
     non_empty ($self->elt_url_to_absolute ($item, $link->att('href'))
-               // $link->text)
+               // $link->trimmed_text)
   } @links;
 
   # not sure if multiple Atom <link> could have duplicates, check against that
@@ -1300,7 +1385,6 @@ sub item_to_links {
 
   return @links;
 }
-
 # $elt is an XML::Twig::Elt, $url is a string or undef
 # return $url made absolute according to xml:base in $elt and its parents
 #
@@ -1343,18 +1427,19 @@ sub item_to_copyright {
   my ($self, $item) = @_;
   my $channel = item_to_channel($item);
 
-  # <dcterms:license> supposedly supercedes <dc:rights>, so check it first.
+  # <dcterms:license> supposedly supercedes <dc:rights>, so check it first,
+  # appearing here just as dc: due to combining in the "map_xmlns"
   #
   # Atom <rights> can be type="html" etc in its usual way, but think RSS is
   # always plain text
   #
-  return (non_empty ($item->first_child_text('dcterms:license'))
+  return (non_empty ($item->first_child_text('dc:license'))
           // non_empty ($item->first_child_text('dc:rights'))
           // elt_to_rendered_text ($item->first_child('rights'))   # Atom
           # Atom sub-elem <source><rights>...</rights> when from another feed
           // elt_to_rendered_text (($item->get_xpath('source/rights'))[0])
 
-          // non_empty ($channel->first_child_text('dcterms:license'))
+          // non_empty ($channel->first_child_text('dc:license'))
           // non_empty ($channel->first_child_text('dc:rights'))
           // non_empty ($channel->first_child_text('copyright')) # RSS
           // elt_to_rendered_text ($channel->first_child('rights')));  # Atom
@@ -1387,9 +1472,9 @@ sub enforce_rss_charset_override {
       if ($self->{'verbose'} >= 2) {
         print "replace encoding=$2 tag with encoding=$charset\n";
       }
-    } elsif ($xml =~ s/(<\?xml)/$1 encoding="$charset"/i) {
+    } elsif ($xml =~ s/(<\?xml[^?>]*)/$1 encoding="$charset"/i) {
       if ($self->{'verbose'} >= 2) {
-        print "insert encoding=$charset\n";
+        print "insert encoding=\"$charset\"\n";
       }
     } else {
       my $str = "<?xml version=\"1.0\" encoding=\"$charset\"?>\n";
@@ -1397,6 +1482,9 @@ sub enforce_rss_charset_override {
         print "insert $str";
       }
       $xml = $str . $xml;
+    }
+    if ($self->{'verbose'} >= 3) {
+      print "xml now:\n$xml\n";
     }
     $xml = Encode::encode ($charset, $xml);
   }
@@ -1459,7 +1547,7 @@ sub fetch_rss_process_one_item {
       # xml_string() include nested elements for Atom type="xhtml"
       $body = $body->xml_string;
     } else {
-      $body = $body->text;
+      $body = elt_subtext($body);
     }
   }
   if (is_empty($body_type)) {
@@ -1564,7 +1652,8 @@ HERE
         print __x("rss2leafnode: {url}\n {status}\n",
                   url => $link,
                   status => $resp->status_line);
-        $down = "\n" . __x("Cannot download link:\n{status}",
+        $down = "\n" . __x("Cannot download link {url}\n{status}",
+                           url => $link,
                            status => $resp->status_line);
         $down_type = 'text/plain';
         $down_charset = 'us-ascii';
@@ -1599,7 +1688,7 @@ sub fetch_rss {
   if ($self->{'verbose'} >= 2) { print "fetch_rss: $group $url\n"; }
 
   my $group_uri = URI->new($group,'news');
-  local $self->{'nntp_host'} = _choose ($group_uri->host, 'localhost');
+  local $self->{'nntp_host'} = uri_to_nntp_host ($group_uri);
   local $self->{'nntp_group'} = $group = $group_uri->group;
   $self->nntp_group_check($group) or return;
 
@@ -1636,7 +1725,7 @@ sub fetch_rss {
   if (defined $err) {
     $self->error_message
       (__x("Error parsing {url}", url => $url),
-       __x("XML::Twig parse error on:\n\n    {url}\n\n{error}",
+       __x("XML::Twig parse error on\n\n  {url}\n\n{error}",
            url => $url,
            error => $err));
     # after successful error message to news

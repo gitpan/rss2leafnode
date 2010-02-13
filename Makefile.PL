@@ -21,8 +21,10 @@ use 5.010;
 use strict;
 use warnings;
 use ExtUtils::MakeMaker;
+
 use lib 'inc';
 use MyMakeMakerExtras;
+use MyMakeMakerGettext;
 
 MyMakeMakerExtras::WriteMakefile
   (NAME         => 'rss2leafnode',
@@ -33,6 +35,9 @@ MyMakeMakerExtras::WriteMakefile
    SIGN         => 1,
    EXE_FILES    => [ 'rss2leafnode' ],
    MIN_PERL_VERSION => '5.010',
+
+   clean     => { FILES => '$(POT_TEMP_FILE)' # if bad xgettext
+                },
 
    PREREQ_PM    => {
                     'XML::Twig' => 0,
@@ -129,9 +134,13 @@ MyMakeMakerExtras::WriteMakefile
       },
   );
 
+
 #------------------------------------------------------------------------------
 package MY;
 sub postamble {
   my ($makemaker) = @_;
-  return MyMakeMakerExtras::postamble ($makemaker);
+  $makemaker->{'PO_DOMAIN'} = 'App-RSS2Leafnode';
+  return
+    MyMakeMakerExtras::postamble($makemaker)
+        . MyMakeMakerGettext::postamble($makemaker);
 }

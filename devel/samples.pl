@@ -36,10 +36,11 @@ use Getopt::Long;
 
 my $r2l = App::RSS2Leafnode->new
   (
+   # rss_charset_override => 'windows-1252',
    # rss_charset_override => 'iso-8859-1',
-   # verbose => 2,
+   verbose => 1,
    # render => 'lynx',
-   rss_newest_only => 1,
+   # rss_newest_only => 1,
   );
 
 my @uris;

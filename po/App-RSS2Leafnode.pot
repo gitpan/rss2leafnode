@@ -1,0 +1,159 @@
+# Copyright 2007, 2008, 2009, 2010 Kevin Ryde
+#
+# This file is part of RSS2Leafnode.
+#
+# RSS2Leafnode is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; either version 3, or (at your option) any
+# later version.
+#
+# RSS2Leafnode is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
+#
+#
+# See the file README for notes on translations.
+#
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: RSS2Leafnode @VERSION@\n"
+"POT-Creation-Date: @DATE@\n"
+"PO-Revision-Date: YYYY-MM-DD HH:MM+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: lib/App/RSS2Leafnode.pm:209
+#, perl-brace-format
+msgid "RSS2Leafnode version {version}\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:382
+#, perl-brace-format
+msgid "Ignoring unrecognised date \"{date}\" from {url}\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:526
+#, perl-brace-format
+msgid "nntp: {host}\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:534
+#, perl-brace-format
+msgid "Cannot connect to NNTP on \"{host}\"\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:559
+#, perl-brace-format
+msgid ""
+"rss2leafnode: no group \"{group}\" on host \"{host}\"\n"
+"You must create it as a local newsgroup.  For leafnode 2 this means\n"
+"adding a line to /etc/news/leafnode/local.groups like\n"
+"\n"
+"{group}\ty\n"
+"\n"
+"Note it must be a tab character between the name and the \"y\".\n"
+"See \"LOCAL NEWSGROUPS\" in the leafnode README file for more information.\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:582
+msgid "  exists already\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:592
+#, perl-brace-format
+msgid "Cannot post: {message}\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:758
+msgid "  unchanged\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:780
+#, perl-brace-format
+msgid " timing: next update {time} (local time)\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:852
+#, perl-brace-format
+msgid "XML::RSS::Timing complains on {url}\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:938 lib/App/RSS2Leafnode.pm:1012
+#, perl-brace-format
+msgid "{group} 1 new article\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:963 lib/App/RSS2Leafnode.pm:1652
+#: lib/App/RSS2Leafnode.pm:1714
+#, perl-brace-format
+msgid ""
+"rss2leafnode: {url}\n"
+" {status}\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1131
+#, perl-brace-format
+msgid ""
+"Warning, recoded {charset} to parse {url}\n"
+"  expect substitutions for bad non-ascii ({where})\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1144
+#, perl-brace-format
+msgid ""
+"Parse error on URL {url}\n"
+"{error}"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1344
+msgid "no subject"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1508
+#, perl-brace-format
+msgid " item: {subject}\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1636
+#, perl-brace-format
+msgid "  link: {link}\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1655
+#, perl-brace-format
+msgid ""
+"Cannot download link {url}\n"
+"{status}"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1679
+msgid "   posted\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1700
+#, perl-brace-format
+msgid "feed: {url}\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1727
+#, perl-brace-format
+msgid "Error parsing {url}"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1728
+#, perl-brace-format
+msgid ""
+"XML::Twig parse error on\n"
+"\n"
+"  {url}\n"
+"\n"
+"{error}"
+msgstr ""

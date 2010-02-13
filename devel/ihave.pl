@@ -20,27 +20,43 @@
 use 5.010;
 use strict;
 use warnings;
+use Net::NNTP;
 
 {
-  require URI;
-  my $uri = URI->new ('r2l.test','news');
-  $uri = URI->new ('news://foo.com/r2l.test');
-  $uri = URI->new ('http://foo.com/r2l.test');
-  $uri = URI->new ('urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6');
+  use IO::Socket::SSL qw(debug3);
+  use IO::Socket::INET;
+  use Net::NNTP;
+  use Hook::LexWrap;
+  wrap 'Net::NNTP::new', pre => sub { print "NNTP new\n"; };
+  wrap 'IO::Socket::SSL::SSL_Context::new', pre => sub { print "SSL new\n"; };
+  wrap 'IO::Socket::INET::new', pre => sub { print "INET new\n"; };
 
-  print ref($uri),"\n";
-  print $uri,"\n";
-  print "scheme:    ",$uri->scheme,"\n";
-  print "authority: ",($uri->can('authority') && $uri->authority//'undef'),"\n";
-  print "host:      ",($uri->can('host') && $uri->host//'undef'),"\n";
-  print "group:     ",($uri->can('group') && $uri->group//'undef'),"\n";
-  print "path:      ",$uri->path//'undef',"\n";
-  exit 0;
+  {
+    {
+      package MyNNTPS;
+      use Net::NNTP;
+      use IO::Socket::SSL;
+      our @ISA = ('IO::Socket::SSL', 'Net::NNTP');
+      no warnings 'once';
+      *new = \&Net::NNTP::new;
+    }
+    my $nntp = MyNNTPS->new ('localhost:12345', Debug => 1);
+    print $nntp;
+    exit 0;
+  }
+
+  {
+    local @Net::NNTP::ISA = map {$_ eq 'IO::Socket::INET'
+                                   ? 'IO::Socket::SSL' : $_} @Net::NNTP::ISA;
+    my $nntp = Net::NNTP->new ('localhost:12345', Debug => 1);
+    print $nntp;
+    exit 0;
+  }
 }
 
 {
   require Net::NNTP;
-  my $nntp = Net::NNTP->new ('localhost', Debug => 1);
+  my $nntp = Net::NNTP->new ('localhost:8119', Debug => 1);
   #print $nntp->ihave('fsjdkfds'),"\n";
 
   print $nntp->postok(),"\n";
@@ -57,6 +73,30 @@ HERE
 # Message-ID: <$time\@1080.0.0.0.8.800.200C.417A...ipv6>
 # Message-ID: <$time\@1.2.3.4>
   print $nntp->post($msg),"\n";
+  exit 0;
+}
+
+{
+  require URI;
+  my $uri;
+  $uri = URI->new ('http://foo.com/r2l.test');
+  $uri = URI->new ('urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6');
+  $uri = URI->new ('news://foo.com/r2l.test');
+  $uri = URI->new ('news://localhost:123/r2l.test');
+  $uri = URI->new ('news://localhost:119/r2l.test');
+  $uri = URI->new ('r2l.test','news');
+  $uri = URI->new ('news://foo.com:8119/r2l.test');
+  $uri = $uri->abs('news://localhost');
+  $uri = $uri->canonical;
+
+  print ref($uri),"\n";
+  print $uri,"\n";
+  print "scheme:    ",$uri->scheme,"\n";
+  print "authority: ",($uri->can('authority') && $uri->authority//'undef'),"\n";
+  print "host:      ",($uri->can('host') && $uri->host//'undef'),"\n";
+  print "port:      ",($uri->can('port') && $uri->port//'undef'),"\n";
+  print "group:     ",($uri->can('group') && $uri->group//'undef'),"\n";
+  print "path:      ",$uri->path//'undef',"\n";
   exit 0;
 }
 

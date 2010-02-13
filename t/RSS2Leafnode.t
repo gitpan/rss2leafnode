@@ -19,7 +19,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 86;
+use Test::More tests => 96;
 
 SKIP: { eval 'use Test::NoWarnings; 1'
           or skip 'Test::NoWarnings not available', 1; }
@@ -31,7 +31,7 @@ require App::RSS2Leafnode;
 # VERSION
 
 {
-  my $want_version = 19;
+  my $want_version = 20;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -63,6 +63,81 @@ require App::RSS2Leafnode;
   my $r2l = App::RSS2Leafnode->new (verbose => 123);
   is ($r2l->{'verbose'}, 123,
       "new() verbose specified");
+}
+
+
+#------------------------------------------------------------------------------
+# elt_subtext()
+
+{
+  my $r2l = App::RSS2Leafnode->new;
+  $r2l->{'uri'} = URI->new('http://feedhost.com');
+  my $host = $r2l->{'uri'}->host;
+
+  foreach my $data
+    (# Atom
+     [<<'HERE',
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item>
+   <description>
+    <p>This bit subelem.</p><br/>
+    <![CDATA[This bit cdata.]]>
+    <b><a href="page.html">This bit more subelem</a></b><br/>
+   </description>
+  </item>
+ </channel>
+</rss>
+HERE
+      '<p>This bit subelem.</p><br/>
+    This bit cdata.
+    <b><a href="page.html">This bit more subelem</a></b><br/>'],
+
+    ) {
+    my ($xml, $want) = @$data;
+
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+    my $elt = $twig->root->first_descendant('description');
+
+    my $got = App::RSS2Leafnode::elt_subtext($elt);
+    $got =~ s/\s+/ /g;   # ignore different whitespace
+    $want =~ s/\s+/ /g;
+    $want =~ s/>\s+/>/g;
+    $want =~ s/\s+</</g;
+
+    is ($got, $want, "elt_subtext() $xml");
+  }
+}
+
+
+#------------------------------------------------------------------------------
+# uri_to_nntp_host()
+
+foreach my $data (['r2l.test', 'localhost:119'],
+                  ['news:r2l.test', 'localhost:119'],
+                  ['nntp:r2l.test', 'localhost:119'],
+
+                  # default port
+                  ['news://foo.com/r2l.test', 'foo.com:119'],
+                  ['news://localhost/r2l.test', 'localhost:119'],
+                  ['news:///r2l.test', 'localhost:119'],
+
+                  # is this bogus ?
+                  # ['news://foo.com:/r2l.test', 'foo.com:119'],
+
+                  # explicit port
+                  ['news://foo.com:8119/r2l.test', 'foo.com:8119'],
+                  ['news://localhost:8119/r2l.test', 'localhost:8119'],
+                  ['news://:8119/r2l.test', 'localhost:8119'],
+
+                                   ) {
+  my ($uri_str, $want) = @$data;
+  my $uri = URI->new ($uri_str, 'news');
+
+  is (App::RSS2Leafnode::uri_to_nntp_host($uri),
+      $want,
+      "uri_to_nntp_host() $uri_str -> $uri");
 }
 
 
@@ -541,7 +616,7 @@ diag "enforce_rss_charset_override()";
 
   $r2l->{'rss_charset_override'} = 'UTF-8';
   is ($r2l->enforce_rss_charset_override($xml),
-      '<?xml encoding="UTF-8" version="1.0"?>',
+      '<?xml version="1.0" encoding="UTF-8"?>',
       'rss_charset_override UTF-8, insert');
 }
 {
@@ -565,9 +640,10 @@ diag "enforce_rss_charset_override()";
       'rss_charset_override on UTF-32 not set, unchanged');
 
   $r2l->{'rss_charset_override'} = 'UTF-32';
-  is ($r2l->enforce_rss_charset_override($xml),
-      Encode::encode ('utf-32', '<?xml encoding="UTF-32" version="1.0"?>'),
-      'rss_charset_override UTF-32, insert');
+  my $got = $r2l->enforce_rss_charset_override($xml);
+  my $want = Encode::encode ('utf-32',
+                             '<?xml version="1.0" encoding="UTF-32"?>');
+  is ($got, $want, 'rss_charset_override UTF-32, insert');
 }
 
 #------------------------------------------------------------------------------

@@ -38,7 +38,7 @@ Package: rss2leafnode
 Architecture: all
 Depends: perl (>= 5.10), libfile-homedir-perl, libhtml-format-perl, libintl-perl, liblist-moreutils-perl, libmime-tools-perl, libscope-guard-perl, libtimedate-perl, liburi-perl, liburi-tag-perl, libwww-perl (>= 5.832), libxml-twig-perl, ${misc:Depends}
 Recommends: leafnode (>= 2) | news-transport-system, libxml-rss-timing-perl, libtime-duration-perl, libtime-duration-locale-perl
-Suggests: libhtml-formattext-withlinks-perl, libhtml-formatexternal-perl, lynx | w3m | elinks, liburi-title-perl
+Suggests: libhtml-formattext-withlinks-perl, libhtml-formatexternal-perl, lynx | w3m | elinks, liburi-title-perl, libintl-xs-perl
 Description: Post RSS or Atom articles to local newsgroups
  RSS2Leafnode reads specified RSS or Atom feeds and posts items to
  local newsgroups.  It's named for the leafnode program, but can post

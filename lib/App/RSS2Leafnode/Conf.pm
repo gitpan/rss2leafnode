@@ -86,8 +86,8 @@ RSS2Leafnode object.
 
 =head1 SEE ALSO
 
-L<App::RSS2Leafnode>,
 L<rss2leafnode>,
+L<App::RSS2Leafnode>
 
 =head1 HOME PAGE
 
