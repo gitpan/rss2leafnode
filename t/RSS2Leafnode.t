@@ -19,7 +19,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 96;
+use Test::More tests => 110;
 
 SKIP: { eval 'use Test::NoWarnings; 1'
           or skip 'Test::NoWarnings not available', 1; }
@@ -31,7 +31,7 @@ require App::RSS2Leafnode;
 # VERSION
 
 {
-  my $want_version = 20;
+  my $want_version = 21;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -657,38 +657,47 @@ is (App::RSS2Leafnode::msgid_chars('a<b>%c'), 'a%3Cb%3E%25c');
 #------------------------------------------------------------------------------
 # url_to_msgid()
 
-sub sys_hostname {
-  require Sys::Hostname;
-  return (eval { Sys::Hostname::hostname() } // 'rss2leafnode.invalid');
-}
 {
-  my $r2l = App::RSS2Leafnode->new;
+  require Sys::Hostname;
+  foreach my $hostname_func (\&Sys::Hostname::hostname,
+                             sub { "some.where.org" },
+                             sub { "undotted" }) {
+    no warnings 'redefine';
+    local *Sys::Hostname::hostname = $hostname_func;
+    use warnings;
 
-  foreach my $data
-    (['http://foo.com/index.html','',
-      '<rss2leafnode.http:///index.html@foo.com>'],
-     ['http://FOO.COM/index.html','',
-      '<rss2leafnode.http:///index.html@foo.com>'],
+    my $hostname = (eval { Sys::Hostname::hostname() }
+                    // 'rss2leafnode.invalid');
+    unless ($hostname =~ /\./) { $hostname .= '.withadot'; }
 
-     ['http://1.2.3.4/index.html','',
-      '<rss2leafnode.http:///index.html@1.2.3.4>'],
-     ['http://[1080:0:0:0:8:800:200C:417A]/index.html','',
-      '<rss2leafnode.http:///index.html@1080.0.0.0.8.800.200c.417a.ipv6>'],
+    my $r2l = App::RSS2Leafnode->new;
 
-     ['file:///foo/bar.html','Z',
-      sub { '<rss2leafnode.file:///foo/bar.html.Z@'.sys_hostname().'>' }],
-     ['http://localhost','XX',
-      sub { '<rss2leafnode.http:///.XX@'.sys_hostname().'>' }],
+    foreach my $data
+      (['http://foo.com/index.html','',
+        '<rss2leafnode.http:///index.html@foo.com>'],
+       ['http://FOO.COM/index.html','',
+        '<rss2leafnode.http:///index.html@foo.com>'],
 
-     ['tag:foo.com,2010-02-09:something','',
-      '<rss2leafnode.tag:%2C2010-02-09:something@foo.com>'],
+       ['http://1.2.3.4/index.html','',
+        '<rss2leafnode.http:///index.html@1.2.3.4>'],
+       ['http://[1080:0:0:0:8:800:200C:417A]/index.html','',
+        '<rss2leafnode.http:///index.html@1080.0.0.0.8.800.200c.417a.ipv6>'],
 
-    ) {
-    my ($url, $extra, $want) = @$data;
-    my $got = $r2l->url_to_msgid($url, $extra);
-    if (ref $want) { $want = $want->(); }
-    is ($got, $want,
-        "url_to_msgid() url=$url extra=$extra");
+       ['file:///foo/bar.html','Z',
+        sub { "<rss2leafnode.file:///foo/bar.html.Z\@$hostname>" }],
+       ['http://localhost','XX',
+        sub { "<rss2leafnode.http:///.XX\@$hostname>" }],
+
+       ['tag:foo.com,2010-02-09:something','',
+        '<rss2leafnode.tag:%2C2010-02-09:something@foo.com>'],
+
+      ) {
+      my ($url, $extra, $want) = @$data;
+      my $got = $r2l->url_to_msgid($url, $extra);
+      if (ref $want) { $want = $want->(); }
+      is ($got, $want,
+          "url_to_msgid() url=$url extra=$extra");
+    }
   }
 }
 

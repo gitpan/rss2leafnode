@@ -30,7 +30,7 @@ use POSIX (); # ENOENT, etc
 use URI;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
-our $VERSION = 20;
+our $VERSION = 21;
 
 
 # Cribs:
@@ -1297,10 +1297,11 @@ sub collapse_whitespace {
 
 # return the text of $elt, but with the whole xml of any child elements
 #
-# This helps html sub-elements in <description> etc.  It's supposed to be
-# just text, so the sub <p> etc escaped, but have seen sub-elements for
-# instance Feb 2010 http://www.drweil.com/drw/ecs/rss.xml.  Any need to
-# watch out for <rdf:value>?
+# This helps html sub-elements in <description> etc.  There's supposed to be
+# just text there, with <p> etc escaped as &lt;p&gt;, but have seen
+# sub-elements for instance Feb 2010 http://www.drweil.com/drw/ecs/rss.xml,
+# though with  sub-entites still doubled like &amp;nbsp;.
+# Any need to watch out for <rdf:value>?
 #
 sub elt_subtext {
   my ($elt) = @_;
@@ -1562,6 +1563,7 @@ sub fetch_rss_process_one_item {
   if ($mime_html_types{$body_type}) {
     $body_type = 'text/html';
   }
+  if ($self->{'verbose'} >= 3) { print " body: $body_type\n$body\n"; }
 
   my $body_is_html = ($body_type eq 'text/html');
   $body //= '';
@@ -1571,7 +1573,7 @@ sub fetch_rss_process_one_item {
 <html>
 <head>
 <meta http-equiv=Content-Type content="text/html; charset=$body_charset">
-</head
+</head>
 <body>
 $body
 HERE

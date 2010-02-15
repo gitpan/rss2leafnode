@@ -23,6 +23,7 @@ use warnings;
 use FindBin;
 use Data::Dumper;
 
+HTML::FormatText
 
 my $rdf = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
 my $atom = 'http://www.w3.org/2005/Atom';

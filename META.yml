@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               rss2leafnode
-version:            20
+version:            21
 abstract:           Download RSS feeds into Leafnode news.
 author:
     - Kevin Ryde <user42@zip.com.au>

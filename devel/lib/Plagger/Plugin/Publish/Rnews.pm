@@ -31,7 +31,7 @@ use URI;
 use News::Rnews;
 use base 'Plagger::Plugin';
 
-our $VERSION = 20;
+our $VERSION = 21;
 
 
 sub rule_hook { return 'publish.feed' }

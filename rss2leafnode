@@ -24,7 +24,7 @@ use strict;
 use warnings;
 use App::RSS2Leafnode;
 
-our $VERSION = 20;
+our $VERSION = 21;
 
 my $r2l = App::RSS2Leafnode->new;
 exit $r2l->command_line;
@@ -45,9 +45,8 @@ RSS2Leafnode downloads RSS or Atom feeds and posts items to an NNTP news
 server.  It's designed to make simple text entries available in local
 newsgroups (not propagated anywhere, though that's not enforced).
 
-Desired feeds are specified in a configuration file F<.rss2leafnode.conf> in
-your home directory.  For example to post a feed to group "r2l.surfing" on
-your "localhost"
+Desired feeds are given in a configuration file F<.rss2leafnode.conf> in
+your home directory.  For example to post a feed to group "r2l.surfing"
 
     fetch_rss ('r2l.surfing',
                'http://www.coastalwatch.com/rss/cwreports_330.xml');

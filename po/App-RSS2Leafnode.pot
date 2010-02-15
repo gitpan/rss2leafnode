@@ -91,8 +91,8 @@ msgstr ""
 msgid "{group} 1 new article\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:963 lib/App/RSS2Leafnode.pm:1652
-#: lib/App/RSS2Leafnode.pm:1714
+#: lib/App/RSS2Leafnode.pm:963 lib/App/RSS2Leafnode.pm:1654
+#: lib/App/RSS2Leafnode.pm:1716
 #, perl-brace-format
 msgid ""
 "rss2leafnode: {url}\n"
@@ -113,42 +113,42 @@ msgid ""
 "{error}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1344
+#: lib/App/RSS2Leafnode.pm:1345
 msgid "no subject"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1508
+#: lib/App/RSS2Leafnode.pm:1509
 #, perl-brace-format
 msgid " item: {subject}\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1636
+#: lib/App/RSS2Leafnode.pm:1638
 #, perl-brace-format
 msgid "  link: {link}\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1655
+#: lib/App/RSS2Leafnode.pm:1657
 #, perl-brace-format
 msgid ""
 "Cannot download link {url}\n"
 "{status}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1679
+#: lib/App/RSS2Leafnode.pm:1681
 msgid "   posted\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1700
+#: lib/App/RSS2Leafnode.pm:1702
 #, perl-brace-format
 msgid "feed: {url}\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1727
+#: lib/App/RSS2Leafnode.pm:1729
 #, perl-brace-format
 msgid "Error parsing {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1728
+#: lib/App/RSS2Leafnode.pm:1730
 #, perl-brace-format
 msgid ""
 "XML::Twig parse error on\n"
