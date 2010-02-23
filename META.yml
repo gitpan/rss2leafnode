@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               rss2leafnode
-version:            21
+version:            22
 abstract:           Download RSS feeds into Leafnode news.
 author:
     - Kevin Ryde <user42@zip.com.au>
@@ -11,25 +11,26 @@ configure_requires:
 build_requires:
     ExtUtils::MakeMaker:  0
 requires:
-    Date::Parse:         0
-    File::HomeDir:       0
-    HTML::FormatText:    0
-    HTTP::Message:       0
-    HTTP::Request:       0
-    HTTP::Response:      0
-    List::MoreUtils:     0
-    Locale::TextDomain:  0
-    LWP:                 5.832
-    LWP::UserAgent:      0
-    MIME::Entity:        0
-    MIME::Tools:         0
-    MIME::Words:         0
-    perl:                5.010
-    Scope::Guard:        0
-    URI:                 0
-    URI::Escape:         0
-    URI::tag:            0
-    XML::Twig:           0
+    Date::Parse:          0
+    File::HomeDir:        0
+    HTML::Entities::Interpolate:  0
+    HTML::FormatText:     0
+    HTTP::Message:        0
+    HTTP::Request:        0
+    HTTP::Response:       0
+    Locale::TextDomain:   0
+    LWP:                  5.832
+    LWP::UserAgent:       0
+    MIME::Entity:         0
+    MIME::Tools:          0
+    MIME::Words:          0
+    perl:                 5.010
+    Scope::Guard:         0
+    Text::WrapI18N:       0
+    URI:                  0
+    URI::Escape:          0
+    URI::tag:             0
+    XML::Twig:            0
 resources:
     homepage:  http://user42.tuxfamily.org/rss2leafnode/index.html
     license:   http://www.gnu.org/licenses/gpl.html
@@ -53,9 +54,11 @@ optional_features:
         requires:
             DateTime:             0
             DateTime::Format::Mail:  0
+            Hook::LexWrap:        0
             HTML::Entities:       0
             HTML::FormatText:     0
             HTML::TreeBuilder:    0
+            IO::Socket::SSL:      0
             Perl6::Slurp:         0
             URI::file:            0
             URI::Title:           0

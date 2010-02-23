@@ -26,12 +26,16 @@ devel/libxml.pl
 devel/lwp-title.html
 devel/lwp-title.pl
 devel/mime-entity.pl
+devel/misc.pl
+devel/namespace.pl
 devel/Plagger.t
 devel/recode.pl
 devel/rnews.pl
+devel/rss2leafnode.el
 devel/run-parse.pl
 devel/samples.pl
 devel/single-entry.yaml
+devel/twig-map-default.pl
 devel/unused.pl
 devel/xml-encoding.pl
 devel/xml.pl

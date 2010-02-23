@@ -23,8 +23,6 @@ use warnings;
 use FindBin;
 use Data::Dumper;
 
-HTML::FormatText
-
 my $rdf = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
 my $atom = 'http://www.w3.org/2005/Atom';
 
@@ -63,6 +61,10 @@ my $filename = "$FindBin::Bin/" . "../samp/andrew-weil.rss";
                    'http://www.w3.org/2005/Atom' => 'atom',
                   });
   $twig->safe_parsefile($filename);
+
+  # print $twig->base,"\n";
+  # print $twig->root->base,"\n";
+
 
   my ($elem) = $twig->root->get_xpath('/rss/channel/item/description');
   # $elem->print;
@@ -191,6 +193,16 @@ my $filename = "$FindBin::Bin/" . "../samp/andrew-weil.rss";
   #$twig->print;
   exit 0;
 
+}
+
+{
+  require URI;
+  my $start = URI->new('http://foo.com/start/');
+  my $uri = URI->new ('rela/tive/',$start);
+  print $uri->scheme,"\n";
+  print $uri,"\n";
+  print URI->new_abs('subdir',$uri),"\n";
+  exit 0;
 }
 
 {

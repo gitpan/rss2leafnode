@@ -64,8 +64,9 @@ MyMakeMakerExtras::WriteMakefile
                     # this is required by MIME-Tools anyway
                     'Date::Parse' => 0,
 
+                    'HTML::Entities::Interpolate' => 0,
                     'HTML::FormatText' => 0,
-                    'List::MoreUtils' => 0,
+                    'Text::WrapI18N' => 0,
                     'Scope::Guard' => 0,
                     'File::HomeDir' => 0,
                     'Locale::TextDomain' => 0,
@@ -128,6 +129,8 @@ MyMakeMakerExtras::WriteMakefile
                                 'HTML::Entities' => 0,
                                 'DateTime' => 0,
                                 'DateTime::Format::Mail' => 0,
+                                'IO::Socket::SSL' => 0,
+                                'Hook::LexWrap' => 0,
                               },
                 },
            },

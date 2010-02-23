@@ -28,9 +28,10 @@ use List::Util;
 use Scalar::Util;
 use POSIX (); # ENOENT, etc
 use URI;
+use HTML::Entities::Interpolate;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
-our $VERSION = 21;
+our $VERSION = 22;
 
 
 # Cribs:
@@ -46,9 +47,11 @@ our $VERSION = 21;
 #   http://www.rssboard.org/rss-specification
 #   http://www.rssboard.org/files/rss-2.0-sample.xml
 #       RSS 2.0 spec and sample.
+#
 #   http://www.rssboard.org/rss-profile
 #       "Best practices."
 #   http://www.meatballwiki.org/wiki/ModWiki -- wiki
+#   http://web.resource.org/rss/1.0/modules/slash/
 #       
 #
 # Dublin Core
@@ -707,16 +710,21 @@ sub status_save {
   $status->{'status-time'} = $status->{'timingfields'}->{'lastPolled'} =time();
 
   require Data::Dumper;
-  my $d = Data::Dumper->new([$self->{'global_status'}],['global_status'])
-    ->Indent(1)->Sortkeys(1);
-  my $str = <<'HERE';
+  my $str = Data::Dumper->new([$self->{'global_status'}],['global_status'])
+    ->Indent(1)->Sortkeys(1)->Useqq(1)->Dump;
+  $str = <<"HERE";
 # rss2leafnode status file -- automatically generated -- DO NOT EDIT
 #
 # (If there seems to be something very wrong then you can delete this file
 # and it'll be started afresh on the next run.)
 
+$str
+
+
+# Local variables:
+# mode: perl-mode
+# End:
 HERE
-  $str .= $d->Dump . "\n";
 
   my $status_filename = $self->status_filename;
   my $out;
@@ -1030,26 +1038,28 @@ sub fetch_html {
 #
 sub item_yahoo_permalink {
   my ($item) = @_;
-  my $link = $item->first_child_text('link') // return;
-  $link =~ m{^http://[^/]*yahoo\.com/.*\*(http://.*yahoo\.com.*)$} or return;
+  my $url = $item->first_child_text('link') // return;
+  $url =~ m{^http://[^/]*yahoo\.com/.*\*(http://.*yahoo\.com.*)$} or return;
   return $1;
 }
 
 # This is a special case for Google Groups RSS feeds.
-# $link is a url string, or undef.  If it's a google groups form like
-# "http://groups.google.com/group/cfcdev/msg/445d4ccfdabf086b" then return a
-# mailing list address like "cfcdev@googlegroups.com".  If not in that form
-# then return undef.
+# The arguments are link elements [$name,$uri].  If there's a google groups
+# like "http://groups.google.com/group/cfcdev/msg/445d4ccfdabf086b" then
+# return a mailing list address like "cfcdev@googlegroups.com".  If not in
+# that form then return undef.
 #
 sub googlegroups_link_email {
-  my ($link) = @_;
-  defined $link or return;
-  $link =~ m{^http://groups\.google\.com/group/([^/]+)/} or return;
-  return ($1 . '@googlegroups.com');
+  foreach my $l (@_) {
+    $l->{'uri'}->canonical =~ m{^http://groups\.google\.com/group/([^/]+)/}
+      or next;
+    return ($1 . '@googlegroups.com');
+  }
+  return;
 }
 
 # This is a nasty hack for http://www.aireview.com.au/rss.php
-# $link is a link url string just fetched, $resp is a HTTP::Response.  The
+# $url is a link url string just fetched, $resp is a HTTP::Response.  The
 # return is a possibly new HTTP::Response object.
 #
 # The first fetch of an item link from aireview gives back content like
@@ -1069,7 +1079,7 @@ sub googlegroups_link_email {
 # here.
 #
 sub aireview_follow {
-  my ($self, $link, $resp) = @_;
+  my ($self, $url, $resp) = @_;
 
   if ($resp->is_success) {
     my $content = $resp->decoded_content (charset=>'none');
@@ -1078,7 +1088,7 @@ sub aireview_follow {
         print "  following aireview META Refresh with cookies\n";
       }
       require HTTP::Request;
-      my $req = HTTP::Request->new (GET => $link);
+      my $req = HTTP::Request->new (GET => $url);
       $resp = $self->ua->request($req);
     }
   }
@@ -1092,26 +1102,40 @@ sub aireview_follow {
 my $map_xmlns
   = {
      'http://www.w3.org/2005/Atom'                  => 'atom',
-     'http://purl.org/dc/elements/1.1/'             => 'dc',
-     # don't need to handle dcterms differently from plain dc as yet
-     'http://purl.org/dc/terms/'                    => 'dc',
      'http://www.w3.org/1999/02/22-rdf-syntax-ns#'  => 'rdf',
+     'http://purl.org/rss/1.0/modules/slash/'       => 'slash',
      'http://purl.org/rss/1.0/modules/syndication/' => 'syn',
+     'http://wellformedweb.org/CommentAPI/'         => 'wfw',
+
+     # don't need to distinguish dcterms from plain dc as yet
+     'http://purl.org/dc/elements/1.1/'             => 'dc',
+     'http://purl.org/dc/terms/'                    => 'dc',
+
+     # purl.org might be supposed to be the home for wiki:, but it's a 404
+     # and usemod.com suggests the page there
      'http://purl.org/rss/1.0/modules/wiki/'        => 'wiki',
      'http://www.usemod.com/cgi-bin/mb.pl?ModWiki'  => 'wiki',
+
+     # not sure if this is supposed to be necessary, but without it
+     # "xml:lang" is turned into "lang"
+     'http://www.w3.org/XML/1998/namespace' => 'xml',
     };
 
 sub twig_parse {
   my ($self, $xml) = @_;
+
+  # "keep_spaces" set to try to mostly preserve the original when
+  # re-emitting stuff like xhtml sub-elements
   require XML::Twig;
-  my $twig = XML::Twig->new (map_xmlns => $map_xmlns);
+  my $twig = XML::Twig->new (map_xmlns => $map_xmlns,
+                             keep_spaces => 1);
   $twig->safe_parse ($xml);
   my $err = $@;
 
-  # zap bad non-ascii chars by putting it through Encode::from_to()
-  # Encode::FB_DEFAULT substitutes U+FFFD for unicode, or ? for non-unicode
-  # mozilla does some sort of similar liberal byte interpretation so as to
-  # at least display something from a dodgy feed
+  # Zap bad non-ascii chars by putting it through Encode::from_to().
+  # Encode::FB_DEFAULT substitutes U+FFFD for unicode, or question mark "?"
+  # for non-unicode.  Mozilla does some sort of similar liberal byte
+  # interpretation so as to at least display something from a dodgy feed.
   #
   if ($err && $err =~ /not well-formed \(invalid token\) at (line \d+, column \d+, byte (\d+))/) {
     my $where = $1;
@@ -1123,7 +1147,7 @@ sub twig_parse {
           $byte;
       }
       require Encode;
-      Encode::from_to($xml, $charset, $charset, Encode::);
+      Encode::from_to($xml, $charset, $charset, Encode::FB_DEFAULT());
 
       $twig = XML::Twig->new (map_xmlns => $map_xmlns);
       if ($twig->safe_parse ($xml)) {
@@ -1148,18 +1172,24 @@ sub twig_parse {
     return (undef, $err);
   }
 
-  # Mangle any explicit "atom:" namespace down to bare part.  Should be
+  # Strip any explicit "atom:" namespace down to bare part.  Should be
   # unambiguous and is a lot easier than giving tag names both with and
-  # without the namespace.
-  foreach my $elt ($twig->root->descendants_or_self) {
-    if ($elt->tag =~ /^atom:(.*)/) {
-      $elt->set_tag($1);
+  # without the namespace.  Undocumented set_ns_as_default() might do this.
+  #
+  my $root = $twig->root;
+  foreach my $elt ($root->descendants_or_self) {
+    if ($elt->ns_prefix eq 'atom') {
+      $elt->set_tag ($elt->local_name);
     }
-    foreach my $attname ($elt->att_names) {
-      if ($attname =~ /^atom:(.*)/) {
-        $elt->change_att_name($attname, $1);
-      }
-    }
+    #     foreach my $attname ($elt->att_names) {
+    #       if ($attname =~ /^atom:(.*)/) {
+    #         $elt->change_att_name($attname, $1);
+    #       }
+    #     }
+  }
+
+  if (defined $self->{'uri'} && ! $root->att_exists('xml:base')) {
+    $root->set_att ('xml:base', $self->{'uri'});
   }
 
   return ($twig, undef);
@@ -1230,7 +1260,7 @@ sub uri_to_host {
 sub elt_to_email {
   my ($elt) = @_;
   return unless defined $elt;
-  my $email = $elt->first_child_text('email');
+  my $email = $elt->first_child_trimmed_text('email');
   my $rdfdesc = $elt->first_child('rdf:Description');
 
   my $ret = join
@@ -1315,7 +1345,7 @@ sub elt_to_rendered_text {
   my ($elt) = @_;
   defined $elt or return;
 
-  my $type = $elt->att('type') // '';
+  my $type = $elt->att('atom:type') // $elt->att('type') // '';
   if ($type eq 'text') {
     return $elt->text;
   }
@@ -1345,82 +1375,158 @@ sub item_to_subject {
      // __('no subject'));
 }
 
-# atom <link rel="foo"> attribute values to exclude
-my %link_rel_exclude
-  = ('self'         => 1, # the feed itself (in the channel normally)
-     'service.edit' => 1, # to edit the item
-     'service.post' => 1, # to add comments
-    );
-
-# return list of strings
-#
-# <comments>, <wfw:comment>, <slash:comments>, Atom service.post, or other
-# comment-postings might be worthwhile, but would want $rss_fetch_links not
-# to download those
+# return list of hashrefs
 #
 sub item_to_links {
   my ($self, $item) = @_;
-  my @links = ($item->children('link'),
-               $item->children('wiki:diff'));
 
-  # Atom link types to exclude
-  #
-  # "alternate" is supposed to be the content as the entry, but in a web
-  # page or something.  Not sure that's always quite true, so show it as a
-  # link.  If no <content> then an "alternate" is supposed to be mandatory.
-  #
-  @links = grep { ! $link_rel_exclude{$_->att('rel') // ''} } @links;
+  my @elts = ($item->children(qr/^link$
+                               |^wiki:diff$
+                               |^comments$
+                               |^wfw:comment$
+                                /x));
 
-  # Atom <link href="http:.."/> or RSS <link>http:..</link>
-  @links = map {
-    my $link = $_;
-    non_empty ($self->elt_url_to_absolute ($item, $link->att('href'))
-               // $link->trimmed_text)
-  } @links;
+  my (@links, @others);
+  my %seen;
+  foreach my $elt (@elts) {
+    if ($self->{'verbose'} >= 2) { print "link ",$elt->sprint,"\n"; }
 
-  # not sure if multiple Atom <link> could have duplicates, check against that
-  if (@links) {
-    require List::MoreUtils;
-    @links = List::MoreUtils::uniq (@links);
+    my $l = { download => 1 };
+
+    given ($elt->att('atom:type') // $elt->att('type')) {
+      when (! defined) {}
+      when ('application/atom+xml') {
+        if ($self->{'verbose'} >= 1) { print "skip link type \"$_\"\n"; }
+        next;
+      }
+    }
+
+    given (non_empty ($elt->att('atom:rel'))
+           // non_empty ($elt->att('rel'))) {
+      when (!defined) {
+        if ($elt->tag !~ /link|diff/) {
+          if (defined (my $count = non_empty($item->first_child_text('slash:comments')))) {
+            $l->{'name'} = __x('Comment({count}):', count => $count);
+          } else {
+            $l->{'name'} = __('Comment:');
+          }
+          $l->{'download'} = 0;
+        }
+      }
+
+      # "alternate" is supposed to be the content as the entry, but in a web
+      # page or something.  Not sure that's always quite true, so show it as
+      # a plain link.  If no <content> then an "alternate" is supposed to be
+      # mandatory.
+      when ('alternate') { }
+
+      # when ('next') ... # not sure about "next" link
+
+      when (['self',         # the feed itself (in the channel normally)
+             'edit',         # to edit the item, maybe
+             'service.edit', # to edit the item
+             'license',      # probably only in the channel part normally
+            ]) {
+        if ($self->{'verbose'} >= 1) { print "skip link \"$_\"\n"; }
+        next;
+      }
+
+      when ('service.post') { $l->{'name'} = __('Comment:');
+                              $l->{'download'} = 0 }
+      when ('via')          { $l->{'name'} = __('Via:');
+                              $l->{'download'} = 0 }
+      when ('replies')      { $l->{'name'} = __('Replies:');
+                              $l->{'download'} = 0 }
+      when ('enclosure')    { $l->{'name'} = __('Enclosure:') }
+      when ('related')      { $l->{'name'} = __('Related:') }
+      default { $l->{'name'} = __x('{linkrel}:', linkrel => $_) }
+    }
+
+    # Atom <link href="http:.."/> or RSS <link>http:..</link>
+    my $uri = (non_empty ($elt->att('atom:href'))
+               // non_empty ($elt->att('href'))
+               // non_empty ($elt->trimmed_text)
+               // next);
+    $l->{'uri'} = $uri = elt_based_uri ($elt, $uri);
+
+    # have seen same url under <link> and <comments> from sourceforge
+    # http://sourceforge.net/export/rss2_keepsake.php?group_id=203650
+    # so dedup
+    if ($seen{$uri->canonical}++) {
+      if ($self->{'verbose'} >= 1) { print "skip duplicate link \"$uri\"\n"; }
+      next;
+    }
+
+    if (defined $l->{'name'}) {
+      push @others, $l;
+    } else {
+      $l->{'name'} = __('Link:');
+      push @links, $l;
+    }
   }
 
-  return @links;
+  return (@links, @others);
 }
-# $elt is an XML::Twig::Elt, $url is a string or undef
-# return $url made absolute according to xml:base in $elt and its parents
-#
-sub elt_url_to_absolute {
-  my ($self, $elt, $url) = @_;
-  return if ! defined $url;
 
-  my $base = $self->{'uri'};
-  foreach my $e (reverse $elt->ancestors_or_self) {
-    my $next_base = $e->att('base') // next;
-    $base = eval { URI->new_abs($next_base,$base) } // $base; # in case invalid
+# Return a URI object for string $url.  If $url is relative then it's
+# resolved against xml:base, if available, to make it absolute.
+# If $url is undef then return undef, which is handy if passing a possibly
+# attribute like $elt->att('href').
+sub elt_based_uri {
+  my ($elt, $url) = @_;
+  if (! defined $url) { return undef; }
+  $url = URI->new ($url);
+  if (my $base = elt_base ($elt)) {
+    return $url->abs ($base);
+  } else {
+    return $url;
   }
-  $url = (eval { URI->new_abs($url,$base) }
-          // return $url); # if invalid
-  return $url->as_string
+}
+
+# Return a URI object for the xml:base applying to $elt, or undef.
+# Optional $document_url is used as an outermost base, though the first of
+# any xml:base probably ought to be absolute.
+sub elt_base {
+  my ($elt) = @_;
+  my @relative;
+  for ( ; $elt; $elt = $elt->parent) {
+    next if ! defined (my $base = $elt->att('xml:base'));
+    $base = URI->new($base);
+    if ($base->scheme) {
+      # an absolute URL
+      while (@relative) {
+        $base = (pop @relative)->abs($base);
+      }
+      return $base;
+    } else {
+      # a relative path
+      push @relative, $base;
+    }
+  }
+  # no base, only relative paths
+  return;
 }
 
 # return language code string or undef
 sub item_to_language {
   my ($self, $item) = @_;
-  my $content;
-  my $ret = (elt_to_language($item)
-             // elt_to_language($item->first_child('content')));
-  for (;;) {
-    $item = $item->parent // last;
-    $ret //= elt_to_language($item);
+  my $lang;
+  if (my $elt = $item->first_child('content')) {
+    $lang = non_empty ($elt->att('xml:lang'));
   }
-  $ret //= $self->{'resp'}->content_language;
-  return $ret;
-}
-sub elt_to_language {
-  my ($elt) = @_;
-  return if ! defined $elt;
-  return (non_empty ($elt->first_child_text('language'))
-          // non_empty ($elt->att('lang')));
+
+  # Either <language> sub-element or xml:lang="" tag, in item itself or in
+  # channel, and maybe xml:lang in toplevel <feed>.
+  # $elt->inherit_att() is close, but looks only at xml:lang, not a
+  # <language> subelement.
+  for ( ; $item; $item = $item->parent) {
+    $lang //= (non_empty    ($item->first_child_text('language'))
+               // non_empty ($item->att('xml:lang'))
+               // next);
+  }
+
+  return ($lang
+          // $self->{'resp'}->content_language);
 }
 
 # return copyright string or undef
@@ -1452,9 +1558,13 @@ sub item_to_generator {
 
   # both RSS and Atom use <generator>
   # Atom can include version="" and uri=""
-  my $elt = $channel->first_child('generator') // return;
-  return join_non_empty (' ',
-                         $elt->text, $elt->att('version'), $elt->att('uri'));
+  my $generator = $channel->first_child('generator') // return;
+  return collapse_whitespace (join_non_empty (' ',
+                                              $generator->text,
+                                              $generator->att('atom:version'),
+                                              $generator->att('version'),
+                                              $generator->att('atom:uri'),
+                                              $generator->att('uri')));
 }
 
 # $self->{'rss_charset_override'}, if set, means the bytes are actually in
@@ -1496,18 +1606,16 @@ my %mime_html_types = ('text/html'  => 1,
                        'text/xhtml' => 1,
                        'application/xhtml+xml' => 1);
 
-
 # $item is an XML::Twig::Elt
 #
 sub fetch_rss_process_one_item {
   my ($self, $item) = @_;
-
-  my $msgid = $self->item_to_msgid ($item);
-  return 0 if $self->nntp_message_id_exists ($msgid);
-
   my $subject = $self->item_to_subject ($item);
   if ($self->{'verbose'} >= 1) { print __x(" item: {subject}\n",
                                            subject => $subject); }
+
+  my $msgid = $self->item_to_msgid ($item);
+  return 0 if $self->nntp_message_id_exists ($msgid);
 
   my $channel = item_to_channel($item);
   local $self->{'now822'} = rfc822_time_now();
@@ -1518,7 +1626,7 @@ sub fetch_rss_process_one_item {
   my $language   = $self->item_to_language ($item);
   my $pics       = $channel->first_child_text('rating');
   my @links      = $self->item_to_links ($item);
-  my $list_email = List::Util::first {googlegroups_link_email($_)} @links;
+  my $list_email = googlegroups_link_email(@links);
   my $generator  = $self->item_to_generator ($item);
 
   # Headers in utf-8, the same as other text.  The docs of
@@ -1543,12 +1651,26 @@ sub fetch_rss_process_one_item {
               // $item->first_child('summary'));  # Atom
   my $body_type;
   if ($body) {
-    $body_type = $body->att('type') // '';
+    $body_type = $body->att('atom:type') // $body->att('type') // '';
     if ($body_type eq 'xhtml') {
-      # xml_string() include nested elements for Atom type="xhtml"
+      # Atom type="xhtml", use xml_string() to get nested elements
       $body = $body->xml_string;
     } else {
+      # just the text, but include sub-elements from dodgy feeds
       $body = elt_subtext($body);
+
+      if ($body_type eq 'text') {
+        $body_type = 'text/plain';
+        # Wrap against long lines seen in for example
+        # http://feeds.feedburner.com/SeriouslyGood
+        # Is it worth checking if it already looks wrapped adequately?
+        require Text::WrapI18N;
+        local $Text::WrapI18N::columns = $self->{'render_width'} + 1;
+        local $Text::WrapI18N::unexpand = 0;       # no tabs in output
+        local $Text::WrapI18N::huge = 'overflow';  # don't break long words
+        $body =~ tr/\n/ /;
+        $body = Text::WrapI18N::wrap('', '', $body);
+      }
     }
   }
   if (is_empty($body_type)) {
@@ -1557,39 +1679,51 @@ sub fetch_rss_process_one_item {
     $body_type = 'text/html';
   }
   if ($body_type !~ m{/}) {
-    # Atom type="html" becomes text/html
+    # Atom type="html" or type="xhtml" become text/html or text/xhtml
     $body_type = "text/$body_type";
   }
   if ($mime_html_types{$body_type}) {
     $body_type = 'text/html';
   }
-  if ($self->{'verbose'} >= 3) { print " body: $body_type\n$body\n"; }
-
   my $body_is_html = ($body_type eq 'text/html');
   $body //= '';
+  if ($self->{'verbose'} >= 3) { print " body: $body_type\n$body\n"; }
+
   if ($body_is_html) {
-    $body = <<"HERE";;
+    my $body_base = '';
+    if (my $base_uri = elt_base($item)) {
+      $body_base = <<"HERE";
+<base href="$Entitize{$base_uri}">
+HERE
+    }
+
+    $body = <<"HERE";
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
 <head>
-<meta http-equiv=Content-Type content="text/html; charset=$body_charset">
-</head>
+<meta http-equiv=Content-Type content="text/html; charset=$Entitize{$body_charset}">
+$body_base</head>
 <body>
 $body
 HERE
-    # <pre> and <nobr> on the link with the idea of not letting the displayed
-    # form get chopped up
+    # <nobr> on the link with the idea of not letting the displayed form get
+    # chopped up.  <pre> is only good if it's on the whole line, which is
+    # not possible if the <a> is to be on the url part and not the name
+    # part.
     if (! $self->{'render'}) { # link append if not rendering to text
-      $body .= "\n\n<p>\n";
-      my $sep = "";
-      foreach my $link (@links) {
-        $body .= "$sep<a href=\"$link\"><nobr><pre>$link</pre></nobr></a>\n";
-        $sep = "<br>\n";
+      if (@links) {
+        my $sep = "\n\n<p>\n";
+        foreach my $l (@links) {
+          $body .= <<"HERE";
+$sep<nobr>$l->{name}&nbsp;<a href="$Entitize{$l->{uri}}">$Entitize{$l->{uri}}</a></nobr>
+HERE
+          $sep = "<br>\n";
+        }
+        $body .= "</p>";
       }
-      $body .= "</p>";
     }
-    $body .= "\n</body></html>\n";
 
+    $body .= "\n</body></html>\n";
     $body = Encode::encode ($body_charset, $body);
   }
 
@@ -1602,8 +1736,8 @@ HERE
   if ((!$body_is_html || $self->{'render'}) && @links) {
     $body =~ s/\s+$//; # trailing whitespace
     $body .= "\n\n";
-    foreach my $link (@links) {
-      $body .= Encode::encode ($body_charset, "$link\n");
+    foreach my $l (@links) {
+      $body .= Encode::encode ($body_charset, "$l->{name} $l->{uri}\n");
     }
   }
 
@@ -1624,8 +1758,10 @@ HERE
      'PICS-Label:'       => $pics,
      'X-Copyright:'      => $copyright,
      'X-RSS-URL:'        => $self->{'uri'}->as_string,
-     'X-RSS-Feed-Link:'  => $channel->{'link'},
      'X-RSS-Generator:'  => $generator,
+
+     # there can be multiple "feed" links from Atom ...
+     # 'X-RSS-Feed-Link:'  => $channel->{'link'},
 
      Type           => $body_type,
      Encoding       => '-SUGGEST',
@@ -1634,13 +1770,15 @@ HERE
   $self->mime_mailer_rss2leafnode ($top);
 
   if ($self->{'rss_get_links'}) {
-    foreach my $link (@links) {
-      if ($self->{'verbose'}) { print __x("  link: {link}\n",
-                                          link => $link); }
+    foreach my $l (@links) {
+      next if ! $l->{'download'};
+      if ($self->{'verbose'}) { print __x("  link: \"{name}\" {url}\n",
+                                          name => $l->{'name'},
+                                          url => $l->{'uri'}); }
       require HTTP::Request;
-      my $req = HTTP::Request->new (GET => $link);
+      my $req = HTTP::Request->new (GET => $l->{'uri'});
       my $resp = $self->ua->request($req);
-      $resp = $self->aireview_follow ($link, $resp);
+      $resp = $self->aireview_follow ($l->{'uri'}, $resp);
 
       my ($down, $down_type, $down_charset);
       if ($resp->is_success) {
@@ -1652,10 +1790,10 @@ HERE
           = $self->render_maybe ($down, $down_type, $down_charset);
       } else {
         print __x("rss2leafnode: {url}\n {status}\n",
-                  url => $link,
+                  url => $l->{'uri'},
                   status => $resp->status_line);
         $down = "\n" . __x("Cannot download link {url}\n{status}",
-                           url => $link,
+                           url => $l->{'uri'},
                            status => $resp->status_line);
         $down_type = 'text/plain';
         $down_charset = 'us-ascii';
@@ -1672,7 +1810,7 @@ HERE
                       Data     => $down,
                       # only really applicable to text/html content type, but
                       # shouldn't hurt to include it always
-                      'Content-Location:' => $link);
+                      'Content-Location:' => $l->{'uri'});
       }
     }
   }
@@ -1734,7 +1872,7 @@ sub fetch_rss {
     $self->status_etagmod_resp ($url, $resp);
     return;
   }
-  if ($self->{'verbose'} >= 2) {
+  if ($self->{'verbose'} >= 3) {
     require Data::Dumper;
     print Data::Dumper->new([$twig->root],['root'])
       ->Indent(1)->Sortkeys(1)->Dump;

@@ -16,6 +16,10 @@ You should have received a copy of the GNU General Public License along
 with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
+Version 22, February 2010
+    - show link-type for some Atom things
+    - avoid some twig uninitialized warnings
+
 Version 21, February 2010
     - test script allow for hostname() without a "."
 

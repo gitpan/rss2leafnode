@@ -36,7 +36,7 @@ Bugs: mailto:user42@zip.com.au
 
 Package: rss2leafnode
 Architecture: all
-Depends: perl (>= 5.10), libfile-homedir-perl, libhtml-format-perl, libintl-perl, liblist-moreutils-perl, libmime-tools-perl, libscope-guard-perl, libtimedate-perl, liburi-perl, liburi-tag-perl, libwww-perl (>= 5.832), libxml-twig-perl, ${misc:Depends}
+Depends: perl (>= 5.10), libfile-homedir-perl, libhtml-entities-interpolate-perl, libhtml-format-perl, libintl-perl, libmime-tools-perl, libscope-guard-perl, libtext-wrapi18n-perl, libtimedate-perl, liburi-perl, liburi-tag-perl, libwww-perl (>= 5.832), libxml-twig-perl, ${misc:Depends}
 Recommends: leafnode (>= 2) | news-transport-system, libxml-rss-timing-perl, libtime-duration-perl, libtime-duration-locale-perl
 Suggests: libhtml-formattext-withlinks-perl, libhtml-formatexternal-perl, lynx | w3m | elinks, liburi-title-perl, libintl-xs-perl
 Description: Post RSS or Atom articles to local newsgroups

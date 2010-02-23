@@ -24,7 +24,7 @@ use strict;
 use warnings;
 use App::RSS2Leafnode;
 
-our $VERSION = 21;
+our $VERSION = 22;
 
 my $r2l = App::RSS2Leafnode->new;
 exit $r2l->command_line;
@@ -33,7 +33,7 @@ __END__
 
 =head1 NAME
 
-RSS2Leafnode -- post RSS/Atom feeds and web page updates to newsgroups
+RSS2Leafnode -- post RSS or Atom feeds and web pages to newsgroups
 
 =head1 SYNOPSIS
 
@@ -200,9 +200,9 @@ program (you must have C<HTML::FormatExternal> and the program).
 
 =item $render_width (default 60)
 
-The number of columns to use when rendering HTML to plain text.  You can set
-this for whatever width you find easiest to read, or any special width
-needed by a particular feed.
+The number of columns to use when rendering HTML to plain text or when
+wrapping Atom plain text.  You can set this to whatever you find easiest to
+read, or any special width needed by a particular feed.
 
 =back
 
@@ -222,17 +222,17 @@ only want this for a particular offending feed.  For example,
     fetch_rss ('r2l.finance', 'http://www.aireview.com.au/rss.php');
     $rss_charset_override = undef;
 
-An attempt is made to cope with bad non-ascii by re-coding to the supposed
-document charset.  If that works then the text will have substituted
-characters (U+FFFD or ?) and a warning is given,
+An attempt is made to cope with bad non-ascii by re-coding to the document's
+claimed charset.  If that works then the text will have substituted
+characters (U+FFFD or question marks "?") and a warning is given,
 
     Warning, recoded utf-8 to parse http://example.org/feed.xml
       expect substitutions for bad non-ascii
       (line 214, column 75, byte 13196)
 
-Nose around the feed bytes at the location shown to find what's actually
-wrong.  See L<XML::Parser/ENCODINGS> for charsets supported by the parser
-(basically F<.enc> files under F</usr/lib/perl5/XML/Parser/Encodings/> plus
+Nose around the raw feed at the given location to find what's actually
+wrong.  See L<XML::Parser/ENCODINGS> for the charsets supported by the
+parser (F<.enc> files under F</usr/lib/perl5/XML/Parser/Encodings/> plus
 some builtins).
 
 =item $html_charset_from_content (default 0)
@@ -261,12 +261,12 @@ can be used to confine a setting to a particular few feeds.  Eg.
 
 =head1 OTHER NOTES
 
-RSS/Atom text is encoded as utf-8 in the generated messages, so you'll need
-a newsreader which supports that if reading any non-ascii.  Unrendered HTML
-is left in the charset the server gave, to ensure it matches any C<meta
+RSS and Atom text is encoded as utf-8 in the generated messages, so you'll
+need a newsreader which supports that if reading any non-ascii.  Unrendered
+HTML is left in the charset the server gave, to ensure it matches any C<meta
 http-equiv> in the document.  HTML rendered to text is recoded to utf-8, the
 same as the RSS text.  In all cases of course the charset is specified in
-the MIME message headers and/or attachment parts.
+the MIME message headers or attachment parts.
 
 Google Groups mailing list feeds such as
 L<http://groups.google.com/group/cake-php/feed/rss_v2_0_msgs.xml> get a
