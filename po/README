@@ -25,10 +25,12 @@ messages in the rss2leafnode.
 Currently there's nothing translated, and the messages probably aren't
 settled enough to want to put work into translation.
 
-"charset=" in each .po file should probably be the usual locale
-charset, ready for messages to go out to the tty.  Other charsets can
-be converted at runtime, but the chars used should be displayable on a
-tty.  The .pot file is all ASCII.
+"charset=" in each .po file should be UTF-8, ready for messages to be
+used as Perl wide-char strings.  Other charsets work fine though,
+converted at runtime.  Messages for prints etc (which is almost
+everything) will go to the tty and should probably be restricted to
+characters displayable in the usual locale encoding(s) of the target
+language.  The .pot file itself is all ASCII.
 
 header.pot is the start part of RSS2Leafnode.pot, put there by the
 generate rules in the Makefile (per inc/MyMakeMakerGettext.pm).

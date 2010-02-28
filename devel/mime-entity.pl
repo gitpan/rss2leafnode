@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright 2008 Kevin Ryde
+# Copyright 2008, 2010 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -19,35 +19,38 @@
 
 use strict;
 use warnings;
-use MIME::Entity;
 
-my $top = MIME::Entity->build('Path:'        => 'localhost',
-                              'Newsgroups:'  => 'r2l.test',
-                              Type           => 'text/html',
-                              Encoding       => '-SUGGEST',
-                              From           => 'nobody',
-                              Subject        => 'hello',
-                              # Date           => ($date || rfc822_time_now()),
-                              # 'Message-ID'   => $msgid,
-                              # Charset        => $body_charset,
-                              Data           => "body text\n",
-                              # 'Content-Language:' => $language,
-                              #'Date-Received:'    => rfc822_time_now(),
-                              #'List-Post:'        => $list_email,
-                              #'X-Copyright:'      => $copyright,
-                              #'X-Feed-Link:'      => $channel->{'link'},
-                              #'X-RSS-Generator:'  => $generator
-                             );
-print $top->as_string;
+{
+  require MIME::Entity;
+  my $top = MIME::Entity->build('Path:'        => 'localhost',
+                                'Newsgroups:'  => 'r2l.test',
+                                'X-Mailer'     => 'foo 1.0',
+                                Type           => 'text/html',
+                                Encoding       => '-SUGGEST',
+                                From           => "no\x{2022}body",
+                                Subject        => 'hello',
+                                # Date           => ($date || rfc822_time_now()),
+                                # 'Message-ID'   => $msgid,
+                                # Charset        => $body_charset,
+                                Data           => "body text\n",
+                                'Content-Language:' => "\x{2022}",
+                                #'Date-Received:'    => rfc822_time_now(),
+                                #'List-Post:'        => $list_email,
+                                'X-Array:'      => ['one','two','three'],
+                                #'X-Feed-Link:'      => $channel->{'link'},
+                                #'X-RSS-Generator:'  => $generator
+                               );
+  print $top->as_string;
+  exit 0;
+}
 
 
-
-# {
-#   my $resp = HTTP::Response->new();
-#   my $content = slurp (</var/www/index.html>);
-#   $resp->content($content);
-#   $resp->content_type('text/html');
-#   print html_title($resp);
-#   exit 0;
-# }
+{
+  my $resp = HTTP::Response->new();
+  my $content = slurp (</var/www/index.html>);
+  $resp->content($content);
+  $resp->content_type('text/html');
+  print html_title($resp);
+  exit 0;
+}
 

@@ -32,7 +32,7 @@ use base 'Pod::Simple::HTML';
 
 our $VERSION = 1;
 
-use constant DEBUG => 1;
+use constant DEBUG => 0;
 
 sub resolve_pod_link_by_table {
   my ($self, $to, $section) = @_;
@@ -47,16 +47,16 @@ sub resolve_pod_link_by_table {
     }
 
     if ($to =~ /^Glib::Ex::(SourceIds|SignalIds|FreezeNotify|TieProperties)/) {
-      $url = "http://user42.tuxfamily.org/glib-ex-objectbits/$1.html";
+      $url = "http://user42.tuxfamily.org/glib-ex-ob"."jectbits/$1.html";
     }
     if ($to eq 'Gtk2::Ex::Widget'.'Cursor') {
       $url = "http://user42.tuxfamily.org/glib-ex-widget'.'cursor/Widget'.'Cursor.html";
     }
-    if ($to eq 'Tie:'.':TZ') {
-      $url = 'http://user42.tuxfamily.org/tie-'.'tz/TZ.html';
+    if ($to eq 'Ti'.'e:'.':TZ') {
+      $url = 'http://user42.tuxfamily.org/ti'.'e-'.'tz/TZ.html';
     }
     if ($to eq 'Time:'.':TZ') {
-      $url = 'http://user42.tuxfamily.org/tie-'.'tz/Time-'.'TZ.html';
+      $url = 'http://user42.tuxfamily.org/ti'.'e-'.'tz/Time-'.'TZ.html';
     }
 
     if ($to =~ /^(Glib|Gtk2)($|::(?!Ex::))/) {

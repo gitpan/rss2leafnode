@@ -29,6 +29,28 @@ my $atom = 'http://www.w3.org/2005/Atom';
 
 {
   my $xml = <<'HERE';
+<feed xmlns="http://www.w3.org/2005/Atom"
+      xmlns:thr="http://purl.org/syndication/thread/1.0">
+  <entry>
+    <title>Item One</title>
+    <updated>2006-03-01T12:12:12Z</updated>
+    <thr:in-reply-to ref="tag:foo.com,2010-02-09:something" />
+    <link rel="replies"
+          href="http://foo.com/reply.html" thr:count="10"/>
+  </entry>
+</feed>
+HERE
+
+  require XML::Twig;
+  my $twig = XML::Twig->new
+    (map_xmlns => {$atom => 'atom'});
+  $twig->parse($xml);
+  print $twig->root->first_descendant(qr/entry/)->sprint, "\n";
+  exit 0;
+}
+
+{
+  my $xml = <<'HERE';
 <x xmlns:abc="http://foo.org">
   <abc:bar def="1" />
   <quux abc:def="2" />

@@ -45,7 +45,7 @@ sub xml_prefix {
   print "xml_prefix() not found\n";
   return undef;
 }
-   
+
 {
   
   my $xml = <<'HERE';

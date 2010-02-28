@@ -40,7 +40,7 @@ MyMakeMakerExtras::WriteMakefile
                 },
 
    PREREQ_PM    => {
-                    'XML::Twig' => 0,
+                    'XML::Twig' => '3.34', # for att_exists()
 
                     # LWP 5.832 for content_charset()
                     'LWP' => '5.832',
@@ -69,7 +69,7 @@ MyMakeMakerExtras::WriteMakefile
                     'Text::WrapI18N' => 0,
                     'Scope::Guard' => 0,
                     'File::HomeDir' => 0,
-                    'Locale::TextDomain' => 0,
+                    'Locale::TextDomain' => '1.16',
                    },
 
    META_MERGE

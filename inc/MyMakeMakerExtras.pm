@@ -1,6 +1,6 @@
 # MyMakeMakerExtra.pm -- my shared MakeMaker extras
 
-# Copyright 2009 Kevin Ryde
+# Copyright 2009, 2010 Kevin Ryde
 
 # MyMakeMakerExtras.pm is shared by several distributions.
 #
@@ -21,7 +21,7 @@ package MyMakeMakerExtras;
 use strict;
 use warnings;
 
-sub DEBUG () { 0 };
+sub DEBUG () { 0 }
 
 my %my_options;
 
@@ -36,9 +36,10 @@ sub WriteMakefile {
       }
     }
 
-    $opts{'META_MERGE'}->{'resources'}->{'license'} ||=
-      'http://www.gnu.org/licenses/gpl.html';
+    $opts{'META_MERGE'}->{'resources'}->{'license'}
+      ||= 'http://www.gnu.org/licenses/gpl.html';
     _meta_merge_shared_tests (\%opts);
+    _meta_merge_shared_devel (\%opts);
   }
 
   $opts{'clean'}->{'FILES'} .= ' temp-lintian $(MY_HTML_FILES)';
@@ -54,6 +55,10 @@ sub WriteMakefile {
     $my_options{$opt} = delete $opts{$opt};
   }
 
+  if (DEBUG) {
+    require Data::Dumper;
+    print Data::Dumper->new([\%opts],['opts'])->Indent(1)->Useqq(1)->Dump;
+  }
   ExtUtils::MakeMaker::WriteMakefile (%opts);
 }
 
@@ -85,8 +90,14 @@ sub _meta_merge_shared_tests {
                          'Test::YAML::Meta' => '0.13');
   }
   if (-e 't/0-META-read.t') {
-    _meta_merge_req_add_ver ($opts, 5.00307, 'FindBin' => 0);
-    _meta_merge_req_add_ver ($opts, 5.00405, 'File::Spec' => 0);
+    if (_min_perl_version_lt ($opts, 5.00307)) {
+      _meta_merge_req_add (_meta_merge_maximum_tests($opts),
+                           'FindBin' => 0);
+    }
+    if (_min_perl_version_lt ($opts, 5.00405)) {
+      _meta_merge_req_add (_meta_merge_maximum_tests($opts),
+                           'File::Spec' => 0);
+    }
     _meta_merge_req_add (_meta_merge_maximum_tests($opts),
                          'Test::NoWarnings'  => 0,
                          'YAML'              => 0,
@@ -96,6 +107,7 @@ sub _meta_merge_shared_tests {
                          'Parse::CPAN::Meta' => 0);
   }
 }
+# return hashref of "maximum_tests" under $opts, created if necessary
 sub _meta_merge_maximum_tests {
   my ($opts) = @_;
   $opts->{'META_MERGE'}->{'optional_features'}->{'maximum_tests'} ||=
@@ -104,14 +116,33 @@ sub _meta_merge_maximum_tests {
     };
   return $opts->{'META_MERGE'}->{'optional_features'}->{'maximum_tests'}->{'requires'};
 }
-sub _meta_merge_req_add_ver {
-  my ($opts, $perlver, @deps) = @_;
-  if (! defined $opts->{'MIN_PERL_VERSION'}
-      || $opts->{'MIN_PERL_VERSION'} < $perlver) {
-    _meta_merge_req_add (_meta_merge_maximum_tests($opts),
-                         @deps);
+
+sub _meta_merge_shared_devel {
+  my ($opts) = @_;
+  if (-e 'inc/my_pod2html') {
+    if (_min_perl_version_lt ($opts, 5.009003)) {
+      _meta_merge_req_add (_meta_merge_maximum_devel($opts),
+                           'Pod::Simple::HTML' => 0);
+    }
   }
 }
+# return hashref of "maximum_devel" under $opts, created if necessary
+sub _meta_merge_maximum_devel {
+  my ($opts) = @_;
+  $opts->{'META_MERGE'}->{'optional_features'}->{'maximum_devel'} ||=
+    { description => 'Stuff used variously for development.',
+      requires => { },
+    };
+  return $opts->{'META_MERGE'}->{'optional_features'}->{'maximum_devel'}->{'requires'};
+}
+
+# return true if MIN_PERL_VERSION in $opts is < $ver, or no MIN_PERL_VERSION
+sub _min_perl_version_lt {
+  my ($opts, $perlver) = @_;
+  return (! defined $opts->{'MIN_PERL_VERSION'}
+          || $opts->{'MIN_PERL_VERSION'} < $perlver);
+}
+
 sub _meta_merge_req_add {
   my $req = shift;
   if (DEBUG) { local $,=' '; print "MyMakeMakerExtras META_MERGE",@_,"\n"; }
@@ -276,7 +307,7 @@ check-debug-constants:
 	if egrep -n 'DEBUG => [1-9]' $(EXE_FILES) $(TO_INST_PM); then exit 1; else exit 0; fi
 
 check-spelling:
-	if egrep -nHi 'existant|explict|agument|destionation|\bthe the\b|\bnote sure\b' -r . \
+	if egrep -nHi 'continous|existant|explict|agument|destionation|\bthe the\b|\bnote sure\b' -r . \
 	  | egrep -v '(MyMakeMakerExtras|Makefile|dist-deb).*grep -nH'; \
 	then false; else true; fi
 

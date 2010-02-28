@@ -2,7 +2,7 @@
 
 # 0-Test-YAML-Meta.t -- run Test::YAML::Meta if available
 
-# Copyright 2009 Kevin Ryde
+# Copyright 2009, 2010 Kevin Ryde
 
 # 0-Test-YAML-Meta.t is shared by several distributions.
 #
@@ -22,13 +22,10 @@
 use 5.000;
 use strict;
 use warnings;
-use FindBin;
-use File::Spec;
 use Test::More;
 
 
-my $meta_filename = File::Spec->catfile
-  ($FindBin::Bin, File::Spec->updir, 'META.yml');
+my $meta_filename = 'META.yml';
 unless (-e $meta_filename) {
   plan skip_all => "$meta_filename doesn't exist -- assume this is a working directory not a dist";
 }

@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               rss2leafnode
-version:            22
+version:            23
 abstract:           Download RSS feeds into Leafnode news.
 author:
     - Kevin Ryde <user42@zip.com.au>
@@ -18,7 +18,7 @@ requires:
     HTTP::Message:        0
     HTTP::Request:        0
     HTTP::Response:       0
-    Locale::TextDomain:   0
+    Locale::TextDomain:   1.16
     LWP:                  5.832
     LWP::UserAgent:       0
     MIME::Entity:         0
@@ -30,7 +30,7 @@ requires:
     URI:                  0
     URI::Escape:          0
     URI::tag:             0
-    XML::Twig:            0
+    XML::Twig:            3.34
 resources:
     homepage:  http://user42.tuxfamily.org/rss2leafnode/index.html
     license:   http://www.gnu.org/licenses/gpl.html

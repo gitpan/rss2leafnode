@@ -24,12 +24,30 @@ use URI;
 use URI::file;
 use Getopt::Long;
 
-if (0) {
+if (1) {
   no warnings 'redefine';
   *App::RSS2Leafnode::nntp_message_id_exists = sub { 0 };
   *App::RSS2Leafnode::nntp_post = sub {
     my ($self, $mime) = @_;
     print "\n",$mime->as_string,"\n\n";
+
+    if ($mime->mime_type eq 'text/html') {
+      my $html = $mime->bodyhandle->as_string;
+      require HTML::Lint;
+      my $lint = HTML::Lint->new;
+      $lint->newfile ('message');
+      $lint->parse ($html);
+
+      my @errors = $lint->errors;
+      @errors = grep {$_->errcode ne 'text-use-entity'} @errors;
+
+      print "HTML::Lint errors ",scalar(@errors),"\n";
+      foreach my $error (@errors) {
+        print $error->as_string, "\n";
+      }
+    } else {
+      print "[mime_type ",$mime->mime_type,"]\n";
+    }
     return 1;
   };
 }
@@ -38,7 +56,7 @@ my $r2l = App::RSS2Leafnode->new
   (
    # rss_charset_override => 'windows-1252',
    # rss_charset_override => 'iso-8859-1',
-   verbose => 2,
+   verbose => 1,
    # render => 'lynx',
    rss_newest_only => 1,
    msgidextra => 'e',

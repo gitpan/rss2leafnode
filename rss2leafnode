@@ -24,12 +24,14 @@ use strict;
 use warnings;
 use App::RSS2Leafnode;
 
-our $VERSION = 22;
+our $VERSION = 23;
 
 my $r2l = App::RSS2Leafnode->new;
 exit $r2l->command_line;
 
 __END__
+
+=for stopwords rss2leafnode rss leafnode NNTP config leafnode undef charset utf-8 non-ascii charsets builtins misconfigured Eg Unrendered Google pre-releases Ryde
 
 =head1 NAME
 
@@ -259,14 +261,14 @@ can be used to confine a setting to a particular few feeds.  Eg.
                  'http://www.debian.org/News/weekly/dwn.en.rdf');
     }
 
-=head1 OTHER NOTES
+=head1 DETAILS
 
 RSS and Atom text is encoded as utf-8 in the generated messages, so you'll
-need a newsreader which supports that if reading any non-ascii.  Unrendered
-HTML is left in the charset the server gave, to ensure it matches any C<meta
-http-equiv> in the document.  HTML rendered to text is recoded to utf-8, the
-same as the RSS text.  In all cases of course the charset is specified in
-the MIME message headers or attachment parts.
+need a newsreader which supports that if reading non-ascii.  Unrendered
+downloaded web pages are left in the charset the server gave, to ensure it
+matches any C<< <meta http-equiv> >> in the document.  HTML rendered to text
+is recoded to utf-8, the same as the RSS text.  In all cases of course the
+charset is specified in the MIME message headers or attachment parts.
 
 Google Groups mailing list feeds such as
 L<http://groups.google.com/group/cake-php/feed/rss_v2_0_msgs.xml> get a
@@ -278,6 +280,17 @@ Yahoo Finance items repeated in different feeds are noticed using a special
 match of the link in each item, so just one copy of each is posted.
 (Yahoo's items don't offer RSS C<guid> identifiers which normally protect
 against duplication.)
+
+Links are shown for basic RSS and Atom C<< <link> >>, but only HTML targets,
+not other feeds.  C<< <comments> >>, C<< <wfw:comment> >> and
+C<< <wiki:diff> >> are shown too.  Currently comments and replies links are
+not downloaded by C<$rss_get_links>, but a diff link is.  Comment or reply
+counts are shown from C<< <thr:total> >>, C<< <thr:count> >> or
+C<< <slash:comments> >>.
+
+C<< <thr:in-reply-to> >> is used for an C<In-Reply-To> header if present,
+which might help threading in a news reader, but of course only if the
+parent item was downloaded too.
 
 Some pre-releases of leafnode 2 have trouble with posts to local newsgroups
 while a C<fetchnews> run is in progress.  The local articles don't show up

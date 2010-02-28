@@ -74,6 +74,8 @@ sub fetch_rss {
 1;
 __END__
 
+=for stopwords conf rss2leafnode rss leafnode config RSS Leafnode Ryde
+
 =head1 NAME
 
 App::RSS2Leafnode::Conf -- conf file environment for rss2leafnode

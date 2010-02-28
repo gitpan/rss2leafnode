@@ -17,22 +17,28 @@
 # You can get a copy of the GNU General Public License online at
 # http://www.gnu.org/licenses.
 
+use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 131;
+use Test::More tests => 139;
 use Locale::TextDomain ('App-RSS2Leafnode');
+
+# version 2.04 provokes warnings from perl 5.11, load before NoWarnings
+use HTML::Formatter;
 
 SKIP: { eval 'use Test::NoWarnings; 1'
           or skip 'Test::NoWarnings not available', 1; }
 
 require App::RSS2Leafnode;
+require POSIX;
+POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 
 
 #------------------------------------------------------------------------------
 # VERSION
 
 {
-  my $want_version = 22;
+  my $want_version = 23;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -68,6 +74,89 @@ require App::RSS2Leafnode;
 
 
 #------------------------------------------------------------------------------
+# item_to_subject()
+
+{
+  my $r2l = App::RSS2Leafnode->new;
+  require URI;
+
+  foreach my $data (
+                    ['Item One', <<'HERE'],
+<?xml version="1.0"?>
+<feed version="0.3" xmlns="http://purl.org/atom/ns#">
+  <entry>
+   <title type="xhtml" xmlns:xh="http://www.w3.org/1999/xhtml">
+     <xh:div>
+       Item <xh:b>One</xh:b>
+     </xh:div>
+   </title>
+  </entry>
+</feed>
+HERE
+                    ['Item One', <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item><title>Item One</title></item>
+ </channel>
+</rss>
+HERE
+                    [__('no subject'), <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item><title></title></item>
+ </channel>
+</rss>
+HERE
+                    ['000', <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item><title>000</title></item>
+ </channel>
+</rss>
+HERE
+                    [__('no subject'), <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item></item>
+ </channel>
+</rss>
+HERE
+                    ['Item One', <<'HERE'],
+<?xml version="1.0"?>
+<feed version="0.3" xmlns="http://purl.org/atom/ns#">
+  <entry>
+    <title type="text">Item One</title>
+  </entry>
+</feed>
+HERE
+                    ['Item One', <<'HERE'],
+<?xml version="1.0"?>
+<feed version="0.3" xmlns="http://purl.org/atom/ns#">
+  <entry>
+    <title type="html">Item &lt;b&gt;One&lt;/b&gt;</title>
+  </entry>
+</feed>
+HERE
+                   ) {
+    my ($want, $xml) = @$data;
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+
+    my $item = ($twig->root->first_descendant('item')
+                || $twig->root->first_descendant('entry')
+                || die);
+
+    is ($r2l->item_to_subject ($item),
+        $want,
+        "item_to_subject() $xml");
+  }
+}
+
+
+#------------------------------------------------------------------------------
 # item_to_links()
 
 {
@@ -77,34 +166,43 @@ require App::RSS2Leafnode;
   foreach my $data (
                     [[{ name     => $name_foo,
                         uri      => 'http://foo.com/itemone.html',
-                        download => 1 }
+                        download => 1,
+                        hreflang => undef,
+                        type     => undef,
+                      }
                      ],
                      <<'HERE'],
 <?xml version="1.0"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <entry>
     <title>Item One</title>
+    <content type="text">Hello</content>
     <link rel="foo" href="http://foo.com/itemone.html"/>
   </entry>
 </feed>
 HERE
-                    [[{ name     => $name_foo,
+                    [[{ name     => 'foo(2k):',
                         uri      => 'http://foo.com/itemone.html',
-                        download => 1 }
+                        download => 1,
+                        hreflang => undef,
+                        type     => undef,
+                      }
                      ],
                      <<'HERE'],
 <?xml version="1.0"?>
 <at:feed xmlns:at="http://www.w3.org/2005/Atom">
   <at:entry>
     <at:title>Item One</at:title>
-    <at:link rel="foo" href="http://foo.com/itemone.html"/>
+    <at:link rel="foo" href="http://foo.com/itemone.html" length="2000"/>
   </at:entry>
 </at:feed>
 HERE
-
                     [[{ name     => __('Link:'),
                         uri      => 'http://foo.com/itemone.html',
-                        download => 1 }
+                        download => 1,
+                        hreflang => undef,
+                        type     => undef,
+                      }
                      ],
                      <<'HERE'],
 <?xml version="1.0"?>
@@ -116,10 +214,13 @@ HERE
   </at:entry>
 </at:feed>
 HERE
-
+                    #
                     [[{ name     => __x('Comment({count}):', count => 123),
                         uri      => 'http://foo.com/itemone.html',
-                        download => 0 }
+                        download => 0,
+                        hreflang => undef,
+                        type     => undef,
+                      }
                      ],
                      <<'HERE'],
 <?xml version="1.0"?>
@@ -132,9 +233,12 @@ HERE
 </feed>
 HERE
 
-                    [[{ name     => __('Link:'),
+                    [[{ name     => __('Diff:'),
                         uri      => 'http://foo.com/itemone.html',
-                        download => 1 }
+                        download => 1,
+                        hreflang => undef,
+                        type     => undef,
+                      }
                      ],
                      <<'HERE'],
 <?xml version="1.0"?>
@@ -145,13 +249,65 @@ HERE
   </item>
 </feed>
 HERE
+                    [[{ name     => __('Link:'),
+                        uri      => 'http://foo.com/itemone.html',
+                        download => 1,
+                        hreflang => undef,
+                        type     => undef,
+                      }
+                     ],
+                     <<'HERE'],
+<?xml version="1.0"?>
+<at:feed xmlns:at="http://www.w3.org/2005/Atom">
+  <at:entry>
+    <at:title>Item One</at:title>
+    <at:content src="http://foo.com/itemone.html"/>
+  </at:entry>
+</at:feed>
+HERE
+
+                    [[{ name     => __('Link:'),
+                        uri      => 'http://foo.com/itemone.html',
+                        download => 1,
+                        hreflang => undef,
+                        type     => undef,
+                      }
+                     ],
+                     <<'HERE'],
+<?xml version="1.0"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <title>Item One</title>
+    <content src="http://foo.com/itemone.html"/>
+  </entry>
+</feed>
+HERE
+                    #
+                    [[{ name     => __x('Replies({count}):', count => 123),
+                        uri      => 'http://foo.com/itemone.html',
+                        download => 0,
+                        hreflang => 'en',
+                        type     => 'text/html',
+                      }
+                     ],
+                     <<'HERE'],
+<?xml version="1.0"?>
+<feed xmlns="http://www.w3.org/2005/Atom"
+      xmlns:thr="http://purl.org/syndication/thread/1.0">
+  <entry>
+    <title>Item One</title>
+    <link rel="replies" thr:count="123" type="text/html" hreflang="en" href="http://foo.com/itemone.html"/>
+  </entry>
+</feed>
+HERE
                    ) {
     my ($want, $xml) = @$data;
 
     my ($twig, $err) = $r2l->twig_parse ($xml);
     if ($err) { diag $err; }
     my $item = ($twig->root->first_descendant('item')
-                || $twig->root->first_descendant('entry'));
+                || $twig->root->first_descendant('entry')
+                || die);
 
     is_deeply ([$r2l->item_to_links ($item)],
                $want,
@@ -203,7 +359,8 @@ HERE
     my ($twig, $err) = $r2l->twig_parse ($xml);
     if ($err) { diag $err; }
     my $item = ($twig->root->first_descendant('item')
-                || $twig->root->first_descendant('entry'));
+                || $twig->root->first_descendant('entry')
+                || die);
 
     is ($r2l->item_to_generator ($item),
         $want,
@@ -213,7 +370,40 @@ HERE
 
 
 #------------------------------------------------------------------------------
-# elt_base()
+# item_to_in_reply_to()
+
+{
+  my $r2l = App::RSS2Leafnode->new;
+
+  foreach my $data
+    (['<rss2leafnode.tag:%2C2010-02-09:something@foo.com>', <<'HERE'],
+<feed xmlns="http://www.w3.org/2005/Atom"
+      xmlns:thr="http://purl.org/syndication/thread/1.0">
+  <entry>
+    <title>Item One</title>
+    <updated>2006-03-01T12:12:12Z</updated>
+    <thr:in-reply-to ref="tag:foo.com,2010-02-09:something" />
+  </entry>
+</feed>
+HERE
+                   ) {
+    my ($want, $xml) = @$data;
+
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+    if ($err) { diag $err; }
+    my $item = ($twig->root->first_descendant('item')
+                || $twig->root->first_descendant('entry')
+                || die);
+
+    is ($r2l->item_to_in_reply_to ($item),
+        $want,
+        "item_to_in_reply_to() xml=$xml");
+  }
+}
+
+
+#------------------------------------------------------------------------------
+# elt_xml_base()
 
 {
   my $r2l = App::RSS2Leafnode->new;
@@ -300,16 +490,18 @@ HERE
     my ($xml, $want) = @$data;
 
     my ($twig, $err) = $r2l->twig_parse ($xml);
-    my $elt = $twig->root->first_descendant('item') // die;
+    my $item = ($twig->root->first_descendant('item')
+                || $twig->root->first_descendant('entry')
+                || die);
 
-    my $got = App::RSS2Leafnode::elt_base($elt);
-    is ($got, $want, "elt_base() $xml");
+    my $got = App::RSS2Leafnode::elt_xml_base($item);
+    is ($got, $want, "elt_xml_base() $xml");
   }
 }
 
 
 #------------------------------------------------------------------------------
-# elt_based_uri()
+# elt_xml_based_uri()
 
 {
   my $r2l = App::RSS2Leafnode->new;
@@ -341,8 +533,8 @@ HERE
     my $elt = $twig->root->first_descendant('link') // die;
     my $url = $elt->text;
 
-    my $got = App::RSS2Leafnode::elt_based_uri($elt, $url);
-    is ($got, $want, "elt_based_uri() $xml");
+    my $got = App::RSS2Leafnode::elt_xml_based_uri($elt, $url);
+    is ($got, $want, "elt_xml_based_uri() $xml");
   }
 }
 
@@ -519,7 +711,8 @@ HERE
     my ($twig, $err) = $r2l->twig_parse ($xml);
     if ($err) { diag $err; }
     my $item = ($twig->root->first_descendant('item')
-                || $twig->root->first_descendant('entry'));
+                || $twig->root->first_descendant('entry')
+                || die);
 
     is ($r2l->item_to_copyright ($item),
         $want,
@@ -613,7 +806,8 @@ HERE
     my ($twig, $err) = $r2l->twig_parse ($xml);
     if ($err) { diag $err; }
     my $item = ($twig->root->first_descendant('item')
-                || $twig->root->first_descendant('entry'));
+                || $twig->root->first_descendant('entry')
+                || die);
 
     is ($r2l->item_to_language ($item),
         $want,
@@ -671,6 +865,10 @@ HERE
       'Foo Bar'],
      ['<author><name>Foo Bar</name></author>',
       'Foo Bar'],
+     ["<author><name>Foo</name><email>
+\t  foo\@bar.com\t
+</email></author>",
+      'Foo <foo@bar.com>'],
 
      # RSS
      ['<author>foo@bar.com (Foo)</author>',
@@ -738,41 +936,6 @@ HERE
 
 
 #------------------------------------------------------------------------------
-# item_to_subject()
-
-{
-  my $r2l = App::RSS2Leafnode->new;
-  require URI;
-
-  foreach my $data (['<title>Item One</title>',
-                     'Item One'],
-                    ['<title></title>',
-                     'no subject'],
-                    ['<title>000</title>',
-                     '000'],
-                    ['',
-                     'no subject']) {
-    my ($fragment, $want) = @$data;
-
-    my $xml = <<"HERE";
-<?xml version="1.0"?>
-<rss version="2.0">
- <channel>
-  <item>$fragment</item>
- </channel>
-</rss>
-HERE
-    my ($twig, $err) = $r2l->twig_parse ($xml);
-    my $item = $twig->root->first_descendant('item');
-
-    is ($r2l->item_to_subject ($item),
-        $want,
-        "item_to_subject() $fragment");
-  }
-}
-
-
-#------------------------------------------------------------------------------
 # item_yahoo_permalink()
 
 {
@@ -794,7 +957,9 @@ HERE
 </rss>
 HERE
     my ($twig, $err) = $r2l->twig_parse ($xml);
-    my $item = $twig->root->first_descendant('item');
+    my $item = ($twig->root->first_descendant('item')
+                || $twig->root->first_descendant('entry')
+                || die);
 
     is (App::RSS2Leafnode::item_yahoo_permalink($item),
         $want,
@@ -1026,7 +1191,9 @@ is (App::RSS2Leafnode::msgid_chars('a<b>%c'), 'a%3Cb%3E%25c');
 </rss>
 HERE
     my ($twig, $err) = $r2l->twig_parse ($xml);
-    my $item = $twig->root->first_descendant('item');
+    my $item = ($twig->root->first_descendant('item')
+                || $twig->root->first_descendant('entry')
+                || die);
 
     is ($r2l->item_to_msgid ($item),
         $want,

@@ -2,7 +2,7 @@
 
 # 0-META-read.t -- check META.yml can be read by various YAML modules
 
-# Copyright 2009 Kevin Ryde
+# Copyright 2009, 2010 Kevin Ryde
 
 # 0-META-read.t is shared among several distributions.
 #
@@ -34,24 +34,26 @@ use Test::More;
 # See 0-Test-YAML-Meta.t for Test::YAML::Meta which looks into field
 # contents, as well as maybe the YAML formatting.
 
+my $meta_filename;
+BEGIN {
+  # allow for ancient perl, maybe
+  eval { require FindBin; 1 } # new in 5.004
+    or plan skip_all => "FindBin not available -- $@";
+  eval { require File::Spec; 1 } # new in 5.005
+    or plan skip_all => "File::Spec not available -- $@";
 
-# allow for ancient perl, maybe
-eval { require FindBin; 1 } # new in perl 5.004
-  or plan skip_all => "FindBin not available -- $@";
-eval { require File::Spec; 1 } # new in perl 5.005)
-  or plan skip_all => "File::Spec not available -- $@";
+  diag "FindBin $FindBin::Bin";
+  $meta_filename = File::Spec->catfile
+    ($FindBin::Bin, File::Spec->updir, 'META.yml');
+  unless (-e $meta_filename) {
+    plan skip_all => "$meta_filename doesn't exist -- assume this is a working directory not a dist";
+  }
 
-diag "FindBin $FindBin::Bin";
-my $meta_filename = File::Spec->catfile
-  ($FindBin::Bin, File::Spec->updir, 'META.yml');
-unless (-e $meta_filename) {
-  plan skip_all => "$meta_filename doesn't exist -- assume this is a working directory not a dist";
+  plan tests => 6;
+
+ SKIP: { eval 'use Test::NoWarnings; 1'
+           or skip 'Test::NoWarnings not available', 1; }
 }
-
-plan tests => 6;
-
-SKIP: { eval 'use Test::NoWarnings; 1'
-          or skip 'Test::NoWarnings not available', 1; }
 
 SKIP: {
   eval { require YAML; 1 }

@@ -11,6 +11,7 @@ debian/watch
 devel/atom.pl
 devel/file-temp-debug.pl
 devel/html-enc.pl
+devel/html-format.pl
 devel/html-formattext.pl
 devel/ihave.pl
 devel/Leafnode.pm
@@ -35,6 +36,7 @@ devel/rss2leafnode.el
 devel/run-parse.pl
 devel/samples.pl
 devel/single-entry.yaml
+devel/twig-base.pl
 devel/twig-map-default.pl
 devel/unused.pl
 devel/xml-encoding.pl
