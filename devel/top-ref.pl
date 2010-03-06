@@ -20,18 +20,31 @@
 use 5.010;
 use strict;
 use warnings;
+use Sort::Key::Top 'keytop';
 
-{
-  require Sort::Key::Top;
-  say Sort::Key::Top::rkeytop(sub{$_}, 3,  1,5,2,4,3,6);
-  say Sort::Key::Top::rkeytop(sub{1}, 3,  1,5,2,4,3,6);
-  say Sort::Key::Top::keytop(sub{1}, 3,  1,5,2,4,3,6);
-  exit 0;
+sub myfunc {
+}
+my @bigarray;
+for (my $i = 0; $i < 5000; $i++) {
+  $bigarray[$i] = 123;
+}
+sub grow_the_stack {
+  myfunc (@bigarray);
 }
 
-{
-  require HTML::Entities::Interpolate;
-  print $HTML::Entities::Interpolate::Entitize{"abc\n"};
-  print $HTML::Entities::Interpolate::Entitize{"%$&<>\n"};
-  exit 0;
-}
+# PPCODE PUTBACK not reached
+my @array = keytop {grow_the_stack(); $_} 3,   5,4,3,2,1;
+print @array,"\n";
+print @array,"\n";
+
+# sub make_scalar {
+#   my ($x) = @_;
+#   return \$x;
+# }
+# 
+# my $ref = make_scalar(123);
+# print $ref,"\n";
+# 
+# my $r2;
+# my @array = keytop { print "$_\n"; $r2 = \$_; $_ } 1, $$ref, $$ref;
+# print $ref,"\n";

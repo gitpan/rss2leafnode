@@ -20,7 +20,7 @@
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 139;
+use Test::More tests => 165;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
 # version 2.04 provokes warnings from perl 5.11, load before NoWarnings
@@ -38,7 +38,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 23;
+  my $want_version = 24;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -59,6 +59,87 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 
 
 #------------------------------------------------------------------------------
+# rss_newest_cmp()
+
+diag "rss_newest_cmp()";
+{
+  foreach my $data (
+                    [ undef, undef, 0 ],
+                    [     0, undef, 0 ],
+                    [ undef,     0, 0 ],
+                    [     0,     0, 0 ],
+
+                    [ undef,     5, 1 ],
+                    [     0,     5, 1 ],
+
+                    [     5, undef, -1 ],
+                    [     5,     0, -1 ],
+
+                    [     5,     5,  0 ],
+                    [     4,     5, -1 ],
+                    [     5,     4,  1 ],
+
+                    [     2,     2,  0 ],
+                    [     1,     2, -1 ],
+                    [     2,     1,  1 ],
+                   ) {
+    my ($x, $y, $want) = @$data;
+    my $got = App::RSS2Leafnode::rss_newest_cmp({rss_newest_only => $x},
+                                                {rss_newest_only => $y});
+    $got ||= 0;
+    is ($got, $want,
+        "rss_newest_cmp() ".($x//'undef')." ".($y//'undef'));
+  }
+}
+
+
+#------------------------------------------------------------------------------
+# enforce_html_charset_from_content()
+
+diag "enforce_html_charset_from_content()";
+{
+  my $r2l = App::RSS2Leafnode->new (html_charset_from_content => 1);
+  foreach my $data (
+                    [ 'UTF-8',
+                      [ 'Content-Type' => 'text/html; charset=ISO-8859-1' ],
+                      <<'HERE' ],
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>Hello</body>
+</html>
+HERE
+                    # This one might be slightly dependent on what LWP
+                    # thinks of nothing in the content.
+                    [ 'US-ASCII',
+                      [ 'Content-Type' => 'text/html; charset=ISO-8859-1' ],
+                      '<html><body>Hello</body></html>' ],
+
+                    [ 'ISO-8859-1',
+                      [ 'Content-Type' => 'text/html; charset=ISO-8859-1' ],
+                      <<'HERE' ],
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+</head>
+<body>Hello</body>
+</html>
+HERE
+                   ) {
+    my ($want, $headers, $content) = @$data;
+    require HTTP::Response;
+    my $resp = HTTP::Response->new (200, 'OK', $headers, $content);
+    $r2l->enforce_html_charset_from_content($resp);
+    diag "resp headers:\n", $resp->headers->as_string;
+    is ($resp->content_charset,
+        $want,
+        "enforce_html_charset_from_content() $want html: $content");
+  }
+}
+
+
+#------------------------------------------------------------------------------
 # new()
 
 {
@@ -74,11 +155,98 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 
 
 #------------------------------------------------------------------------------
+# mime_mailer()
+
+{
+  my $r2l = App::RSS2Leafnode->new;
+  ok ($r2l->mime_mailer,
+      "mime_mailer() not empty");
+}
+
+
+#------------------------------------------------------------------------------
+# elt_content_type()
+
+{
+  my $r2l = App::RSS2Leafnode->new;
+  foreach my $data (
+                    ['text', <<'HERE'],  # Atom default 'text'
+<?xml version="1.0"?>
+<feed version="0.3" xmlns="http://purl.org/atom/ns#">
+  <entry>
+   <content>Hello</content>
+  </entry>
+</feed>
+HERE
+                    ['text', <<'HERE'],
+<?xml version="1.0"?>
+<feed version="0.3" xmlns="http://purl.org/atom/ns#">
+  <entry>
+   <content type="text">Hello</content>
+  </entry>
+</feed>
+HERE
+                    ['xhtml', <<'HERE'],
+<?xml version="1.0"?>
+<feed version="0.3" xmlns="http://purl.org/atom/ns#">
+  <entry>
+   <content type="application/xhtml+xml"></content>
+  </entry>
+</feed>
+HERE
+                    ['html', <<'HERE'],  # RSS <description> 'html'
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item><description></description></item>
+ </channel>
+</rss>
+HERE
+                    ['text', <<'HERE'],  # RSS <title> 'text'
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item><title>Item One</title></item>
+ </channel>
+</rss>
+HERE
+                   ) {
+    my ($want, $xml) = @$data;
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+
+    my $elt = ($twig->root->first_descendant('content')
+               || $twig->root->first_descendant('description')
+               || $twig->root->first_descendant('title')
+               || die);
+
+    is (App::RSS2Leafnode::elt_content_type($elt),
+        $want,
+        "elt_content_type() $xml");
+  }
+}
+
+
+#------------------------------------------------------------------------------
+# trim_whitespace()
+
+{
+  foreach my $data (["ab c",                   'ab c'],
+                    [" ab c  ",                'ab c'],
+                    ["\r\n\f\t ab c \r\n\f\t", 'ab c'],
+                   ) {
+    my ($str, $want) = @$data;
+    is (App::RSS2Leafnode::trim_whitespace($str),
+        $want,
+        "trim_whitespace() '$str'");
+  }
+}
+
+
+#------------------------------------------------------------------------------
 # item_to_subject()
 
 {
   my $r2l = App::RSS2Leafnode->new;
-  require URI;
 
   foreach my $data (
                     ['Item One', <<'HERE'],
@@ -168,6 +336,7 @@ HERE
                         uri      => 'http://foo.com/itemone.html',
                         download => 1,
                         hreflang => undef,
+                        title    => undef,
                         type     => undef,
                       }
                      ],
@@ -181,10 +350,11 @@ HERE
   </entry>
 </feed>
 HERE
-                    [[{ name     => 'foo(2k):',
+                    [[{ name     => 'foo(2K):',
                         uri      => 'http://foo.com/itemone.html',
                         download => 1,
                         hreflang => undef,
+                        title    => undef,
                         type     => undef,
                       }
                      ],
@@ -201,6 +371,7 @@ HERE
                         uri      => 'http://foo.com/itemone.html',
                         download => 1,
                         hreflang => undef,
+                        title    => undef,
                         type     => undef,
                       }
                      ],
@@ -214,11 +385,11 @@ HERE
   </at:entry>
 </at:feed>
 HERE
-                    #
-                    [[{ name     => __x('Comment({count}):', count => 123),
+                    [[{ name     => __x('Comments({count}):', count => 123),
                         uri      => 'http://foo.com/itemone.html',
                         download => 0,
                         hreflang => undef,
+                        title    => undef,
                         type     => undef,
                       }
                      ],
@@ -237,6 +408,7 @@ HERE
                         uri      => 'http://foo.com/itemone.html',
                         download => 1,
                         hreflang => undef,
+                        title    => undef,
                         type     => undef,
                       }
                      ],
@@ -253,6 +425,7 @@ HERE
                         uri      => 'http://foo.com/itemone.html',
                         download => 1,
                         hreflang => undef,
+                        title    => undef,
                         type     => undef,
                       }
                      ],
@@ -270,6 +443,7 @@ HERE
                         uri      => 'http://foo.com/itemone.html',
                         download => 1,
                         hreflang => undef,
+                        title    => undef,
                         type     => undef,
                       }
                      ],
@@ -287,6 +461,7 @@ HERE
                         uri      => 'http://foo.com/itemone.html',
                         download => 0,
                         hreflang => 'en',
+                        title    => 'some thing',
                         type     => 'text/html',
                       }
                      ],
@@ -296,7 +471,9 @@ HERE
       xmlns:thr="http://purl.org/syndication/thread/1.0">
   <entry>
     <title>Item One</title>
-    <link rel="replies" thr:count="123" type="text/html" hreflang="en" href="http://foo.com/itemone.html"/>
+    <link rel="replies" thr:count="123"
+          type="text/html" hreflang="en" title="some thing"
+          href="http://foo.com/itemone.html"/>
   </entry>
 </feed>
 HERE
@@ -570,8 +747,8 @@ HERE
 
 {
   my $r2l = App::RSS2Leafnode->new;
+  require URI;
   $r2l->{'uri'} = URI->new('http://feedhost.com');
-  my $host = $r2l->{'uri'}->host;
 
   foreach my $data
     (# Atom
@@ -614,32 +791,34 @@ HERE
 #------------------------------------------------------------------------------
 # uri_to_nntp_host()
 
-foreach my $data (['r2l.test', 'localhost:119'],
-                  ['news:r2l.test', 'localhost:119'],
-                  ['nntp:r2l.test', 'localhost:119'],
+{
+  require URI;
+  foreach my $data (['r2l.test', 'localhost:119'],
+                    ['news:r2l.test', 'localhost:119'],
+                    ['nntp:r2l.test', 'localhost:119'],
 
-                  # default port
-                  ['news://foo.com/r2l.test', 'foo.com:119'],
-                  ['news://localhost/r2l.test', 'localhost:119'],
-                  ['news:///r2l.test', 'localhost:119'],
+                    # default port
+                    ['news://foo.com/r2l.test', 'foo.com:119'],
+                    ['news://localhost/r2l.test', 'localhost:119'],
+                    ['news:///r2l.test', 'localhost:119'],
 
-                  # is this bogus ?
-                  # ['news://foo.com:/r2l.test', 'foo.com:119'],
+                    # is this bogus ?
+                    # ['news://foo.com:/r2l.test', 'foo.com:119'],
 
-                  # explicit port
-                  ['news://foo.com:8119/r2l.test', 'foo.com:8119'],
-                  ['news://localhost:8119/r2l.test', 'localhost:8119'],
-                  ['news://:8119/r2l.test', 'localhost:8119'],
+                    # explicit port
+                    ['news://foo.com:8119/r2l.test', 'foo.com:8119'],
+                    ['news://localhost:8119/r2l.test', 'localhost:8119'],
+                    ['news://:8119/r2l.test', 'localhost:8119'],
 
-                                   ) {
-  my ($uri_str, $want) = @$data;
-  my $uri = URI->new ($uri_str, 'news');
+                   ) {
+    my ($uri_str, $want) = @$data;
+    my $uri = URI->new ($uri_str, 'news');
 
-  is (App::RSS2Leafnode::uri_to_nntp_host($uri),
-      $want,
-      "uri_to_nntp_host() $uri_str -> $uri");
+    is (App::RSS2Leafnode::uri_to_nntp_host($uri),
+        $want,
+        "uri_to_nntp_host() $uri_str -> $uri");
+  }
 }
-
 
 #------------------------------------------------------------------------------
 # isodate_to_rfc822()
@@ -820,8 +999,8 @@ HERE
 # uri_to_host()
 
 {
-  require URI;
   my $r2l = App::RSS2Leafnode->new;
+  require URI;
 
   foreach my $data ([ 'http://feedhost.com',            'feedhost.com'],
                     [ 'file://host.name/some/file.txt', 'host.name' ],
@@ -844,8 +1023,8 @@ HERE
 
 {
   my $r2l = App::RSS2Leafnode->new;
+  require URI;
   $r2l->{'uri'} = URI->new('http://feedhost.com');
-  my $host = $r2l->{'uri'}->host;
 
   foreach my $data
     (# Atom

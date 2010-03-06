@@ -288,6 +288,7 @@ check-copyright-years:
 	      | debian/patches/*.diff \
 	      | COPYING | MANIFEST* | SIGNATURE | META.yml \
 	      | version.texi | */version.texi \
+	      | *utf16* \
 	      | *.mo | *.locatedb | t/samp.*) \
 	      continue ;; \
 	    esac; \

@@ -44,7 +44,6 @@ MyMakeMakerExtras::WriteMakefile
 
                     # LWP 5.832 for content_charset()
                     'LWP' => '5.832',
-                    # 'LWP::Debug' => 0,
                     'LWP::UserAgent' => 0,
                     'HTTP::Message' => 0,
                     'HTTP::Request' => 0,
@@ -64,12 +63,21 @@ MyMakeMakerExtras::WriteMakefile
                     # this is required by MIME-Tools anyway
                     'Date::Parse' => 0,
 
+                    # 1.5 for format_bytes() options
+                    'Number::Format' => '1.5',
+
+                    'constant::defer' => 0,
                     'HTML::Entities::Interpolate' => 0,
                     'HTML::FormatText' => 0,
+                    'HTML::Formatter' => 0,
                     'Text::WrapI18N' => 0,
                     'Scope::Guard' => 0,
+                    'Sort::Key::Top' => 0,
                     'File::HomeDir' => 0,
-                    'Locale::TextDomain' => '1.16',
+
+                    # 1.17 for __p()
+                    'Locale::TextDomain' => '1.17',
+                    'Locale::Messages' => 0, # part of libintl
                    },
 
    META_MERGE
@@ -100,12 +108,18 @@ MyMakeMakerExtras::WriteMakefile
                 },
              render_text_external
              => { description => 'Optionally render HTML to text using external programs like lynx.',
-                  requires => { 'HTML::FormatExternal' => 0 },
+                  # version 16 preferred for "base" parameter, but earlier
+                  # works fine
+                  requires => { 'HTML::FormatExternal' => 16 },
                 },
 
              fetch_html_uri_title
              => { description => ' A better Subject for fetch_html() messages using URI::Title.',
                   requires => { 'URI::Title' => 0 },
+                },
+             fetch_html_exiftool
+             => { description => ' A better Subject for fetch_html() messages using Image::ExifTool.',
+                  requires => { 'Image::ExifTool' => 0 },
                 },
 
              maximum_tests
@@ -127,10 +141,12 @@ MyMakeMakerExtras::WriteMakefile
                                 'HTML::TreeBuilder' => 0,
                                 'HTML::FormatText' => 0,
                                 'HTML::Entities' => 0,
+                                'HTML::Lint' => 0,
                                 'DateTime' => 0,
                                 'DateTime::Format::Mail' => 0,
                                 'IO::Socket::SSL' => 0,
                                 'Hook::LexWrap' => 0,
+                                'Module::Find' => 0,
                               },
                 },
            },

@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               rss2leafnode
-version:            23
+version:            24
 abstract:           Download RSS feeds into Leafnode news.
 author:
     - Kevin Ryde <user42@zip.com.au>
@@ -11,21 +11,26 @@ configure_requires:
 build_requires:
     ExtUtils::MakeMaker:  0
 requires:
+    constant::defer:      0
     Date::Parse:          0
     File::HomeDir:        0
     HTML::Entities::Interpolate:  0
+    HTML::Formatter:      0
     HTML::FormatText:     0
     HTTP::Message:        0
     HTTP::Request:        0
     HTTP::Response:       0
-    Locale::TextDomain:   1.16
+    Locale::Messages:     0
+    Locale::TextDomain:   1.17
     LWP:                  5.832
     LWP::UserAgent:       0
     MIME::Entity:         0
     MIME::Tools:          0
     MIME::Words:          0
+    Number::Format:       1.5
     perl:                 5.010
     Scope::Guard:         0
+    Sort::Key::Top:       0
     Text::WrapI18N:       0
     URI:                  0
     URI::Escape:          0
@@ -45,6 +50,10 @@ meta-spec:
     url:      http://module-build.sourceforge.net/META-spec-v1.4.html
     version:  1.4
 optional_features:
+    fetch_html_exiftool:
+        description:   A better Subject for fetch_html() messages using Image::ExifTool.
+        requires:
+            Image::ExifTool:  0
     fetch_html_uri_title:
         description:   A better Subject for fetch_html() messages using URI::Title.
         requires:
@@ -57,8 +66,10 @@ optional_features:
             Hook::LexWrap:        0
             HTML::Entities:       0
             HTML::FormatText:     0
+            HTML::Lint:           0
             HTML::TreeBuilder:    0
             IO::Socket::SSL:      0
+            Module::Find:         0
             Perl6::Slurp:         0
             URI::file:            0
             URI::Title:           0
@@ -84,7 +95,7 @@ optional_features:
     render_text_external:
         description:  Optionally render HTML to text using external programs like lynx.
         requires:
-            HTML::FormatExternal:  0
+            HTML::FormatExternal:  16
     render_text_with_links:
         description:  Optionally render HTML to text using FormatText::WithLinks.
         requires:

@@ -30,27 +30,72 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: lib/App/RSS2Leafnode.pm:227
-#, perl-brace-format
-msgid "RSS2Leafnode version {version}\n"
+#: lib/App/RSS2Leafnode.pm:190
+msgctxt "number-format-kilobytes"
+msgid "K"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:400
-#, perl-brace-format
-msgid "Ignoring unrecognised date \"{date}\" from {url}\n"
+#: lib/App/RSS2Leafnode.pm:191
+msgctxt "number-format-megabytes"
+msgid "M"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:544
-#, perl-brace-format
-msgid "nntp: {host}\n"
+#: lib/App/RSS2Leafnode.pm:192
+msgctxt "number-format-gigabytes"
+msgid "G"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:552
+#: lib/App/RSS2Leafnode.pm:224
+#, perl-brace-format
+msgid "RSS2Leafnode version {version}"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:233
+msgid "rss2leafnode [--options]"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:234
+msgid ""
+"   --config=filename   configuration file (default ~/.rss2leafnode.conf)"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:235
+msgid "   --help       print this help"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:236
+msgid "   --verbose    describe what's done"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:237
+msgid "   --verbose=2  show technical details of what's done"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:238
+msgid "   --version    print program version number"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:356
+#, perl-brace-format
+msgid "Warning, MD5 checksum mismatch on download {url}\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:447
+#, perl-brace-format
+msgid "Unrecognised date \"{date}\" from {url}"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:569
+#, perl-brace-format
+msgid "nntp: {host}"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:576
 #, perl-brace-format
 msgid "Cannot connect to NNTP on \"{host}\"\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:577
+#: lib/App/RSS2Leafnode.pm:601
 #, perl-brace-format
 msgid ""
 "rss2leafnode: no group \"{group}\" on host \"{host}\"\n"
@@ -63,90 +108,155 @@ msgid ""
 "See \"LOCAL NEWSGROUPS\" in the leafnode README file for more information.\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:600
-msgid "  exists already\n"
+#: lib/App/RSS2Leafnode.pm:624
+msgid "  exists already"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:610
+#: lib/App/RSS2Leafnode.pm:634
 #, perl-brace-format
-msgid "Cannot post: {message}\n"
+msgid "Cannot post: {message}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1597
+#: lib/App/RSS2Leafnode.pm:995
 #, perl-brace-format
-msgid "Replies({count}):"
+msgid "XML::RSS::Timing complains on {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1598
-msgid "Replies:"
-msgstr ""
-
-#: lib/App/RSS2Leafnode.pm:1601
-msgid "Enclosure:"
-msgstr ""
-
-#: lib/App/RSS2Leafnode.pm:1602
-msgid "Related:"
-msgstr ""
-
-#: lib/App/RSS2Leafnode.pm:1603
+#: lib/App/RSS2Leafnode.pm:1044
 #, perl-brace-format
-msgid "{linkrel}:"
+msgid "discard old status {url}\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1629
-msgid "Link:"
+#: lib/App/RSS2Leafnode.pm:1132
+msgid "  unchanged"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1638
-#, perl-format
-msgid "%.1fM"
-msgstr ""
-
-#: lib/App/RSS2Leafnode.pm:1640
-#, perl-format
-msgid "%.0fk"
-msgstr ""
-
-#: lib/App/RSS2Leafnode.pm:1760
+#: lib/App/RSS2Leafnode.pm:1149
 #, perl-brace-format
-msgid " item: {subject}\n"
+msgid "no status info for {url}\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1922
+#: lib/App/RSS2Leafnode.pm:1167
 #, perl-brace-format
-msgid "  link: \"{name}\" {url}\n"
+msgid " timing: next update {time} (local time)"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1939 lib/App/RSS2Leafnode.pm:2001
+#: lib/App/RSS2Leafnode.pm:1172
+#, perl-brace-format
+msgid "         which is {duration} from now"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1300 lib/App/RSS2Leafnode.pm:1365
+#, perl-brace-format
+msgid "{group} 1 new article"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1325 lib/App/RSS2Leafnode.pm:2101
+#: lib/App/RSS2Leafnode.pm:2231
 #, perl-brace-format
 msgid ""
 "rss2leafnode: {url}\n"
 " {status}\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1942
+#: lib/App/RSS2Leafnode.pm:1351
+#, perl-brace-format
+msgid "RSS2Leafnode {url}"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1479
+msgid "Diff:"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1480 lib/App/RSS2Leafnode.pm:1526
+msgid "Encl:"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1484
+#, perl-brace-format
+msgid "Comments({count}):"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1486 lib/App/RSS2Leafnode.pm:1511
+msgid "Comments:"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1513
+msgid "Via:"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1522
+#, perl-brace-format
+msgid "Replies({count}):"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1523
+msgid "Replies:"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1527
+msgid "Related:"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1528
+#, perl-brace-format
+msgid "{linkrel}:"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1552
+msgid "Link:"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1662
+#, perl-brace-format
+msgid ""
+"Warning, recoded {charset} to parse {url}\n"
+"  expect substitutions for bad non-ascii ({where})\n"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1676
+#, perl-brace-format
+msgid ""
+"Parse error on URL {url}\n"
+"{error}"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1854
+msgid "no subject"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:1999
+#, perl-brace-format
+msgid " item: {subject}"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:2092
+#, perl-brace-format
+msgid "  link: \"{name}\" {url}"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:2104
 #, perl-brace-format
 msgid ""
 "Cannot download link {url}\n"
-"{status}"
+" {status}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1966
-msgid "   posted\n"
+#: lib/App/RSS2Leafnode.pm:2196
+msgid "   posted"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1987
+#: lib/App/RSS2Leafnode.pm:2217
 #, perl-brace-format
-msgid "feed: {url}\n"
+msgid "feed: {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2014
+#: lib/App/RSS2Leafnode.pm:2244
 #, perl-brace-format
 msgid "Error parsing {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2015
+#: lib/App/RSS2Leafnode.pm:2245
 #, perl-brace-format
 msgid ""
 "XML::Twig parse error on\n"

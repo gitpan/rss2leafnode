@@ -20,6 +20,35 @@
 
 __END__
 
+# $a and $b are XML::Twig::Elt items
+# Return the one with the greatest date, or $a if they're equal or don't
+# both have a pubDate.
+#
+sub item_date_max {
+  my ($self, $a_item, $b_item) = @_;
+
+  # prefer $a_item if both undef so as to get first in feed
+  my $b_time = $self->item_to_timet($b_item) // return $a_item;
+  my $a_time = $self->item_to_timet($a_item) // return $b_item;
+
+  if ($b_time > $a_time) {
+    return $b_item;
+  } else {
+    return $a_item;
+  }
+}
+
+sub launder {
+  my ($str) = @_;
+  my %laundry = ($str=>1);
+  return keys %laundry;
+}
+
+# incompatible change in LWP
+    # require LWP::Debug;
+    # LWP::Debug::level('+trace');
+    # LWP::Debug::level('+debug');
+
 #------------------------------------------------------------------------------
 # xml_charset()
 

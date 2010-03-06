@@ -20,18 +20,13 @@
 use 5.010;
 use strict;
 use warnings;
+use Module::Find;
+use Module::Load;
 
-{
-  require Sort::Key::Top;
-  say Sort::Key::Top::rkeytop(sub{$_}, 3,  1,5,2,4,3,6);
-  say Sort::Key::Top::rkeytop(sub{1}, 3,  1,5,2,4,3,6);
-  say Sort::Key::Top::keytop(sub{1}, 3,  1,5,2,4,3,6);
-  exit 0;
+foreach my $class (Module::Find::findsubmod ('HTML::FormatText')) {
+  Module::Load::load ($class);
+  say $class;
+  my $text = $class->format_string ('', input_charset => 'us-ascii');
+  say $text;
 }
-
-{
-  require HTML::Entities::Interpolate;
-  print $HTML::Entities::Interpolate::Entitize{"abc\n"};
-  print $HTML::Entities::Interpolate::Entitize{"%$&<>\n"};
-  exit 0;
-}
+exit 0;

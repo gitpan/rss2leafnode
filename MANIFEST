@@ -10,9 +10,11 @@ debian/rules
 debian/watch
 devel/atom.pl
 devel/file-temp-debug.pl
+devel/html-base.html
 devel/html-enc.pl
 devel/html-format.pl
 devel/html-formattext.pl
+devel/html-withlinks.pl
 devel/ihave.pl
 devel/Leafnode.pm
 devel/lib/Localize/GetSetMethod.pm
@@ -31,11 +33,13 @@ devel/misc.pl
 devel/namespace.pl
 devel/Plagger.t
 devel/recode.pl
+devel/render-ascii.pl
 devel/rnews.pl
 devel/rss2leafnode.el
 devel/run-parse.pl
 devel/samples.pl
 devel/single-entry.yaml
+devel/top-ref.pl
 devel/twig-base.pl
 devel/twig-map-default.pl
 devel/unused.pl
@@ -61,5 +65,8 @@ t/0-Test-DistManifest.t
 t/0-Test-Pod.t
 t/0-Test-Synopsis.t
 t/0-Test-YAML-Meta.t
+t/MyTestHelpers.pm
 t/RSS2Leafnode.t
+t/test-weaken.t
+t/Test/Weaken/ExtraBits.pm
 META.yml                                 Module meta-data (added by MakeMaker)
