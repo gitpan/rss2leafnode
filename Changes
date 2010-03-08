@@ -16,6 +16,9 @@ You should have received a copy of the GNU General Public License along
 with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
+Version 25, March 2010
+    - oops, botched rendered html with links
+
 Version 24, March 2010
     - pass "base" url to WithLinks and external programs
     - various fixes

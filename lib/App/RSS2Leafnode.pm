@@ -28,7 +28,7 @@ use POSIX (); # ENOENT, etc
 use URI;
 use HTML::Entities::Interpolate;
 
-our $VERSION = 24;
+our $VERSION = 25;
 
 # version 1.17 for __p(), and version 1.16 for turn_utf_8_on()
 use Locale::TextDomain 1.17;
@@ -2147,7 +2147,7 @@ sub fetch_rss_process_one_item {
       # append to text/plain, either atom type=text or rendered html
       unless (is_empty ($links_str)) {
         $links_str = Encode::encode ($body_charset, $links_str);
-        $body = "\n$links_str\n";
+        $body .= "\n$links_str\n";
       }
       undef $links_str;
     }

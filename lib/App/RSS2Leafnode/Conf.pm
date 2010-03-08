@@ -22,6 +22,8 @@ use 5.010;
 use strict;
 use warnings;
 
+our $VERSION = 25;
+
 {
   package App::RSS2Leafnode::Conf::Tie;
   use Carp;

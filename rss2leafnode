@@ -24,7 +24,7 @@ use strict;
 use warnings;
 use App::RSS2Leafnode;
 
-our $VERSION = 24;
+our $VERSION = 25;
 
 my $r2l = App::RSS2Leafnode->new;
 exit $r2l->command_line;
