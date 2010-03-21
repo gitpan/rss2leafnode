@@ -89,12 +89,12 @@ $(POT_FILE): po/header.pot $(POT_INPUTS)
 	  --output=$(POT_TEMP_FILE) \
 	  --from-code=utf-8 \
 	  --language=Perl \
-	  --language=Perl \
 	  --keyword=__ \
 	  --keyword=__x \
 	  --keyword=N__ \
 	  --keyword=__nx:1,2 \
 	  --keyword=__p:1c,2 \
+	  --keyword=__px:1c,2 \
 	  $(POT_INPUTS)
 	cat po/header.pot $(POT_TEMP_FILE) >$(POT_FILE)
 	rm $(POT_TEMP_FILE)

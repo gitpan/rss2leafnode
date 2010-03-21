@@ -47,7 +47,6 @@ sub xml_prefix {
 }
 
 {
-  
   my $xml = <<'HERE';
 <x xmlns="http://www.w3.org/2005/Atom"
    xmlns:atom="http://www.w3.org/2005/Atom"

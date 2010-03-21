@@ -131,7 +131,7 @@ sub ignore_module_functions {
     my $module = shift;
     my $symtabname = "${module}::";
     no strict 'refs';
-    defined %$symtabname or next;
+    %$symtabname or next;
     foreach my $name (keys %$symtabname) {
       my $fullname = "${module}::$name";
       if (defined &$fullname && $ref == \&$fullname) {

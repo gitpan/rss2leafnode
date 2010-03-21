@@ -28,7 +28,7 @@ use POSIX (); # ENOENT, etc
 use URI;
 use HTML::Entities::Interpolate;
 
-our $VERSION = 25;
+our $VERSION = 26;
 
 # version 1.17 for __p(), and version 1.16 for turn_utf_8_on()
 use Locale::TextDomain 1.17;
@@ -797,7 +797,7 @@ sub elt_tree_strip_prefix {
   my ($elt, $prefix) = @_;
   foreach my $child ($elt->descendants_or_self(qr/^\Q$prefix\E:/)) {
     $child->set_tag ($child->local_name);
-  }  
+  }
 }
 
 # Return a URI object for string $url.
@@ -1062,7 +1062,7 @@ sub status_save {
   if ($status->{'timingfields'}) {
     $status->{'timingfields'}->{'lastPolled'} = $status->{'status-time'};
   }
-      
+
   $self->status_prune;
 
   require Data::Dumper;
@@ -1256,7 +1256,7 @@ sub render_maybe {
 
 # $str is a wide-char string of text
 sub text_wrap {
-  my ($self, $str) = @_;      
+  my ($self, $str) = @_;
   require Text::WrapI18N;
   local $Text::WrapI18N::columns = $self->{'render_width'} + 1;
   local $Text::WrapI18N::unexpand = 0;       # no tabs in output
@@ -1269,7 +1269,7 @@ sub text_wrap {
 # error as news message
 
 sub error_message {
-  my ($self, $subject, $message) = @_;
+  my ($self, $subject, $message, $attach_bytes) = @_;
 
   require Encode;
   my $charset = 'utf-8';
@@ -1296,6 +1296,16 @@ sub error_message {
      Charset => $charset,
      Data    => $message);
 
+  if (defined $attach_bytes) {
+    $top->make_multipart;
+    my $part = $self->mime_build
+      ({},
+       Charset  => 'none',
+       Type     => 'application/octet-stream',
+       Data     => $attach_bytes);
+    $top->add_part ($part);
+  }
+
   $self->nntp_post($top) || return;
   say __x('{group} 1 new article', group => $self->{'nntp_group'});
 }
@@ -1312,7 +1322,7 @@ sub fetch_html {
   local $self->{'nntp_host'} = uri_to_nntp_host ($group_uri);
   local $self->{'nntp_group'} = $group = $group_uri->group;
   $self->nntp_group_check($group) or return;
-  
+
   require HTTP::Request;
   my $req = HTTP::Request->new (GET => $url);
   $self->status_etagmod_req ($req);
@@ -1331,7 +1341,7 @@ sub fetch_html {
     print $resp->headers->as_string;
   }
   $self->enforce_html_charset_from_content ($resp);
-  
+
   # message id is either the etag if present, or an md5 of the content if not
   my $msgid = $self->url_to_msgid
     ($url,
@@ -1341,15 +1351,15 @@ sub fetch_html {
        Digest::MD5::md5_base64($content)
        });
   return 0 if $self->nntp_message_id_exists ($msgid);
-  
+
   my $host = (non_empty (URI->new($url)->host)
               // 'localhost'); # file:// schema during testing
-  
+
   my $subject = (html_title($resp)
                  // $resp->filename
                  # show original url in subject, not anywhere redirected
                  // __x('RSS2Leafnode {url}', url => $url));
-  
+
   my $top = $self->mime_part_from_response
     ($resp,
      Top                 => 1,
@@ -1397,6 +1407,7 @@ sub item_yahoo_permalink {
 # that form then return undef.
 #
 sub googlegroups_link_email {
+  ## no critic (RequireInterpolationOfMetachars)
   foreach my $l (@_) {
     $l->{'uri'}->canonical =~ m{^http://groups\.google\.com/group/([^/]+)/}
       or next;
@@ -1639,10 +1650,11 @@ sub twig_parse {
   $twig->safe_parse ($xml);
   my $err = $@;
 
-  # Zap bad non-ascii chars by putting it through Encode::from_to().
-  # Encode::FB_DEFAULT substitutes U+FFFD for unicode, or question mark "?"
-  # for non-unicode.  Mozilla does some sort of similar liberal byte
-  # interpretation so as to at least display something from a dodgy feed.
+  # Try to fix bad non-ascii chars by putting it through Encode::from_to().
+  # Encode::FB_DEFAULT substitutes U+FFFD when going to unicode, or question
+  # mark "?" going to non-unicode.  Mozilla does some sort of similar
+  # liberal byte interpretation so as to at least display something from a
+  # dodgy feed.
   #
   if ($err && $err =~ /not well-formed \(invalid token\) at (line \d+, column \d+, byte (\d+))/) {
     my $where = $1;
@@ -1654,16 +1666,38 @@ sub twig_parse {
           $byte;
       }
       require Encode;
-      Encode::from_to($xml, $charset, $charset, Encode::FB_DEFAULT());
+      my $recoded_xml = $xml;
+      Encode::from_to($recoded_xml, $charset, $charset, Encode::FB_DEFAULT());
 
       $twig = XML::Twig->new (map_xmlns => $map_xmlns);
-      if ($twig->safe_parse ($xml)) {
-        undef $err;
-        print __x("Warning, recoded {charset} to parse {url}\n  expect substitutions for bad non-ascii ({where})\n",
-                  charset => $charset,
+      if ($twig->safe_parse ($recoded_xml)) {
+        $twig->root->set_att('rss2leafnode:fixup',
+                             "Recoded bad bytes to charset $charset");
+        print __x("Feed {url}\n  recoded to {charset} to parse, expect substitutions for bad non-ascii\n  ({where})\n",
                   url     => $self->{'uri'},
+                  charset => $charset,
                   where   => $where);
-        $twig->root->set_att('rss2leafnode:recode',$charset);
+        undef $err;
+      }
+    }
+  }
+
+  # Or atempt to put it through XML::Liberal, if available.
+  #
+  if ($err && eval { require XML::Liberal; 1 }) {
+    my $liberal = XML::Liberal->new('LibXML');
+    if (my $doc = eval { $liberal->parse_string($xml) }) {
+      my $liberal_xml = $doc->toString;
+
+      $twig = XML::Twig->new (map_xmlns => $map_xmlns);
+      if ($twig->safe_parse ($liberal_xml)) {
+        $twig->root->set_att('rss2leafnode:fixup',
+                             "XML::Liberal fixed: {error}",
+                             error => trim_whitespace($err));
+        print __x("Feed {url}\n  parse error: {error}\n  continuing with repairs by XML::Liberal\n",
+                  url     => $self->{'uri'},
+                  error => trim_whitespace($err));
+        undef $err;
       }
     }
   }
@@ -2208,12 +2242,12 @@ sub fetch_rss {
   local $self->{'nntp_host'} = uri_to_nntp_host ($group_uri);
   local $self->{'nntp_group'} = $group = $group_uri->group;
   $self->nntp_group_check($group) or return;
-  
+
   # an in-memory cookie jar, used only per-RSS feed and then discarded,
   # which means only kept for fetching for $self->{'rss_get_links'} from a
   # feed
   $self->ua->cookie_jar({});
-  
+
   if ($self->{'verbose'} >= 1) { say __x('feed: {url}', url => $url); }
   require HTTP::Request;
   my $req = HTTP::Request->new (GET => $url);
@@ -2240,11 +2274,16 @@ sub fetch_rss {
 
   my ($twig, $err) = $self->twig_parse($xml);
   if (defined $err) {
+    my $message = __x("XML::Twig parse error on\n\n  {url}\n\n",
+                      url => $url);
+    if ($resp->request->uri ne $url) {
+      $message .= __x("which redirected to\n\n  {url}\n\n",
+                      url => $resp->request->uri);
+    }
+    $message .= $err . "\n\n" . __("Raw XML below.\n") . "\n";
     $self->error_message
       (__x("Error parsing {url}", url => $url),
-       __x("XML::Twig parse error on\n\n  {url}\n\n{error}",
-           url => $url,
-           error => $err));
+       $message, $xml);
     # after successful error message to news
     $self->status_etagmod_resp ($url, $resp);
     return;

@@ -86,7 +86,12 @@ MyMakeMakerExtras::WriteMakefile
              => 'http://user42.tuxfamily.org/rss2leafnode/index.html',
            },
         optional_features
-        => { xml_rss_timing
+        => { maximum_repair
+             => { description => 'Attempt to repair bad XML as much as possible.',
+                  requires => { 'XML::Liberal' => 0 },
+                },
+
+             xml_rss_timing
              => { description => 'Check RSS feed advertised update times before redownloading.',
                   requires => { 'XML::RSS::Timing' => 0 },
                 },
@@ -119,7 +124,9 @@ MyMakeMakerExtras::WriteMakefile
                 },
              fetch_html_exiftool
              => { description => ' A better Subject for fetch_html() messages using Image::ExifTool.',
-                  requires => { 'Image::ExifTool' => 0 },
+                  # version 8.11 avoids warnings from an incompatible change
+                  # in perl 5.11.5, though probably any version works
+                  requires => { 'Image::ExifTool' => '8.11' },
                 },
 
              maximum_tests
@@ -131,10 +138,11 @@ MyMakeMakerExtras::WriteMakefile
              maximum_devel
              => { description => 'Stuff used variously for development.',
                   requires => { 'XML::Atom' => 0,
-                                'XML::LibXML' => 0,
                                 'XML::Atom::Feed' => 0,
                                 'XML::RSS' => 0,
                                 'XML::RSS::LibXML' => 0,
+                                'XML::LibXML' => 0,
+                                'XML::Liberal' => 0,
                                 'Perl6::Slurp' => 0,
                                 'URI::file' => 0, # part of URI
                                 'URI::Title' => 0,

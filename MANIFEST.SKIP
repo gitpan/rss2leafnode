@@ -40,6 +40,8 @@
 # ExtUtils::MakeMaker leaving Makefile.old
 # and "myman" leaving MANIFEST.old
 \.old$
+# ExtUtils::MakeMaker "metafile" rule temporary, left behind if interrupted
+^META_new\.yml$
 
 # built - MakeMaker
 ^Makefile$

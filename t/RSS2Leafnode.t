@@ -38,7 +38,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 25;
+  my $want_version = 26;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -1164,6 +1164,11 @@ HERE
   is ($str, undef, 'html_title() no <title>');
 }
 
+if (Image::ExifTool->can('VERSION')) {
+  diag "Image::ExifTool version ", Image::ExifTool->VERSION;
+}
+
+
 #------------------------------------------------------------------------------
 # html_title_urititle()
 
@@ -1171,6 +1176,7 @@ diag "html_title_urititle()";
 SKIP: {
   eval { require URI::Title } or
     skip 'due to no URI::Title', 2;
+  diag "URI::Title version ", URI::Title->VERSION;
 
   require HTTP::Response;
   require HTTP::Request;

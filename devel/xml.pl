@@ -79,7 +79,7 @@ my $filename = "$FindBin::Bin/" . "../samp/andrew-weil.rss";
   if ($err) {
     print $err;
     exit 1;
-  };
+  }
 
   my $toplevel = $twig->root;
   print "toplevel ",ref($toplevel)," ",$toplevel->tag,"\n";
