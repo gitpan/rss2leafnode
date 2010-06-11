@@ -34,6 +34,23 @@ our %EXPORT_TAGS = (all => \@EXPORT_OK);
 
 use constant DEBUG => 0;
 
+# Return all the slots out of a globref.
+sub contents_glob {
+  my ($ref) = @_;
+  if (ref $ref eq 'GLOB') {
+    return map {*$ref{$_}} qw(SCALAR ARRAY HASH CODE IO GLOB FORMAT);
+  } else {
+    return;
+  }
+}
+
+# Return the IO slot of a globref.
+sub contents_glob_IO {
+  my ($ref) = @_;
+  ref($ref) eq 'GLOB' || return;
+  return  *$ref{IO};
+}
+
 sub ignore_Class_Singleton {
   my ($ref) = @_;
   my $class;
@@ -62,7 +79,7 @@ sub ignore_DBI_globals {
 #   return (defined &$fullname
 #           && $ref == \&$fullname);
 
-# =item C<$bool = Test::Weaken::Gtk2::ignore_global_function ($ref)>
+# =item C<$bool = Test::Weaken::ExtraBits::ignore_global_function ($ref)>
 # 
 # Return true if C<$ref> is a coderef to a global function like C<sub foo {}>.
 #
@@ -158,7 +175,7 @@ Test::Weaken::ExtraBits -- various helpers for Test::Weaken
 Nothing is exported by default, but the functions can be requested
 individually or with C<:all> in the usual way (see L<Exporter>).
 
-    use Test::Weaken::Gtk2 qw(ignore_Class_Singleton);
+    use Test::Weaken::ExtraBits qw(ignore_Class_Singleton);
 
 =head1 FUNCTIONS
 
@@ -166,7 +183,7 @@ individually or with C<:all> in the usual way (see L<Exporter>).
 
 =over 4
 
-=item C<< bool = Test::Weaken::Gtk2::ignore_Class_Singleton ($ref) >>
+=item C<< $bool = Test::Weaken::ExtraBits::ignore_Class_Singleton ($ref) >>
 
 Return true if C<$ref> is the singleton instance of a class using
 C<Class::Singleton>.
@@ -174,7 +191,7 @@ C<Class::Singleton>.
 The current implementation of this function requires C<Class::Singleton>
 version 1.04 for its C<has_instance> method.
 
-=item C<< bool = Test::Weaken::Gtk2::ignore_DBI_globals ($ref) >>
+=item C<< $bool = Test::Weaken::ExtraBits::ignore_DBI_globals ($ref) >>
 
 Return true if C<$ref> is one of the various C<DBI> module global objects.
 

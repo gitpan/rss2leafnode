@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 # 0-META-read.t -- check META.yml can be read by various YAML modules
 

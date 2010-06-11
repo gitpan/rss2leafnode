@@ -50,6 +50,11 @@
 ^TAGS$
 # MakeMaker 6.18 to 6.25, apparently
 ^blibdirs\.ts$
+# msdos compiler output stuff using gcc,
+# "XSFILENAME.def" extension, and others fixed names it seems
+\.def$
+^dll\.base$
+^dll\.exp$
 
 # built - cdbs and debhelper
 ^debian/stamp-
@@ -58,11 +63,14 @@
 # built - texinfo.tex temporaries
 \.(aux|cp|cps|fn|fns|ky|log|pg|toc|tp|tps|vr)$
 
-# built - xsub .c, .o, try not to exclude ordinary C files though, maybe ...
-#(^|/)[A-Z][A-Za-z0-9_]*\.c$
-(^|/[^Z])[^/]+\.c$
+# toplevel .c files built from .xs
+^[^/]+\.c$
+# built .o compiled and .bs from .xs
 \.o$
 \.bs$
+#
+#(^|/)[A-Z][A-Za-z0-9_]*\.c$
+#/[^Z])[^/]+\.c$
 
 # built - configury
 ^conftest
@@ -90,10 +98,20 @@
 devel/h2xs/TestConstFoo/
 
 # special case mall executables
-devel/hblk
-devel/mallopt
-devel/mallstats
-devel/malltrim
+^devel/hblk$
+^devel/mallopt$
+^devel/mallstats$
+^devel/malltrim$
+# special case fli executables
+^devel/mmap-multi$
+# special case widget-bits executables
+^devel/grandom$
+^devel/grandom-[a-z]+$
+# special case widget-cursor executables
+^devel/invisible-blank$
+# special case xor executables
+^devel/gtk-gc-colour$
+
 
 # special htmlext environs
 ^test-dist/

@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 # Copyright 2010 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
@@ -22,7 +20,7 @@ use 5.010;
 use strict;
 use warnings;
 
-our $VERSION = 26;
+our $VERSION = 27;
 
 {
   package App::RSS2Leafnode::Conf::Tie;

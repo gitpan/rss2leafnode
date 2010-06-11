@@ -23,17 +23,26 @@ use LWP::UserAgent;
 use Cwd;
 use FindBin;
 
+use lib "$ENV{HOME}/perl/image/Image-ExifTool-8.22/lib";
+
+
 {
   my $filename;
   $filename = '/usr/share/doc/sqlite3-doc/images/arch.png';
   $filename = "../../tux/web/gtk2-ex-clock/screenshot.png";
+  $filename = "$ENV{HOME}/p/pngtext/devel/spacetag.png";
+  $filename = "/usr/share/games/funnyboat/data/titanic.png";
+  $filename = "$ENV{HOME}/image/samples/utf8.png";
+  $filename = "$ENV{HOME}/image/samples/latin1-keyword.png";
 
   require Image::ExifTool;
+  print Image::ExifTool->VERSION,"\n";
   my $info = Image::ExifTool::ImageInfo
     ($filename,
-     ['Titxxle'],
+     #      ['Titxxle'],
      {List => 0,    # give list values as comma separated
-      Charset => 'UTF8'});
+      Charset => 'UTF8'},
+    );
 
   #   $e->ExtractInfo($filename,
   #                   ['Foo'],
@@ -44,7 +53,52 @@ use FindBin;
 
   require Data::Dumper;
   print Data::Dumper->new([\$info],['info'])->Dump;
+
+  # my $fo = $info->{'FO'};
+  my $fo = $info->{'Foo'};
+  # my $fo = $info->{'Description'};
+  print "$fo\n";
+  print utf8::is_utf8($fo)?"yes":"no","\n";
   exit 0;
+}
+{
+  require App::RSS2Leafnode;
+  my $filename = "$ENV{HOME}/image/samples/latin1.png";
+   $filename = "$ENV{HOME}/image/samples/utf8.png";
+  my $ua = LWP::UserAgent->new;
+  my $url = "file://$filename";
+  my $resp = $ua->get($url);
+  my $title = App::RSS2Leafnode::html_title($resp);
+  print utf8::is_utf8($title)?"yes":"no","\n";
+  print "$title\n";
+  exit 0;
+}
+{
+  require Gtk2;
+  Gtk2->init;
+  my $toplevel = Gtk2::Window->new('toplevel');
+  $toplevel->signal_connect (destroy => sub { Gtk2->main_quit });
+  my $label = Gtk2::Label->new ("\x{B1}");
+  $toplevel->add ($label);
+  $toplevel->show_all;
+  Gtk2->main;
+  exit 0
+}
+{
+  require Gtk2;
+  Gtk2->init;
+  my $output_filename = '/tmp/x';
+  my $pixbuf = Gtk2::Gdk::Pixbuf->new ('rgb', 0, 8, 10, 10);
+  eval {
+    $pixbuf->save
+      ($output_filename, 'png',
+       # 'tEXt::Title' => "\x{2022}",
+       'tEXt::Title' => "\x{B1}",
+      );
+  };
+  print "$@";
+  print "output $output_filename\n";
+  exit 0
 }
 
 {
@@ -70,15 +124,15 @@ use FindBin;
   exit 0;
 }
 
-my $ua = LWP::UserAgent->new;
-# my $url = 'http://localhost/index.html';
-my $url = "file://$FindBin::Bin/lwp-title.html";
-my $resp = $ua->get($url);
-my $title = $resp->title;
-print $title,"\n";
-# print $resp->as_string,"\n";
-
 {
+  my $ua = LWP::UserAgent->new;
+  # my $url = 'http://localhost/index.html';
+  my $url = "file://$FindBin::Bin/lwp-title.html";
+  my $resp = $ua->get($url);
+  my $title = $resp->title;
+  print $title,"\n";
+  # print $resp->as_string,"\n";
+
   require URI::Title;
   my $data = $resp->decoded_content(charset=>'none');
   $title = URI::Title::title({ data => \$data });

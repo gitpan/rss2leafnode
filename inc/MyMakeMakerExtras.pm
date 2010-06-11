@@ -87,7 +87,7 @@ sub _meta_merge_shared_tests {
   }
   if (-e 't/0-Test-YAML-Meta.t') {
     _meta_merge_req_add (_meta_merge_maximum_tests($opts),
-                         'Test::YAML::Meta' => '0.13');
+                         'Test::YAML::Meta' => '0.15');
   }
   if (-e 't/0-META-read.t') {
     if (_min_perl_version_lt ($opts, 5.00307)) {
@@ -233,7 +233,7 @@ HERE
 
   my $lint_files = $my_options{'MyMakeMakerExtras_LINT_FILES'};
   if (! defined $lint_files) {
-    $lint_files = '$(EXE_FILES) $(TO_INST_PM)';
+    $lint_files = 'Makefile.PL $(EXE_FILES) $(TO_INST_PM)';
     # would prefer not to lock down the 't' dir existance at ./Makefile.PL
     # time, but it's a bit hard without without GNU make extensions
     if (-d 't') { $lint_files .= ' t/*.t'; }
@@ -249,7 +249,7 @@ HERE
   my $podcoverage = '';
   foreach my $class (@{$my_options{'MyMakeMakerExtras_Pod_Coverage'}}) {
     # the "." obscures it from MyExtractUse.pm
-    $podcoverage .= "\t-perl -e 'use "."Pod::Coverage package=>$class'\n";
+    $podcoverage .= "\t-\$(PERLRUNINST) -e 'use "."Pod::Coverage package=>$class'\n";
   }
 
   $post .= "LINT_FILES = $lint_files\n"
@@ -260,7 +260,8 @@ pc:
 HERE
   # "podchecker -warnings -warnings" too much reporting every < and >
   $post .= $podcoverage . <<'HERE';
-	-podchecker $(LINT_FILES)
+	-podlinkcheck -I lib `ls $(LINT_FILES) | grep -v '\.bash$$|\.desktop$$\.png$$|\.xpm$$'`
+	-podchecker `ls $(LINT_FILES) | grep -v '\.bash$$|\.desktop$$\.png$$|\.xpm$$'`
 	perlcritic $(LINT_FILES)
 unused:
 	for i in $(LINT_FILES); do perl -Mwarnings::unused -I lib -c $$i; done
@@ -282,19 +283,22 @@ check-copyright-years:
 	| sed 's:^.*$(DISTVNAME)/::' \
 	| (result=0; \
 	  while read i; do \
+	    GREP=grep; \
 	    case $$i in \
 	      '' | */ \
+	      | ppport.h \
 	      | debian/changelog | debian/compat | debian/doc-base \
-	      | debian/patches/*.diff \
+	      | debian/patches/*.diff | debian/source/format \
 	      | COPYING | MANIFEST* | SIGNATURE | META.yml \
 	      | version.texi | */version.texi \
 	      | *utf16* \
 	      | *.mo | *.locatedb | t/samp.*) \
-	      continue ;; \
+	        continue ;; \
+	      *.gz) GREP=zgrep ;; \
 	    esac; \
 	    if test -e "$(srcdir)/$$i"; then f="$(srcdir)/$$i"; \
 	    else f="$$i"; fi; \
-	    if ! grep -q "Copyright.*$$year" $$f; then \
+	    if ! $$GREP -q "Copyright.*$$year" $$f; then \
 	      echo "$$i":"1: this file"; \
 	      grep Copyright $$f; \
 	      result=1; \
@@ -308,7 +312,7 @@ check-debug-constants:
 	if egrep -n 'DEBUG => [1-9]|^[ \t]*use Smart::Comments' $(EXE_FILES) $(TO_INST_PM); then exit 1; else exit 0; fi
 
 check-spelling:
-	if egrep -nHi 'continous|existant|explict|agument|destionation|\bthe the\b|\bnote sure\b' -r . \
+	if egrep -nHi 'requrie|noticable|continous|existant|explict|agument|destionation|\bthe the\b|\bnote sure\b' -r . \
 	  | egrep -v '(MyMakeMakerExtras|Makefile|dist-deb).*grep -nH'; \
 	then false; else true; fi
 
@@ -389,7 +393,7 @@ lintian-source:
 	mv -T $(DISTVNAME) $(DEBNAME)-$(VERSION); \
 	dpkg-source -b $(DEBNAME)-$(VERSION) \
 	               $(DEBNAME)_$(VERSION).orig.tar.gz; \
-	lintian -i *.dsc; \
+	lintian -i -X missing-debian-source-format *.dsc; \
 	cd ..; \
 	rm -rf temp-lintian
 

@@ -36,9 +36,9 @@ Bugs: mailto:user42@zip.com.au
 
 Package: rss2leafnode
 Architecture: all
-Depends: perl (>= 5.10), libfile-homedir-perl, libhtml-entities-interpolate-perl, libhtml-format-perl, libintl-perl (>= 1.16), libmime-tools-perl, libscope-guard-perl, libsort-key-top-perl, libtext-wrapi18n-perl, libtimedate-perl, liburi-perl, liburi-tag-perl, libwww-perl (>= 5.832), libxml-twig-perl (>= 3.34), ${misc:Depends}
-Recommends: leafnode (>= 2) | news-transport-system, libintl-xs-perl, libtime-duration-perl, libtime-duration-locale-perl, libxml-rss-timing-perl
-Suggests: libhtml-formattext-withlinks-perl, libhtml-formatexternal-perl, lynx | w3m | elinks, liburi-title-perl
+Depends: perl (>= 5.10), libconstant-defer-perl, libfile-homedir-perl, libhtml-entities-interpolate-perl, libhtml-format-perl, libintl-perl (>= 1.17), libmime-tools-perl, libnumber-format-perl (>= 1.5), libscope-guard-perl, libsort-key-top-perl, libtext-wrapi18n-perl, libtimedate-perl, liburi-perl, liburi-tag-perl, libwww-perl (>= 5.832), libxml-twig-perl (>= 3.34), ${perl:Depends}, ${misc:Depends}
+Recommends: leafnode (>= 2) | news-transport-system, libintl-xs-perl (>= 1.17), libtime-duration-perl, libtime-duration-locale-perl, libxml-rss-timing-perl
+Suggests: libhtml-formattext-withlinks-perl, libhtml-formatexternal-perl, lynx | w3m | elinks, liburi-title-perl, libxml-liberal-perl
 Description: Post RSS or Atom articles to local newsgroups
  RSS2Leafnode reads specified RSS or Atom feeds and posts items to
  local newsgroups.  It's named for the leafnode program, but can post

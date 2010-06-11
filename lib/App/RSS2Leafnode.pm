@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 # Copyright 2007, 2008, 2009, 2010 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
@@ -28,7 +26,7 @@ use POSIX (); # ENOENT, etc
 use URI;
 use HTML::Entities::Interpolate;
 
-our $VERSION = 26;
+our $VERSION = 27;
 
 # version 1.17 for __p(), and version 1.16 for turn_utf_8_on()
 use Locale::TextDomain 1.17;
@@ -217,6 +215,7 @@ sub command_line {
 
   my $done_version;
   require Getopt::Long;
+  Getopt::Long::Configure ('no_ignore_case');
   Getopt::Long::GetOptions
       ('config=s'   => \$self->{'config_filename'},
        'verbose:1'  => \$self->{'verbose'},
@@ -237,7 +236,7 @@ sub command_line {
          say __x("   --verbose=2  show technical details of what's done");
          say __x("   --version    print program version number");
          exit 0;
-       })or return 1;
+       }) or return 1;
   if (! $done_version) {
     $self->do_config_file;
     $self->nntp_close;
@@ -671,10 +670,23 @@ sub html_title_exiftool {
 
   my $data = $resp->decoded_content (charset => 'none');
   my $info = Image::ExifTool::ImageInfo
-    (\$data, ['Title'],
-     {List    => 0,    # give list values as comma separated
-      Charset => 'UTF8'});
-  return $info->{'Title'};
+    (\$data,
+     ['Title'],     # just the Title field
+     {List => 0});  # give list values as comma separated
+
+  my $title = $info->{'Title'};
+  if (defined $title) {
+    # PNG spec is for tEXt chunks to contain latin-1 and iTXt chunks utf-8
+
+    # ExifTool 8.22 converts tEXt to utf8 for its return, prior versions
+    # just give the latin-1 bytes.  Prior versions return iTXt as the utf-8
+    # bytes, but there's no way to distinguish that.  Decoding as latin-1
+    # will be wrong, but assume that anyone affected will get a new enough
+    # exiftool.
+    my $charset = (Image::ExifTool->VERSION >= 8.22 ? 'utf-8' : 'iso-8859-1');
+    $title = Encode::decode ($charset, $title);
+  }
+  return $title;
 }
 
 
@@ -1230,6 +1242,7 @@ sub render_maybe {
       # Likewise HTML::FormatText::WithLinks (as of version 0.11).
       #
       $content = Encode::decode ($charset, $content);
+      local $SIG{'__WARN__'} = \&_warn_suppress_unknown_base;
       $content = $class->format_string
         ($content,
          base        => $base_url,
@@ -1252,6 +1265,11 @@ sub render_maybe {
     $rendered = 1;
   }
   return ($content, $content_type, $charset, $rendered);
+}
+sub _warn_suppress_unknown_base {
+  my ($msg) = @_;
+  $msg =~ /^Unknown configure option 'base'/
+    or warn $msg;
 }
 
 # $str is a wide-char string of text
@@ -1673,7 +1691,7 @@ sub twig_parse {
       if ($twig->safe_parse ($recoded_xml)) {
         $twig->root->set_att('rss2leafnode:fixup',
                              "Recoded bad bytes to charset $charset");
-        print __x("Feed {url}\n  recoded to {charset} to parse, expect substitutions for bad non-ascii\n  ({where})\n",
+        print __x("Feed {url}\n  recoded {charset} to parse, expect substitutions for bad non-ascii\n  ({where})\n",
                   url     => $self->{'uri'},
                   charset => $charset,
                   where   => $where);

@@ -7,6 +7,7 @@ debian/copyright
 debian/patches/pod-sample-conf-file.diff
 debian/prerm
 debian/rules
+debian/source/format
 debian/watch
 devel/atom.pl
 devel/file-temp-debug.pl
@@ -61,6 +62,7 @@ po/header.pot
 po/README
 rss2leafnode
 SIGNATURE
+t/0-exe-shebang.t
 t/0-META-read.t
 t/0-Test-DistManifest.t
 t/0-Test-Pod.t

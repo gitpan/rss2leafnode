@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               rss2leafnode
-version:            26
+version:            27
 abstract:           Download RSS feeds into Leafnode news.
 author:
     - Kevin Ryde <user42@zip.com.au>
@@ -53,7 +53,7 @@ optional_features:
     fetch_html_exiftool:
         description:   A better Subject for fetch_html() messages using Image::ExifTool.
         requires:
-            Image::ExifTool:  8.11
+            Image::ExifTool:  8.22
     fetch_html_uri_title:
         description:   A better Subject for fetch_html() messages using URI::Title.
         requires:
@@ -63,11 +63,15 @@ optional_features:
         requires:
             DateTime:             0
             DateTime::Format::Mail:  0
+            File::Slurp:          0
+            Gtk2:                 0
             Hook::LexWrap:        0
             HTML::Entities:       0
             HTML::FormatText:     0
+            HTML::FormatText::WithLinks:  0
             HTML::Lint:           0
             HTML::TreeBuilder:    0
+            Image::ExifTool:      0
             IO::Socket::SSL:      0
             Module::Find:         0
             Perl6::Slurp:         0
@@ -79,8 +83,21 @@ optional_features:
             XML::LibXML:          0
             XML::RSS:             0
             XML::RSS::LibXML:     0
+    maximum_interoperation:
+        description:  All the optional and possible things RSS2Leafnode can use.
+        requires:
+            HTML::FormatExternal:  16
+            HTML::FormatText::WithLinks:  0
+            Image::ExifTool:      8.22
+            Time::Duration:       0
+            Time::Duration::ja:   0
+            Time::Duration::Locale:  0
+            Time::Duration::sv:   0
+            URI::Title:           0
+            XML::Liberal:         0
+            XML::RSS::Timing:     0
     maximum_repair:
-        description:  Attempt to repair bad XML as much as possible.
+        description:  Modules for as much XML fixing-up as possible.
         requires:
             XML::Liberal:  0
     maximum_tests:
@@ -91,7 +108,8 @@ optional_features:
             Test::NoWarnings:    0
             Test::Pod:           1.00
             Test::Synopsis:      0
-            Test::YAML::Meta:    0.13
+            Test::Weaken:        2.0
+            Test::YAML::Meta:    0.15
             URI::Title:          0
             YAML:                0
             YAML::Syck:          0
@@ -114,8 +132,9 @@ optional_features:
         requires:
             Time::Duration:  0
     xml_rss_timing_print_locale:
-        description:  A prettier print of time to next RSS update, with language-specific print.
+        description:  A prettier print of time to next RSS update, with language-specifics.
         requires:
+            Time::Duration::en_PIGLATIN:  0
             Time::Duration::ja:   0
             Time::Duration::Locale:  0
             Time::Duration::sv:   0

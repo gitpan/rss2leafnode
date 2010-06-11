@@ -86,8 +86,22 @@ MyMakeMakerExtras::WriteMakefile
              => 'http://user42.tuxfamily.org/rss2leafnode/index.html',
            },
         optional_features
-        => { maximum_repair
-             => { description => 'Attempt to repair bad XML as much as possible.',
+        => { maximum_interoperation
+             => { description => 'All the optional and possible things RSS2Leafnode can use.',
+                  requires => { 'XML::Liberal' => 0,
+                                'XML::RSS::Timing'       => 0 ,
+                                'Time::Duration'         => 0,
+                                'Time::Duration::Locale' => 0,
+                                'Time::Duration::ja'     => 0,
+                                'Time::Duration::sv'     => 0,
+                                'HTML::FormatExternal'        => 16,
+                                'HTML::FormatText::WithLinks' => 0,
+                                'URI::Title'      => 0,
+                                'Image::ExifTool' => '8.22',
+                              },
+                },
+             maximum_repair
+             => { description => 'Modules for as much XML fixing-up as possible.',
                   requires => { 'XML::Liberal' => 0 },
                 },
 
@@ -100,10 +114,15 @@ MyMakeMakerExtras::WriteMakefile
                   requires => { 'Time::Duration' => 0 },
                 },
              xml_rss_timing_print_locale
-             => { description => 'A prettier print of time to next RSS update, with language-specific print.',
+             => { description => 'A prettier print of time to next RSS update, with language-specifics.',
+                  # bit unfortunate to hard-code the known
+                  # language-specifics here, it the idea takes off perhaps
+                  # there'll be a "Bundle::" to depend on
                   requires => { 'Time::Duration::Locale' => 0,
                                 'Time::Duration::ja'     => 0,
                                 'Time::Duration::sv'     => 0,
+                                # included for comic effect :-)
+                                'Time::Duration::en_PIGLATIN' => 0,
                               },
                 },
 
@@ -126,12 +145,15 @@ MyMakeMakerExtras::WriteMakefile
              => { description => ' A better Subject for fetch_html() messages using Image::ExifTool.',
                   # version 8.11 avoids warnings from an incompatible change
                   # in perl 5.11.5, though probably any version works
-                  requires => { 'Image::ExifTool' => '8.11' },
+                  # version 8.22 is preferred as it gives back PNG tEXt/iTXt
+                  # in a consistent encoding
+                  requires => { 'Image::ExifTool' => '8.22' },
                 },
 
              maximum_tests
              => { description => 'Have "make test" do as much as possible.',
                   requires => { 'Test::NoWarnings' => 0,
+                                'Test::Weaken' => '2.0',
                                 'URI::Title' => 0,
                               },
                 },
@@ -155,6 +177,10 @@ MyMakeMakerExtras::WriteMakefile
                                 'IO::Socket::SSL' => 0,
                                 'Hook::LexWrap' => 0,
                                 'Module::Find' => 0,
+                                'File::Slurp' => 0,
+                                'Gtk2' => 0,
+                                'HTML::FormatText::WithLinks' => 0,
+                                'Image::ExifTool' => 0,
                               },
                 },
            },
