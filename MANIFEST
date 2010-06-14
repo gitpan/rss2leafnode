@@ -40,6 +40,7 @@ devel/rss2leafnode.el
 devel/run-parse.pl
 devel/samples.pl
 devel/single-entry.yaml
+devel/tags.pl
 devel/top-ref.pl
 devel/twig-base.pl
 devel/twig-map-default.pl

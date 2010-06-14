@@ -36,7 +36,7 @@ MyMakeMakerExtras::WriteMakefile
    EXE_FILES    => [ 'rss2leafnode' ],
    MIN_PERL_VERSION => '5.010',
 
-   clean     => { FILES => '$(POT_TEMP_FILE)' # if bad xgettext
+   clean     => { FILES => '$(POT_TEMP_FILE)', # if bad xgettext
                 },
 
    PREREQ_PM    => {
@@ -74,6 +74,7 @@ MyMakeMakerExtras::WriteMakefile
                     'Scope::Guard' => 0,
                     'Sort::Key::Top' => 0,
                     'File::HomeDir' => 0,
+                    'List::MoreUtils' => 0,
 
                     # 1.17 for __p()
                     'Locale::TextDomain' => '1.17',

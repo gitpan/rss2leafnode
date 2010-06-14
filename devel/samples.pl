@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License along
 # with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
+use 5.010;
 use strict;
 use warnings;
 use App::RSS2Leafnode;
@@ -48,11 +49,12 @@ GetOptions (require_order => 1,
             'newest'     => \$r2l->{'rss_newest_only'},
             'html'       => sub { $method = 'fetch_html' },
             'post'       => \$option_post,
+            'all'        => sub { $r2l->{'rss_newest_only'} = 0 },
             '<>' => sub {
               my ($arg) = @_;
               push @uris, URI->new("$arg",'file');
             },
-           ) or return 1;
+           ) or exit 1;
 
 if (! $option_post) {
   no warnings 'redefine';

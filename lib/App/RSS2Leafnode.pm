@@ -22,11 +22,12 @@ use warnings;
 use Carp;
 use Encode;
 use List::Util;
+use List::MoreUtils;
 use POSIX (); # ENOENT, etc
 use URI;
 use HTML::Entities::Interpolate;
 
-our $VERSION = 27;
+our $VERSION = 28;
 
 # version 1.17 for __p(), and version 1.16 for turn_utf_8_on()
 use Locale::TextDomain 1.17;
@@ -53,8 +54,6 @@ BEGIN {
 #
 #   http://www.rssboard.org/rss-profile
 #       "Best practices."
-#   http://www.meatballwiki.org/wiki/ModWiki -- wiki
-#   http://web.resource.org/rss/1.0/modules/slash/
 #
 # Dublin Core
 #   RFC 5013 -- summary
@@ -68,6 +67,20 @@ BEGIN {
 #   RFC 5005 -- <link rel="next"> etc paging and archiving
 #   http://diveintomark.org/archives/2004/05/28/howto-atom-id
 #      Making an <id>
+#
+# RSS Modules:
+#   http://www.meatballwiki.org/wiki/ModWiki -- wiki
+#   http://web.resource.org/rss/1.0/modules/slash/
+#   http://code.google.com/apis/feedburner/feedburner_namespace_reference.html
+#   http://backend.userland.com/creativeCommonsRSSModule
+#
+#   http://web.resource.org/rss/1.0/modules/content/
+#   http://www.rssboard.org/rss-profile#namespace-elements-content
+#   http://validator.w3.org/feed/docs/warning/NeedDescriptionBeforeContent.html
+#       <content:encoded> should precede <description>
+#
+#   http://www.apple.com/itunes/podcasts/specs.html
+#   http://www.feedforall.com/itunes.htm
 #
 # URIs
 #   RFC 1738, RFC 2396, RFC 3986 -- URI formats (news/nntp in 1738)
@@ -429,7 +442,10 @@ sub item_to_date {
              // non_empty ($elt->first_child_trimmed_text('issued'))
              // non_empty ($elt->first_child_trimmed_text('created'))
              # channel
-             // non_empty ($elt->first_child_trimmed_text('lastBuildDate')));
+             // non_empty ($elt->first_child_trimmed_text('lastBuildDate'))
+             # Atom
+             // non_empty ($elt->first_child_trimmed_text('published'))
+            );
     last if defined $date;
   }
   return isodate_to_rfc822($date);
@@ -438,7 +454,7 @@ sub item_to_date {
 sub item_to_timet {
   my ($self, $item) = @_;
   my $str = $self->item_to_date($item)
-    // return -POSIX::DBL_MAX(); # no date fields
+    // return - POSIX::DBL_MAX(); # no date fields
 
   require Date::Parse;
   return (Date::Parse::str2time($str)
@@ -851,12 +867,19 @@ sub elt_xml_base {
   return undef;
 }
 
-# Return the text of $elt and the whole xml of any child elements.
+# Return the text of $elt and treat child elements as improperly escaped
+# parts of the text too.
 #
-# This helps html sub-elements like <description>.  They're supposed to be
-# just html text, with <p> etc escaped as &lt;p&gt;, but have seen
-# sub-elements for instance Feb 2010 http://www.drweil.com/drw/ecs/rss.xml,
-# though maybe with sub-entites still doubled like &amp;nbsp;.
+# This is good for elements which are supposed to be HTML with <p> etc
+# escaped as &lt;p&gt;, but copes with feeds that don't have the necessary
+# escapes and thus come out with xml child elements under $elt.
+#
+# For elements which are supposed to be plain text with no markup and no
+# sub-elements this will at least make improper child text visible, though
+# it might not look very good.
+#
+# As of June 2010 http://www.drweil.com/drw/ecs/rss.xml is an example of
+# improperly escaped html.
 #
 # FIXME: Any need to watch out for <rdf:value> types?
 #
@@ -864,13 +887,20 @@ sub elt_subtext {
   my ($elt) = @_;
   defined $elt or return undef;
   if ($elt->is_text) { return $elt->text; }
-  return join ('',
-               map {$_->is_text ? $_->text : $_->sprint} $elt->children);
+  return join ('', map {_elt_subtext_with_tags($_)} $elt->children);
+}
+sub _elt_subtext_with_tags {
+  my ($elt) = @_;
+  defined $elt or return undef;
+  if ($elt->is_text) { return $elt->text; }
+  return ($elt->start_tag
+          . join ('', map {_elt_subtext_with_tags($_)} $elt->children)
+          . $elt->end_tag);
 }
 
-# $elt contains xhtml <div> etc sub-elements, return a plain html string.
+# $elt contains xhtml <div> etc sub-elements.  Return a plain html string.
 # Prefixes like <xhtml:b>Bold</xhtml:b> are turned into plain <b>.
-# This relies on map_xmlns mapping to prefix "xhtml:"
+# This relies on the map_xmlns mapping to give prefix "xhtml:"
 #
 sub elt_xhtml_to_html {
   my ($elt) = @_;
@@ -914,8 +944,14 @@ sub elt_content_type {
   if ($elt->root->tag eq 'feed') {
     return 'text';  # Atom <feed> defaults to text
   }
-  if ($elt->tag eq 'description') {
-    return 'html';  # RSS <description> is encoded html
+  my $tag = $elt->tag;
+  if ($tag =~ /^itunes:/) {
+    # itunes spec is for text-only, no html markup
+    return 'text';
+  }
+  if ($tag eq 'description'           # RSS <description> is encoded html
+      || $tag eq 'content:encoded') { # same in content:encoded
+    return 'html';
   }
   # other RSS is text
   return 'text';
@@ -1332,6 +1368,33 @@ sub error_message {
 #------------------------------------------------------------------------------
 # fetch HTML
 
+sub http_to_host {
+  my ($resp) = @_;
+  my $req = $resp->request;
+  my $uri = $req && $req->uri;
+  return (non_empty ($uri->can('host') && $uri->host)
+          // 'localhost'); # file:// schema during testing
+}
+
+sub http_to_from {
+  my ($resp) = @_;
+  return http_exiftool_author($resp)
+    // 'nobody@'.http_to_host($resp);
+}
+sub http_exiftool_author {
+  my ($resp) = @_;
+  eval { require Image::ExifTool } || return;
+
+  # PNG Author field, or HTML <meta> author
+  my $data = $resp->decoded_content (charset => 'none');
+  my $info = Image::ExifTool::ImageInfo
+    (\$data,
+     ['Author'],    # just the Author field
+     {List => 0});  # give list values as comma separated
+  my $author = $info->{'Author'} // return;
+  return Encode::decode_utf8($author);
+}
+
 sub fetch_html {
   my ($self, $group, $url) = @_;
   if ($self->{'verbose'} >= 1) { say "page: $url"; }
@@ -1370,9 +1433,6 @@ sub fetch_html {
        });
   return 0 if $self->nntp_message_id_exists ($msgid);
 
-  my $host = (non_empty (URI->new($url)->host)
-              // 'localhost'); # file:// schema during testing
-
   my $subject = (html_title($resp)
                  // $resp->filename
                  # show original url in subject, not anywhere redirected
@@ -1381,9 +1441,9 @@ sub fetch_html {
   my $top = $self->mime_part_from_response
     ($resp,
      Top                 => 1,
-     'Path:'             => $host,
+     'Path:'             => scalar (http_to_host($resp)),
      'Newsgroups:'       => $group,
-     From                => 'nobody@'.$host,
+     From                => scalar (http_to_from($resp)),
      Subject             => $subject,
      Date                => scalar ($resp->header('Last-Modified')),
      'Message-ID'        => $msgid);
@@ -1480,14 +1540,19 @@ sub aireview_follow {
 sub item_to_links {
   my ($self, $item) = @_;
 
-  my @elts = ($item->children(qr/^link$
-                               |^enclosure$
-                               |^content$
-                               |^wiki:diff$
-                               |^comments$
-                               |^wfw:comment$
-                                /x));
+  # <feedburner:origLink> or <feedburner:origEnclosureLink> is when
+  # something has been expanded into the item, or should it be shown?
 
+  # <media:content> can be a link, but have seen it just duplicating
+  # <enclosure> without a length.  Would probably skip medium="image".
+  #
+  my @elts = $item->children (qr/^(link
+                                 |enclosure
+                                 |content
+                                 |wiki:diff
+                                 |comments
+                                 |wfw:comment
+                                 )$/x);
   my @links;
   my %seen;
   foreach my $elt (@elts) {
@@ -1580,13 +1645,27 @@ sub item_to_links {
     $l->{'uri'} = $uri;
     $l->{'name'} //= __('Link:');
 
-    # show length if biggish, but suspect this is rarely provided
+    my @paren;
+    # show length if biggish, often provided on enclosures but not plain
+    # links
     if (defined (my $length = ($elt->att('atom:length')
                                // $elt->att('length')))) {
       if ($length >= 2000) {
-        $length = NUMBER_FORMAT()->format_bytes ($length, precision => 1);
-        $l->{'name'} =~ s/:/($length):/;
+        push @paren, NUMBER_FORMAT()->format_bytes ($length, precision => 1);
       }
+    }
+    # <itunes:duration> applies to <enclosure>.  Just a number means
+    # seconds, otherwise MM:SS or HH:MM:SS.
+    if ($elt->tag eq 'enclosure'
+        && defined (my $duration = non_empty ($item->first_child_text('itunes:duration')))) {
+      if ($duration !~ /:/) {
+        $duration = __px('s-for-seconds', '{duration}s',
+                         duration => $duration);
+      }
+      push @paren, $duration;
+    }
+    if (@paren) {
+      $l->{'name'} =~ s{:}{ '(' . join(', ', @paren) . '):'}e;
     }
 
     push @links, $l;
@@ -1636,11 +1715,16 @@ my $map_xmlns
   = {
      'http://www.w3.org/2005/Atom'                  => 'atom',
      'http://www.w3.org/1999/02/22-rdf-syntax-ns#'  => 'rdf',
+     'http://purl.org/rss/1.0/modules/content/'     => 'content',
      'http://purl.org/rss/1.0/modules/slash/'       => 'slash',
      'http://purl.org/rss/1.0/modules/syndication/' => 'syn',
      'http://purl.org/syndication/thread/1.0'       => 'thr',
      'http://wellformedweb.org/CommentAPI/'         => 'wfw',
      'http://www.w3.org/1999/xhtml'                 => 'xhtml',
+     'http://www.itunes.com/dtds/podcast-1.0.dtd'   => 'itunes',
+     'http://rssnamespace.org/feedburner/ext/1.0'   => 'feedburner',
+     'http://search.yahoo.com/mrss'                 => 'media',
+     'http://backend.userland.com/creativeCommonsRssModule'=>'creativeCommons',
 
      # don't need to distinguish dcterms from plain dc as yet
      'http://purl.org/dc/elements/1.1/'             => 'dc',
@@ -1821,6 +1905,38 @@ sub item_to_in_reply_to {
   return $self->url_to_msgid ($ref);
 }
 
+# Return a string of comma separated keywords per RFC1036 and RFC2822.
+sub item_to_keywords {
+  my ($self, $item) = @_;
+
+  # <category> is often present with no other keywords, work that in as a
+  # bit of a fallback, being better than nothing for classification.
+  #
+  # <itunes:category> might be covered by <itunes:keywords> anyway, but work
+  # it in for more classification for now.  Can have child <itunes:category>
+  # elements as sub-categories, but don't worry about them.
+  #
+  # <slash:section> might in theory be turned into keyword, but it's
+  # normally just "news" or something not particularly informative.
+  #
+  # How much value is there in the channel keywords?
+  #
+  my $re = qr/^(category
+              |itunes:category
+              |media:keywords
+              |itunes:keywords
+              )$/x;
+  return join_non_empty
+    (', ',
+     List::MoreUtils::uniq
+     (map { collapse_whitespace($_) }
+      map { split /,/ }
+      map { $_->att('text')   # itunes:category
+              // $_->text }   # other
+      ($item->children($re),
+       item_to_channel($item)->children($re))));
+}
+
 # return the host part of $self->{'uri'}, or "localhost" if none
 sub uri_to_host {
   my ($self) = @_;
@@ -1836,23 +1952,33 @@ sub uri_to_host {
 sub elt_to_email {
   my ($elt) = @_;
   return unless defined $elt;
-  my $email   = elt_to_rendered_line ($elt->first_child('email')); # Atom
-  my $rdfdesc = $elt->first_child('rdf:Description');
 
-  my $ret = join
+  my $email = elt_to_rendered_line
+    ($elt->first_child(qr/^(email                # Atom
+                          |itunes:email)$/x));   # itunes:owner
+
+  my $ret = join_non_empty
     (' ',
-     non_empty ($elt->text_only),
-     non_empty (elt_to_rendered_line ($elt->first_child('name'))), # Atom
-     non_empty ($rdfdesc && $rdfdesc->first_child_text('rdf:value')));
+     $elt->text_only,
+     elt_to_rendered_line
+     ($elt->first_child(qr/^(name             # Atom
+                           |itunes:name)/x)), # itunes:owner
+     do {
+       # <rdf:Description><rdf:value>...</></> under dc authors etc
+       my $rdfdesc = $elt->first_child('rdf:Description');
+       $rdfdesc && $rdfdesc->first_child_text('rdf:value')
+     });
 
   if (is_non_empty($email)) {
     if (is_non_empty ($ret)) {
+      # Are escapes needed in "<...>" part?  Shouldn't have strange chars in
+      # the email address.
       $ret = "$ret <$email>";
     } else {
       $ret = $email;
     }
   }
-  return unless is_non_empty($ret);
+                    return unless is_non_empty($ret);
 
   # eg.     "Rael Dornfest (mailto:rael@oreilly.com)"
   # becomes "Rael Dornfest <rael@oreilly.com>"
@@ -1869,24 +1995,30 @@ sub item_to_from {
   my ($self, $item) = @_;
   my $channel = item_to_channel($item);
 
-  # "author" is supposed to be an email address whereas "dc:creator" is
+  # <author> is supposed to be an email address whereas <dc:creator> is
   # looser.  The RSS recommendation is to use author when revealing an email
   # and dc:creator when hiding it.
   #
-  # <dc:contributor> in wiki: feeds
+  # <dc:contributor> in wiki: feeds.
   #
-  return (elt_to_email ($item->first_child('author'))
-          // elt_to_email ($item   ->first_child('dc:creator'))
-          // elt_to_email ($item   ->first_child('dc:contributor'))
-          // non_empty ($item->first_child_trimmed_text('wiki:username'))
+  # <contributor> multiple times in Atom item, don't think can usefully just
+  # pick one of them.  Hope for a primary author.
+  #
+  return (elt_to_email    ($item->first_child('author'))
+          // elt_to_email ($item->first_child('dc:creator'))
+          // elt_to_email ($item->first_child('dc:contributor'))
+          // elt_to_email ($item->first_child('wiki:username'))
+          // elt_to_email ($item->first_child('itunes:author'))
 
           // elt_to_email ($channel->first_child('dc:creator'))
           // elt_to_email ($channel->first_child('author'))
+          // elt_to_email ($channel->first_child('itunes:author'))
           // elt_to_email ($channel->first_child('managingEditor'))
           // elt_to_email ($channel->first_child('webMaster'))
 
           // elt_to_email ($item   ->first_child('dc:publisher'))
           // elt_to_email ($channel->first_child('dc:publisher'))
+          // elt_to_email ($channel->first_child('itunes:owner'))
 
           # Atom <title> can have type="html" etc in the usual way.
           // elt_to_rendered_line ($channel->first_child('title'))
@@ -1913,48 +2045,45 @@ sub item_to_language {
   if (my $elt = $item->first_child('content')) {
     $lang = non_empty ($elt->att('xml:lang'));
   }
-
-  # Either <language> sub-element or xml:lang="" tag, in the item itself or
-  # in channel, and maybe xml:lang in toplevel <feed>.
+  # Either <language> / <dc:language> sub-element or xml:lang="" tag, in the
+  # item itself or in channel, and maybe xml:lang in toplevel <feed>.
   # $elt->inherit_att() is close, but looks only at xml:lang, not a
   # <language> subelement.
   for ( ; $item; $item = $item->parent) {
-    $lang //= (non_empty    ($item->first_child_trimmed_text('language'))
+    $lang //= (non_empty    ($item->first_child_trimmed_text
+                             (qr/^(dc:)?language$/))
                // non_empty ($item->att('xml:lang'))
                // next);
   }
-
-  return ($lang
-          // $self->{'resp'}->content_language);
+  return ($lang // $self->{'resp'}->content_language);
 }
 
-# return copyright string or undef
+# return arrayref of copyright strings
+# Keep all of multiple rights/license/etc in the interests of preserving all
+# statements.
 sub item_to_copyright {
   my ($self, $item) = @_;
   my $channel = item_to_channel($item);
 
-  # <dcterms:license> supposedly supercedes <dc:rights>, so check it first,
-  # appearing here just as dc: due to combining in the "map_xmlns"
+  # <dcterms:license> supposedly supercedes <dc:rights>, maybe should
+  # suppress the latter in the presence of the former (dcterms: collapsed to
+  # dc: by the map_xmlns).
   #
   # Atom <rights> can be type="html" etc in its usual way, but think RSS is
   # always plain text
   #
-  return (non_empty ($item->first_child_text('dc:license'))
-          // non_empty ($item->first_child_text('dc:rights'))
-          // elt_to_rendered_line ($item->first_child('rights'))   # Atom
-
-          # Atom sub-elem <source><rights>...</rights> when from another feed
-          // non_empty (elt_to_rendered_line
-                        (($item->get_xpath('source/rights'))[0]))
-
-          // non_empty ($channel->first_child_text('dc:license'))
-          // non_empty ($channel->first_child_text('dc:rights'))
-
-          # RSS <copyright>, don't think entity-encoded html is allowed there
-          // non_empty ($channel->first_child_text('copyright'))
-
-          // non_empty (elt_to_rendered_line
-                        ($channel->first_child('rights'))));  # Atom
+  my $re = qr/^(rights      # Atom
+              |copyright    # RSS, don't think entity-encoded html allowed there
+              |dc:license
+              |dc:rights
+              |creativeCommons:license
+              )$/x;
+  return [ List::MoreUtils::uniq
+           (map { non_empty(elt_to_rendered_line($_)) }
+            ($item->children ($re),
+             # Atom sub-elem <source><rights>...</rights> when from another feed
+             (map {$_->children($re)} $item->children('source')),
+             $channel->children ($re))) ];
 }
 
 # return copyright string or undef
@@ -1971,6 +2100,15 @@ sub item_to_generator {
                                               $generator->att('version'),
                                               $generator->att('atom:uri'),
                                               $generator->att('uri')));
+}
+
+# return copyright string or undef
+sub item_to_feedburner {
+  my ($self, $item) = @_;
+  my $channel = item_to_channel($item);
+  my $elt = $channel->first_child('feedburner:info') || return;
+  my $uri = $elt->att('uri') // return;
+  return URI->new_abs ($uri, 'http://feeds.feedburner.com/')->as_string;
 }
 
 sub atom_content_flavour {
@@ -2067,15 +2205,20 @@ sub fetch_rss_process_one_item {
        'Newsgroups:'  => $self->{'nntp_group'},
        From           => scalar ($self->item_to_from($item)),
        Subject        => $subject,
+       Keywords       => scalar ($self->item_to_keywords($item)),
        Date           => scalar ($self->item_to_date($item)),
        'In-Reply-To:'      => scalar ($self->item_to_in_reply_to($item)),
        'Message-ID'        => $msgid,
        'Content-Language:' => scalar ($self->item_to_language($item)),
        'List-Post:'        => scalar (googlegroups_link_email(@links)),
+       # ENHANCE-ME: Maybe transform <itunes:explicit> "yes","no","clean"
+       # into PICS too maybe, unless it only applies to the enclosure as
+       # such.  Maybe <media:adult> likewise.
        'PICS-Label:'       => scalar (collapse_whitespace
                                       ($channel->first_child_text('rating'))),
        'X-Copyright:'      => scalar ($self->item_to_copyright($item)),
        'X-RSS-URL:'        => scalar ($self->{'uri'}->as_string),
+       'X-RSS-Feedburner:' => scalar ($self->item_to_feedburner($item)),
        'X-RSS-Generator:'  => scalar ($self->item_to_generator($item)),
       );
 
@@ -2083,10 +2226,18 @@ sub fetch_rss_process_one_item {
 
   # <media:text> is another possibility, but have seen it from Yahoo as just
   # a copy of <description>, with type="html" to make the format clear.
-  # Atom spec is for no more than one <content>.
-  my $body = ($item->first_child('description')
+  #
+  # ENHANCE-ME: <itunes:subtitle> might be worthwhile showing at the start
+  # as well as <itunes:summary>.
+  #
+  my $body = (# <content:encoded> generally bigger or better than
+              # <description>, so prefer that
+              $item->first_child('content:encoded')
+              || $item->first_child('description')
               || $item->first_child('dc:description')
+              || $item->first_child('itunes:summary')
               || do {
+                # Atom spec is for no more than one <content>.
                 my $elt = $item->first_child('content');
                 given (atom_content_flavour($elt)) {
                   when ('link')   { undef $elt }
@@ -2097,6 +2248,7 @@ sub fetch_rss_process_one_item {
               || $item->first_child('summary'));  # Atom
 
   my $body_type = elt_content_type ($body);
+  if ($self->{'verbose'} >= 3) { print " body_type from elt: $body_type\n"; }
   my $body_charset = 'utf-8';
   my $body_base_url = elt_xml_base ($body);
   given ($body_type) {
@@ -2373,23 +2525,28 @@ user-level operation.
 
 =item C<< $r2l = App::RSS2Leafnode->new (key=>value,...) >>
 
-Create and return a new RSS2Leafnode object.  The optional keyword
-parameters are the config variables, plus C<verbose>
+Create and return a new RSS2Leafnode object.  Optional keyword parameters
+are the config variables, plus C<verbose>
 
-    verbose
-    render
-    render_width
-    rss_get_links
-    rss_newest_only
-    rss_charset_override
-    html_charset_from_content
+    verbose                   => integer
+    render                    => flag or name
+    render_width              => integer
+    rss_get_links             => flag
+    rss_newest_only           => integer
+    rss_charset_override      => flag
+    html_charset_from_content => flag
 
 =item C<< $r2l->fetch_rss ($newsgroup, $url) >>
 
 =item C<< $r2l->fetch_html ($newsgroup, $url) >>
 
-Fetch an RSS feed or web page and post articles to C<$newsgroup>.  This is
-the C<fetch_rss> and C<fetch_html> operations for F<~/.rss2leafnode.conf>.
+Fetch an RSS feed or HTTP web page and post articles to C<$newsgroup>.  This
+is the C<fetch_rss> and C<fetch_html> operations for
+F<~/.rss2leafnode.conf>.
+
+C<fetch_html> can in fact fetch any target type, not just HTML.
+C<fetch_html> on an RSS feed would drop the whole XML into a news message,
+whereas C<fetch_rss> turns it into a message per item.
 
 =back
 

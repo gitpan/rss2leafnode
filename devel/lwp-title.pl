@@ -82,7 +82,7 @@ use lib "$ENV{HOME}/perl/image/Image-ExifTool-8.22/lib";
   $toplevel->add ($label);
   $toplevel->show_all;
   Gtk2->main;
-  exit 0
+  exit 0;
 }
 {
   require Gtk2;
@@ -98,7 +98,7 @@ use lib "$ENV{HOME}/perl/image/Image-ExifTool-8.22/lib";
   };
   print "$@";
   print "output $output_filename\n";
-  exit 0
+  exit 0;
 }
 
 {

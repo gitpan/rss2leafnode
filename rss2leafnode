@@ -24,14 +24,14 @@ use strict;
 use warnings;
 use App::RSS2Leafnode;
 
-our $VERSION = 27;
+our $VERSION = 28;
 
 my $r2l = App::RSS2Leafnode->new;
 exit $r2l->command_line;
 
 __END__
 
-=for stopwords rss2leafnode rss leafnode NNTP config leafnode undef charset utf-8 non-ascii charsets builtins misconfigured Eg Unrendered Google pre-releases Ryde PNG libxml
+=for stopwords rss2leafnode rss leafnode NNTP config leafnode undef charset utf-8 non-ascii charsets builtins misconfigured Eg Unrendered Google pre-releases Ryde PNG libxml multibyte codings feed's
 
 =head1 NAME
 
@@ -84,6 +84,10 @@ don't have an RSS feed.  For example
 
     fetch_html ('r2l.finance,
                 'http://www.baresearch.com/free/index.php?category=1');
+
+The target can be an image or similar directly too, it's simply put into a
+news message with its indicated MIME type.  How well it displays depends on
+your newsreader.
 
 The message "Subject" is the HTML C<< <title> >>, or something better from
 C<URI::Title> or C<Image::ExifTool> if you've got them.  C<URI::Title> has

@@ -20,7 +20,7 @@
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 165;
+use Test::More tests => 173;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
 # version 2.04 provokes warnings from perl 5.11, load before NoWarnings
@@ -38,7 +38,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 27;
+  my $want_version = 28;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -55,6 +55,61 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
       "VERSION object check $want_version");
   ok (! eval { $r2l->VERSION($check_version); 1 },
       "VERSION object check $check_version");
+}
+
+
+#------------------------------------------------------------------------------
+# item_to_keywords()
+
+{
+  my $r2l = App::RSS2Leafnode->new;
+
+  foreach my $data (
+                    ['Foo', <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+ <channel>
+  <item><media:keywords>Foo</media:keywords></item>
+ </channel>
+</rss>
+HERE
+                    [undef, <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item><title>No Keywords</title></item>
+ </channel>
+</rss>
+HERE
+                    ['000', <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item><category>000</category></item>
+ </channel>
+</rss>
+HERE
+                    ['itsomething', <<'HERE'],
+<?xml version="1.0"?>
+<feed version="0.3"
+      xmlns="http://purl.org/atom/ns#"
+      xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <entry>
+    <category>itsomething</category>
+    <itunes:keywords>itsomething, itsomething</itunes:keywords>
+  </entry>
+</feed>
+HERE
+                   ) {
+    my ($want, $xml) = @$data;
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+    if ($err) { diag $err; }
+    my $item = $twig->root->first_descendant(qr/^(item|entry)$/) || die;
+
+    is ($r2l->item_to_keywords ($item),
+        $want,
+        "item_to_keywords() $xml");
+  }
 }
 
 
@@ -213,7 +268,7 @@ HERE
                    ) {
     my ($want, $xml) = @$data;
     my ($twig, $err) = $r2l->twig_parse ($xml);
-
+    if ($err) { diag $err; }
     my $elt = ($twig->root->first_descendant('content')
                || $twig->root->first_descendant('description')
                || $twig->root->first_descendant('title')
@@ -312,10 +367,8 @@ HERE
                    ) {
     my ($want, $xml) = @$data;
     my ($twig, $err) = $r2l->twig_parse ($xml);
-
-    my $item = ($twig->root->first_descendant('item')
-                || $twig->root->first_descendant('entry')
-                || die);
+    if ($err) { diag $err; }
+    my $item = $twig->root->first_descendant(qr/^(item|entry)$/) || die;
 
     is ($r2l->item_to_subject ($item),
         $want,
@@ -482,9 +535,7 @@ HERE
 
     my ($twig, $err) = $r2l->twig_parse ($xml);
     if ($err) { diag $err; }
-    my $item = ($twig->root->first_descendant('item')
-                || $twig->root->first_descendant('entry')
-                || die);
+    my $item = $twig->root->first_descendant(qr/^(item|entry)$/) || die;
 
     is_deeply ([$r2l->item_to_links ($item)],
                $want,
@@ -535,9 +586,7 @@ HERE
 
     my ($twig, $err) = $r2l->twig_parse ($xml);
     if ($err) { diag $err; }
-    my $item = ($twig->root->first_descendant('item')
-                || $twig->root->first_descendant('entry')
-                || die);
+    my $item = $twig->root->first_descendant(qr/^(item|entry)$/) || die;
 
     is ($r2l->item_to_generator ($item),
         $want,
@@ -568,9 +617,7 @@ HERE
 
     my ($twig, $err) = $r2l->twig_parse ($xml);
     if ($err) { diag $err; }
-    my $item = ($twig->root->first_descendant('item')
-                || $twig->root->first_descendant('entry')
-                || die);
+    my $item = $twig->root->first_descendant(qr/^(item|entry)$/) || die;
 
     is ($r2l->item_to_in_reply_to ($item),
         $want,
@@ -667,9 +714,8 @@ HERE
     my ($xml, $want) = @$data;
 
     my ($twig, $err) = $r2l->twig_parse ($xml);
-    my $item = ($twig->root->first_descendant('item')
-                || $twig->root->first_descendant('entry')
-                || die);
+    if ($err) { diag $err; }
+    my $item = $twig->root->first_descendant(qr/^(item|entry)$/) || die;
 
     my $got = App::RSS2Leafnode::elt_xml_base($item);
     is ($got, $want, "elt_xml_base() $xml");
@@ -774,6 +820,7 @@ HERE
     my ($xml, $want) = @$data;
 
     my ($twig, $err) = $r2l->twig_parse ($xml);
+    if ($err) { diag $err; }
     my $elt = $twig->root->first_descendant('description');
 
     my $got = App::RSS2Leafnode::elt_subtext($elt);
@@ -846,7 +893,7 @@ foreach my $data (['Sun, 29 Jan 2006 17:17:44 GMT',
   my $r2l = App::RSS2Leafnode->new;
 
   foreach my $data (
-                    [<<'HERE', 'some thing'],
+                    [<<'HERE', ['some thing']],
 <?xml version="1.0"?>
 <feed xmlns:dcterms="http://purl.org/dc/terms/">
   <entry><title>Item One</title>
@@ -855,7 +902,7 @@ foreach my $data (['Sun, 29 Jan 2006 17:17:44 GMT',
 </feed>
 HERE
 
-                    [<<'HERE', 'some thing'],
+                    [<<'HERE', ['some thing']],
 <?xml version="1.0"?>
 <feed xmlns:dc="http://purl.org/dc/elements/1.1/">
   <entry><title>Item One</title>
@@ -864,7 +911,7 @@ HERE
 </feed>
 HERE
 
-                    [<<'HERE', 'some thing'],
+                    [<<'HERE', ['some thing']],
 <?xml version="1.0"?>
 <feed>
   <entry><title>Item One</title>
@@ -873,7 +920,7 @@ HERE
 </feed>
 HERE
 
-                    [<<'HERE', 'some thing'],
+                    [<<'HERE', ['some thing']],
 <?xml version="1.0"?>
 <feed>
   <entry>
@@ -881,6 +928,17 @@ HERE
     <source>
       <rights>some thing</rights>
     </source>
+  </entry>
+</feed>
+HERE
+
+                    [<<'HERE', ['some','thing']],
+<?xml version="1.0"?>
+<feed xmlns:cc="http://backend.userland.com/creativeCommonsRssModule">
+  <entry>
+    <title>Item One</title>
+    <copyright>some</copyright>
+    <cc:license>thing</cc:license>
   </entry>
 </feed>
 HERE
@@ -893,9 +951,9 @@ HERE
                 || $twig->root->first_descendant('entry')
                 || die);
 
-    is ($r2l->item_to_copyright ($item),
-        $want,
-        "item_to_copyright() xml=$xml");
+    is_deeply ($r2l->item_to_copyright ($item),
+               $want,
+               "item_to_copyright() xml=$xml");
   }
 }
 
@@ -923,6 +981,17 @@ HERE
  <channel>
   <item><title>Item One</title>
         <language>de</language></item>
+ </channel>
+</rss>
+HERE
+
+                    # item <dc:language>
+                    [<<'HERE', [], 'de'],
+<?xml version="1.0"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+ <channel>
+  <item><title>Item One</title>
+        <dc:language>de</dc:language></item>
  </channel>
 </rss>
 HERE
@@ -1056,6 +1125,17 @@ HERE
       'foo@bar.com (Foo)'],
      ['',
       undef],
+
+     # itunes
+     ['<itunes:owner xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+         <itunes:name>Foo</itunes:name>
+         <itunes:email>foo@bar.com</itunes:email>
+       </itunes:owner>',   # structured owner
+      'Foo <foo@bar.com>'],
+     ['<itunes:author xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+         Some Body
+       </itunes:author>',  # plain text
+      'Some Body'],
     ) {
     my ($fragment, $want) = @$data;
 
@@ -1068,7 +1148,9 @@ HERE
 </rss>
 HERE
     my ($twig, $err) = $r2l->twig_parse ($xml);
-    my $elt = $twig->root->first_descendant('author');
+    if ($err) { diag $err; }
+    my $elt = $twig->root->first_descendant
+      (qr/^(author|itunes:owner|itunes:author)$/);
 
     is (App::RSS2Leafnode::elt_to_email($elt),
         $want,
@@ -1105,6 +1187,7 @@ HERE
 </feed>
 HERE
     my ($twig, $err) = $r2l->twig_parse ($xml);
+    if ($err) { diag $err; }
     my $item = $twig->root->first_descendant('entry');
 
     is ($r2l->item_to_from ($item),
@@ -1136,6 +1219,7 @@ HERE
 </rss>
 HERE
     my ($twig, $err) = $r2l->twig_parse ($xml);
+    if ($err) { diag $err; }
     my $item = ($twig->root->first_descendant('item')
                 || $twig->root->first_descendant('entry')
                 || die);
@@ -1376,9 +1460,8 @@ is (App::RSS2Leafnode::msgid_chars('a<b>%c'), 'a%3Cb%3E%25c');
 </rss>
 HERE
     my ($twig, $err) = $r2l->twig_parse ($xml);
-    my $item = ($twig->root->first_descendant('item')
-                || $twig->root->first_descendant('entry')
-                || die);
+    if ($err) { diag $err; }
+    my $item = $twig->root->first_descendant(qr/^(item|entry)$/) || die;
 
     is ($r2l->item_to_msgid ($item),
         $want,

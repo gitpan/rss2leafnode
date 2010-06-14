@@ -39,6 +39,7 @@ use warnings;
                                 'X-Array:'      => ['one','two','three'],
                                 #'X-Feed-Link:'      => $channel->{'link'},
                                 #'X-RSS-Generator:'  => $generator
+                                'X-Copyright:'  => [],# "Foo","Bar"],
                                );
   print $top->as_string;
   exit 0;

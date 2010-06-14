@@ -22,6 +22,35 @@ use strict;
 use warnings;
 
 {
+  my $r2l = App::RSS2Leafnode->new;
+
+  my $xml = <<"HERE";
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item><title>Item One</title>
+    <itunes:author xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+         Some Body
+    </itunes:author>
+   </item>
+ </channel>
+</rss>
+HERE
+  my ($twig, $err) = $r2l->twig_parse ($xml);
+  my $item = $twig->root->first_descendant('item');
+  my $elt = $twig->
+  is (App::RSS2Leafnode::elt_to_email($item),
+      $want,
+      "elt_to_email() $fragment");
+
+  require Sort::Key::Top;
+  say Sort::Key::Top::rkeytop(sub{$_}, 3,  1,5,2,4,3,6);
+  say Sort::Key::Top::rkeytop(sub{1}, 3,  1,5,2,4,3,6);
+  say Sort::Key::Top::keytop(sub{1}, 3,  1,5,2,4,3,6);
+  exit 0;
+}
+
+{
   require Sort::Key::Top;
   say Sort::Key::Top::rkeytop(sub{$_}, 3,  1,5,2,4,3,6);
   say Sort::Key::Top::rkeytop(sub{1}, 3,  1,5,2,4,3,6);

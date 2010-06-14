@@ -26,7 +26,7 @@ SKIP: { eval 'use Test::NoWarnings; 1'
           or skip 'Test::NoWarnings not available', 1; }
 
 
-my $want_version = 27;
+my $want_version = 28;
 is ($News::Rnews::VERSION, $want_version, 'VERSION variable');
 is (News::Rnews->VERSION,  $want_version, 'VERSION class method');
 { ok (eval { News::Rnews->VERSION($want_version); 1 },
