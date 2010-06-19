@@ -28,7 +28,7 @@ use MyMakeMakerGettext;
 
 MyMakeMakerExtras::WriteMakefile
   (NAME         => 'rss2leafnode',
-   ABSTRACT     => 'Download RSS feeds into Leafnode news.',
+   ABSTRACT     => 'Download RSS feeds or web pages to an NNTP news server.',
    VERSION_FROM => 'lib/App/RSS2Leafnode.pm',
    AUTHOR       => 'Kevin Ryde <user42@zip.com.au>',
    LICENSE      => 'gpl',
@@ -65,6 +65,9 @@ MyMakeMakerExtras::WriteMakefile
 
                     # 1.5 for format_bytes() options
                     'Number::Format' => '1.5',
+
+                    # maybe 1.881 for regexp fixes
+                    'Email::Address' => '1.881',
 
                     'constant::defer' => 0,
                     'HTML::Entities::Interpolate' => 0,

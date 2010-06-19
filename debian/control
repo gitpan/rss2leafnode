@@ -16,14 +16,10 @@
 # with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
-# libxml-rss-perl is first in the deps in case that makes apt prefer
-# it over libxml-rss-libxml-perl, since the latter will drag in libxml
-# too.  But either is fine.
-#
-# "leafnode | news-transport-system" is only recommended so as not to
-# force removal of rss2leafnode if switching news servers, and since
-# in theory the $news_host option makes it possible to connect to a
-# nearby remote news server.
+# "leafnode | news-transport-system" is only "Reccommends" so as not
+# to force removal of rss2leafnode if switching news servers, and
+# since in theory the $news_host option makes it possible to connect
+# to a nearby remote news server.
 
 Source: rss2leafnode
 Section: news
@@ -36,7 +32,7 @@ Bugs: mailto:user42@zip.com.au
 
 Package: rss2leafnode
 Architecture: all
-Depends: perl (>= 5.10), libconstant-defer-perl, libfile-homedir-perl, libhtml-entities-interpolate-perl, libhtml-format-perl, libintl-perl (>= 1.17), libmime-tools-perl, libnumber-format-perl (>= 1.5), libscope-guard-perl, libsort-key-top-perl, libtext-wrapi18n-perl, libtimedate-perl, liburi-perl, liburi-tag-perl, libwww-perl (>= 5.832), libxml-twig-perl (>= 3.34), ${perl:Depends}, ${misc:Depends}
+Depends: perl (>= 5.10), libconstant-defer-perl, libemail-address-perl (>= 1.881),, libfile-homedir-perl, libhtml-entities-interpolate-perl, libhtml-format-perl, libintl-perl (>= 1.17), liblist-moreutils-perl, libmime-tools-perl, libnumber-format-perl (>= 1.5), libscope-guard-perl, libsort-key-top-perl, libtext-wrapi18n-perl, libtimedate-perl, liburi-perl, liburi-tag-perl, libwww-perl (>= 5.832), libxml-twig-perl (>= 3.34), ${perl:Depends}, ${misc:Depends}
 Recommends: leafnode (>= 2) | news-transport-system, libintl-xs-perl (>= 1.17), libtime-duration-perl, libtime-duration-locale-perl, libxml-rss-timing-perl
 Suggests: libhtml-formattext-withlinks-perl, libhtml-formatexternal-perl, lynx | w3m | elinks, liburi-title-perl, libxml-liberal-perl
 Description: Post RSS or Atom articles to local newsgroups

@@ -21,13 +21,14 @@ use strict;
 use warnings;
 use Carp;
 use Encode;
+use Hash::Util::FieldHash;
 use List::Util;
 use List::MoreUtils;
 use POSIX (); # ENOENT, etc
 use URI;
 use HTML::Entities::Interpolate;
 
-our $VERSION = 28;
+our $VERSION = 29;
 
 # version 1.17 for __p(), and version 1.16 for turn_utf_8_on()
 use Locale::TextDomain 1.17;
@@ -656,6 +657,27 @@ sub nntp_post {
 #------------------------------------------------------------------------------
 # HTML title
 
+Hash::Util::FieldHash::fieldhash (my %resp_exiftool_info);
+sub resp_exiftool_info {
+  my ($resp) = @_;
+  defined $resp or return {};
+  if (! exists $resp_exiftool_info{$resp}) {
+    $resp_exiftool_info{$resp} = _resp_exiftool_info($resp);
+  }
+  return $resp_exiftool_info{$resp};
+}
+sub _resp_exiftool_info {
+  my ($resp) = @_;
+  # want ExifTool 8.22 to have PNG tEXt returned as utf8, but don't
+  # bother to enforce that
+  eval { require Image::ExifTool; 1 } || return {};
+  my $data = $resp->decoded_content (charset => 'none');
+  return Image::ExifTool::ImageInfo
+    (\$data,
+     ['Title','Author'], # just these tags
+     {List => 0});       # get list values as comma separated
+}
+
 # $resp is a HTTP::Response, return title per URI::Title or $resp->title.
 # The latter is either the obsolete "Title" header or parsed from <title>.
 # In both cases entities &foo; are undone so the return is plain.
@@ -682,27 +704,8 @@ sub html_title_urititle {
 }
 sub html_title_exiftool {
   my ($resp) = @_;
-  eval { require Image::ExifTool } or return undef;
-
-  my $data = $resp->decoded_content (charset => 'none');
-  my $info = Image::ExifTool::ImageInfo
-    (\$data,
-     ['Title'],     # just the Title field
-     {List => 0});  # give list values as comma separated
-
-  my $title = $info->{'Title'};
-  if (defined $title) {
-    # PNG spec is for tEXt chunks to contain latin-1 and iTXt chunks utf-8
-
-    # ExifTool 8.22 converts tEXt to utf8 for its return, prior versions
-    # just give the latin-1 bytes.  Prior versions return iTXt as the utf-8
-    # bytes, but there's no way to distinguish that.  Decoding as latin-1
-    # will be wrong, but assume that anyone affected will get a new enough
-    # exiftool.
-    my $charset = (Image::ExifTool->VERSION >= 8.22 ? 'utf-8' : 'iso-8859-1');
-    $title = Encode::decode ($charset, $title);
-  }
-  return $title;
+  my $title = resp_exiftool_info($resp)->{'Title'} // return;
+  return Encode::decode_utf8 ($title);
 }
 
 
@@ -1368,30 +1371,15 @@ sub error_message {
 #------------------------------------------------------------------------------
 # fetch HTML
 
-sub http_to_host {
-  my ($resp) = @_;
-  my $req = $resp->request;
-  my $uri = $req && $req->uri;
-  return (non_empty ($uri->can('host') && $uri->host)
-          // 'localhost'); # file:// schema during testing
+sub http_resp_to_from {
+  my ($self, $resp) = @_;
+  return http_resp_exiftool_author($resp)
+    // 'nobody@'.$self->uri_to_host;
 }
-
-sub http_to_from {
+sub http_resp_exiftool_author {
   my ($resp) = @_;
-  return http_exiftool_author($resp)
-    // 'nobody@'.http_to_host($resp);
-}
-sub http_exiftool_author {
-  my ($resp) = @_;
-  eval { require Image::ExifTool } || return;
-
   # PNG Author field, or HTML <meta> author
-  my $data = $resp->decoded_content (charset => 'none');
-  my $info = Image::ExifTool::ImageInfo
-    (\$data,
-     ['Author'],    # just the Author field
-     {List => 0});  # give list values as comma separated
-  my $author = $info->{'Author'} // return;
+  my $author = resp_exiftool_info($resp)->{'Author'} // return;
   return Encode::decode_utf8($author);
 }
 
@@ -1441,9 +1429,9 @@ sub fetch_html {
   my $top = $self->mime_part_from_response
     ($resp,
      Top                 => 1,
-     'Path:'             => scalar (http_to_host($resp)),
+     'Path:'             => scalar ($self->uri_to_host),
      'Newsgroups:'       => $group,
-     From                => scalar (http_to_from($resp)),
+     From                => scalar ($self->http_resp_to_from($resp)),
      Subject             => $subject,
      Date                => scalar ($resp->header('Last-Modified')),
      'Message-ID'        => $msgid);
@@ -1713,6 +1701,7 @@ sub links_to_text {
 
 my $map_xmlns
   = {
+     'http://purl.org/rss/1.0/'                     => 'rss',
      'http://www.w3.org/2005/Atom'                  => 'atom',
      'http://www.w3.org/1999/02/22-rdf-syntax-ns#'  => 'rdf',
      'http://purl.org/rss/1.0/modules/content/'     => 'content',
@@ -1816,13 +1805,14 @@ sub twig_parse {
     return (undef, $err);
   }
 
-  # Strip any explicit "atom:" namespace down to bare part.  Should be
-  # unambiguous and is easier than giving tag names both with and without
-  # the namespace.  Undocumented set_ns_as_default() might do this ... or
-  # might not.
+  # Strip any explicit "rss:" or "atom:" namespace down to bare part.
+  # Should be unambiguous and is easier than giving tag names both with and
+  # without the namespace.  Undocumented set_ns_as_default() might do this
+  # ... or might not.
   #
   my $root = $twig->root;
   elt_tree_strip_prefix ($root, 'atom');
+  elt_tree_strip_prefix ($root, 'rss');
   #
   #   foreach my $child ($root->descendants_or_self) {
   #     foreach my $attname ($child->att_names) {
@@ -1945,52 +1935,103 @@ sub uri_to_host {
           // 'localhost');
 }
 
+use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
+
 # $elt is an XML::Twig::Elt
 # return an email address, either just the text part of $elt or Atom style
 # <name> and <email> sub-elements
 #
 sub elt_to_email {
-  my ($elt) = @_;
+  my ($self, $elt) = @_;
   return unless defined $elt;
+  require Email::Address;
 
-  my $email = elt_to_rendered_line
-    ($elt->first_child(qr/^(email                # Atom
-                          |itunes:email)$/x));   # itunes:owner
+  # <email> - under Atom
+  # <itunes:email> - under <itunes:owner>
+  my $email = elt_to_rendered_line ($elt->first_child(qr/^(itunes:)?email$/));
 
-  my $ret = join_non_empty
+  # <name> - under Atom
+  # <itunes:name> - under <itunes:owner>
+  my $display = elt_to_rendered_line ($elt->first_child(qr/^(itunes:)?name$/))
+    // '';
+
+  my $maybe = join
     (' ',
-     $elt->text_only,
-     elt_to_rendered_line
-     ($elt->first_child(qr/^(name             # Atom
-                           |itunes:name)/x)), # itunes:owner
-     do {
+     non_empty ($elt->text_only),
+     non_empty (do {
        # <rdf:Description><rdf:value>...</></> under dc authors etc
-       my $rdfdesc = $elt->first_child('rdf:Description');
-       $rdfdesc && $rdfdesc->first_child_text('rdf:value')
-     });
+       my $rdfdesc; ($rdfdesc = $elt->first_child('rdf:Description'))
+         && $rdfdesc->first_child_text('rdf:value')
+     }));
 
-  if (is_non_empty($email)) {
-    if (is_non_empty ($ret)) {
-      # Are escapes needed in "<...>" part?  Shouldn't have strange chars in
-      # the email address.
-      $ret = "$ret <$email>";
+  # "Foo (mailto:foo@bar.com)" -> "Foo (foo@bar.com)"
+  # "mailto:foo@bar.com" -> "foo@bar.com"
+  $maybe =~ s/\bmailto://g;
+
+  # "Foo (foo@bar.com)" -> "Foo <foo@bar.com>"
+  $maybe =~ s{\(($Email::Address::addr_spec)\)\s*$}
+             { '<' . trim_whitespace($1) . '>' }ge;
+
+  my $ret;
+  if (is_empty($email) && $maybe =~ /^$Email::Address::mailbox$/) {
+    $ret = $maybe;
+  } else {
+    $display = join_non_empty (' ', $display, $maybe);
+    if (is_non_empty ($display)) {
+      $ret = email_format ($display,
+                           non_empty($email) //  $self->DUMMY_EMAIL_ADDRESS);
     } else {
       $ret = $email;
     }
   }
-                    return unless is_non_empty($ret);
 
-  # eg.     "Rael Dornfest (mailto:rael@oreilly.com)"
-  # becomes "Rael Dornfest <rael@oreilly.com>"
-  $ret =~ s/\(mailto:(.*)\)/<$1>/;
-
-  # Collapse whitespace against possible tabs and newlines in a <author> as
+  # Collapse whitespace against possible tabs and newlines in an <author> as
   # from googlegroups for instance.  MIME::Entity seems to collapse
   # newlines, but not tabs.
-  return collapse_whitespace($ret);
+  return non_empty(collapse_whitespace($ret));
+}
+sub email_format {
+  my ($display, $email) = @_;
+  $display = trim_whitespace($display);
+  if (is_empty($display)) {
+    if (is_empty($email)) {
+      return;
+    } else {
+      return trim_whitespace($email);
+    }
+  }
+  if (is_empty($email)) {
+    # think can't have empty <> or omitted, otherwise the quoted part is
+    # still parsed as an address, certainly it's not rfc822 compliant to
+    # omit
+    $email = 'nobody@rss2leafnode.invalid';
+  } else {
+    $email = trim_whitespace($email);
+  }
+  return email_phrase_quote_maybe($display) . " <$email>";
+}
+sub email_phrase_quote_maybe {
+  my ($str) = @_;
+  return if ! defined $str;
+
+  # RFC2822 "atext" characters, with "-" last
+  if ($str =~ q<[^[:alnum:][:space:]!#\$%&'*+/=?^_`{|}~-]>) {
+    # strange chars, need to quote
+    return email_phrase_quote($str);
+  } else {
+    # alphanumeric and whitespace, no quotes
+    return $str;
+  }
+}
+sub email_phrase_quote {
+  my ($str) = @_;
+  return if ! defined $str;
+  $str =~ s/^"(.*)"$/$1/;   # strip existing quotes
+  $str =~ s/(["\\])/\\$1/g; # escape internal quotes and backslashes
+  return "\"$str\"";
 }
 
-# return email addr string
+# return list of key=>value headers
 sub item_to_from {
   my ($self, $item) = @_;
   my $channel = item_to_channel($item);
@@ -1999,33 +2040,56 @@ sub item_to_from {
   # looser.  The RSS recommendation is to use author when revealing an email
   # and dc:creator when hiding it.
   #
-  # <dc:contributor> in wiki: feeds.
+  # <dc:contributor> appears in wiki: feeds as the item's author.
   #
-  # <contributor> multiple times in Atom item, don't think can usefully just
-  # pick one of them.  Hope for a primary author.
+  # <contributor> can appear multiple times in Atom item.  Could show them
+  # as multiple addresses in From:, but for now prefer just one primary
+  # author.
   #
-  return (elt_to_email    ($item->first_child('author'))
-          // elt_to_email ($item->first_child('dc:creator'))
-          // elt_to_email ($item->first_child('dc:contributor'))
-          // elt_to_email ($item->first_child('wiki:username'))
-          // elt_to_email ($item->first_child('itunes:author'))
+  my $elt;
+  my $from =
+    ($self->elt_to_email    ($elt = $item->first_child('author'))
+     // $self->elt_to_email ($elt = $item->first_child('dc:creator'))
+     // $self->elt_to_email ($elt = $item->first_child('dc:contributor'))
+     // $self->elt_to_email ($elt = $item->first_child('wiki:username'))
+     // $self->elt_to_email ($elt = $item->first_child('itunes:author'))
 
-          // elt_to_email ($channel->first_child('dc:creator'))
-          // elt_to_email ($channel->first_child('author'))
-          // elt_to_email ($channel->first_child('itunes:author'))
-          // elt_to_email ($channel->first_child('managingEditor'))
-          // elt_to_email ($channel->first_child('webMaster'))
+     // $self->elt_to_email ($elt = $channel->first_child('author'))
+     // $self->elt_to_email ($elt = $channel->first_child('dc:creator'))
+     // $self->elt_to_email ($elt = $channel->first_child('itunes:author'))
+     // $self->elt_to_email ($elt = $channel->first_child('managingEditor'))
+     // $self->elt_to_email ($elt = $channel->first_child('webMaster'))
 
-          // elt_to_email ($item   ->first_child('dc:publisher'))
-          // elt_to_email ($channel->first_child('dc:publisher'))
-          // elt_to_email ($channel->first_child('itunes:owner'))
+     // $self->elt_to_email ($elt = $item   ->first_child('dc:publisher'))
+     // $self->elt_to_email ($elt = $channel->first_child('dc:publisher'))
+     // $self->elt_to_email ($elt = $channel->first_child('itunes:owner'))
+     // do { undef $elt }
 
-          # Atom <title> can have type="html" etc in the usual way.
-          // elt_to_rendered_line ($channel->first_child('title'))
+     # Atom <title> can have type="html" etc in the usual way, so render
+     // email_format (elt_to_rendered_line ($channel->first_child('title')))
 
-          # RFC822
-          // ('nobody@'.$self->uri_to_host)
-         );
+     // ('nobody@'.$self->uri_to_host)
+    );
+  my $uri;
+  if ($elt) {
+    $uri = (# Atom
+            # <author> <name>Foo Bar</name>
+            #          <uri>http://some.where</uri>
+            # </author>
+            non_empty ($elt->first_child_text('uri'))
+
+            # ModWiki dc:contributor example
+            #     <rdf:Description link="http://openwiki.com/?FooBar">
+            #       <rdf:value>Foo Bar</rdf:value>
+            #     </rdf:Description>
+            # The text shows rss:link= and the example just link=.
+            // non_empty (do {
+              my $child; ($child = $elt->first_child('rdf:Description'))
+                && ($child->att('link') // $child->att('rss:link'))
+              }));
+  }
+  return (From => $from,
+          'X-From-URL:' => $uri);
 }
 
 sub item_to_subject {
@@ -2102,7 +2166,7 @@ sub item_to_generator {
                                               $generator->att('uri')));
 }
 
-# return copyright string or undef
+# return URL string or undef/empty
 sub item_to_feedburner {
   my ($self, $item) = @_;
   my $channel = item_to_channel($item);
@@ -2203,7 +2267,7 @@ sub fetch_rss_process_one_item {
   my %headers
     = ('Path:'        => scalar ($self->uri_to_host),
        'Newsgroups:'  => $self->{'nntp_group'},
-       From           => scalar ($self->item_to_from($item)),
+       $self->item_to_from($item),
        Subject        => $subject,
        Keywords       => scalar ($self->item_to_keywords($item)),
        Date           => scalar ($self->item_to_date($item)),
@@ -2230,8 +2294,8 @@ sub fetch_rss_process_one_item {
   # ENHANCE-ME: <itunes:subtitle> might be worthwhile showing at the start
   # as well as <itunes:summary>.
   #
-  my $body = (# <content:encoded> generally bigger or better than
-              # <description>, so prefer that
+  my $body = (           # <content:encoded> generally bigger or better than
+                         # <description>, so prefer that
               $item->first_child('content:encoded')
               || $item->first_child('description')
               || $item->first_child('dc:description')
@@ -2245,34 +2309,34 @@ sub fetch_rss_process_one_item {
                 }
                 $elt
               }
-              || $item->first_child('summary'));  # Atom
+              || $item->first_child('summary')); # Atom
 
   my $body_type = elt_content_type ($body);
   if ($self->{'verbose'} >= 3) { print " body_type from elt: $body_type\n"; }
   my $body_charset = 'utf-8';
   my $body_base_url = elt_xml_base ($body);
   given ($body_type) {
-    when (! defined) { # no $body element at all
+    when (! defined) {          # no $body element at all
       $body = '';
       $body_type = 'text/plain';
     }
-    when ('xhtml') {   # Atom
+    when ('xhtml') {            # Atom
       $body = elt_xhtml_to_html ($body);
       $body_type = 'html';
     }
-    when ('html') {    # RSS or Atom
+    when ('html') {             # RSS or Atom
       $body = elt_subtext($body);
     }
-    when ('text') {    # Atom 'text' to be flowed
+    when ('text') {             # Atom 'text' to be flowed
       # should be text-only, no sub-elements, but extract sub-elements to
       # cope with dodgy feeds with improperly escaped html etc
       $body = $self->text_wrap (elt_subtext ($body));
       $body_type = 'text/plain';
     }
-    when (m{^text/}) { # Atom mime text type
+    when (m{^text/}) {          # Atom mime text type
       $body = elt_subtext ($body);
     }
-    default {          # Atom base64 something
+    default {                   # Atom base64 something
       $body = MIME::Base64::decode ($body->text);
       $body_charset = undef;
     }
@@ -2439,7 +2503,7 @@ sub fetch_rss {
   }
   local $self->{'resp'} = $resp;
 
-  my $xml = $resp->decoded_content (charset => 'none');  # raw bytes
+  my $xml = $resp->decoded_content (charset => 'none'); # raw bytes
   $xml = $self->enforce_rss_charset_override ($xml);
 
   my ($twig, $err) = $self->twig_parse($xml);
@@ -2506,7 +2570,7 @@ __END__
 
 =head1 NAME
 
-App::RSS2Leafnode -- post RSS feeds to newsgroups
+App::RSS2Leafnode -- post RSS or Atom feeds and web pages to newsgroups
 
 =head1 SYNOPSIS
 

@@ -24,7 +24,7 @@ use strict;
 use warnings;
 use App::RSS2Leafnode;
 
-our $VERSION = 28;
+our $VERSION = 29;
 
 my $r2l = App::RSS2Leafnode->new;
 exit $r2l->command_line;
@@ -48,12 +48,12 @@ NNTP news server.  It's designed to make simple text entries available in
 local newsgroups, not propagating anywhere (though that's not enforced).
 
 Desired feeds are given in a configuration file F<.rss2leafnode.conf> in
-your home directory.  For example to put a feed in group "r2l.surfing"
+your home directory.  For example to put a feed in group "r2l.perl"
 
     fetch_rss ('r2l.perl', 'http://log.perl.org/atom.xml');
 
-This is actually Perl code, so you can put comment lines with C<#> or write
-some conditionals, etc.  The target newsgroup must exist (see L</Leafnode>
+This is actually Perl code, so comment lines begin with C<#> and you can
+write conditionals etc.  The target newsgroup must exist (see L</Leafnode>
 below).  With that done, run C<rss2leafnode> as
 
     rss2leafnode
@@ -194,8 +194,8 @@ Setting C<"WithLinks"> uses the C<HTML::FormatText::WithLinks> variant (you
 must have that module) which shows HTML links as footnotes.
 
     $render = 'WithLinks';
-    fetch_rss ('r2l.finance',
-               'http://movies.hsx.com/hsx_news.xml');
+    fetch_rss ('r2l.stuff',
+               'http://rss.sciam.com/sciam/basic-science');
 
 Settings C<elinks>, C<lynx> or C<w3m> dump through the respective external
 program (you must have C<HTML::FormatExternal> and the program).
@@ -299,7 +299,7 @@ are not downloaded under C<$rss_get_links> (currently).  Comment or reply
 counts are shown from C<< <thr:total> >>, C<< thr:count >> and
 C<< <slash:comments> >>.
 
-C<< <thr:in-reply-to> >> is used for an C<In-Reply-To> header, which might
+C<< <thr:in-reply-to> >> is used for an C<In-Reply-To> header which might
 help thread display in a news reader, though of course only if the parent
 item was downloaded too.
 
@@ -309,8 +309,21 @@ until after a subsequent further C<fetchnews>.
 
 An attempt is made to repair bad XML from a feed using C<XML::Liberal> if
 you have that module.  It's C<XML::LibXML> based so needs that library too.
-This is slightly experimental but helps annoying things like bad ampersand
-escapes in a feed and may be enough to at least see something.
+This can help annoying things like bad entities and may be enough to at
+least see something.
+
+Too much or too little entity escaping tends to be the most common feed
+problem.  Too little can turn HTML into nested XML elements instead of plain
+and RSS2Leafnode can extract that as if it was XHTML, though the result is
+likely to be imperfect.  Too much escaping currently ends up displaying as
+raw or semi-raw HTML.  An option for an extra unescaping might be possible,
+to at least improve the display of a particular bad feed.
+
+Some extended message headers are added to propagate information from the
+feed.  These are slightly experimental but currently include C<X-RSS-Url>
+for the originating feed URL, C<X-Copyright> for rights statements (perhaps
+several), C<X-RSS-Generator> from the feed in case it helps assign blame for
+bad formatting, and C<X-From-Url> for the author's home page.
 
 =head1 FILES
 

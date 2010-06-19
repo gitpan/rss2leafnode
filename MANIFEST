@@ -10,7 +10,9 @@ debian/rules
 debian/source/format
 debian/watch
 devel/atom.pl
+devel/email.pl
 devel/file-temp-debug.pl
+devel/grep-author.pl
 devel/html-base.html
 devel/html-enc.pl
 devel/html-format.pl

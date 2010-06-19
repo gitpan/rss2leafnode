@@ -33,8 +33,8 @@ my $r2l = App::RSS2Leafnode->new
    # rss_charset_override => 'windows-1252',
    # rss_charset_override => 'iso-8859-1',
    verbose => 2,
-   render => 'lynx',
-   rss_newest_only => 1,
+   # render => 'lynx',
+   rss_newest_only => 3,
    # rss_get_links => 1,
    msgidextra => 'Z',
   );

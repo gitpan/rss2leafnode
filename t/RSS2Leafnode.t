@@ -20,14 +20,16 @@
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 173;
+use Test::More tests => 184;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
 # version 2.04 provokes warnings from perl 5.11, load before NoWarnings
 use HTML::Formatter;
 
-SKIP: { eval 'use Test::NoWarnings; 1'
-          or skip 'Test::NoWarnings not available', 1; }
+BEGIN {
+ SKIP: { eval 'use Test::NoWarnings; 1'
+           or skip 'Test::NoWarnings not available', 1; }
+}
 
 require App::RSS2Leafnode;
 require POSIX;
@@ -38,7 +40,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 28;
+  my $want_version = 29;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -55,6 +57,89 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
       "VERSION object check $want_version");
   ok (! eval { $r2l->VERSION($check_version); 1 },
       "VERSION object check $check_version");
+}
+
+
+#------------------------------------------------------------------------------
+# elt_to_email()
+
+{
+  my $r2l = App::RSS2Leafnode->new;
+  require URI;
+  $r2l->{'uri'} = URI->new('http://feedhost.com');
+
+  foreach my $data
+    (
+     # RSS
+     ["<author></author>",
+      undef],
+     ["<author>\t\nfoo\@bar.com\n\t(Foo)   </author>",
+      'foo@bar.com (Foo)'],
+     ['<author>foo@bar.com (Foo)</author>',
+      'foo@bar.com (Foo)'],
+     ['',
+      undef],
+     ['<author>Some Body (foo@bar.com)   </author>',
+      'Some Body <foo@bar.com>'],
+     ['<author>Some Body (mailto:foo@bar.com)   </author>',
+      'Some Body <foo@bar.com>'],
+     ['<author>mailto:foo@bar.com</author>',
+      'foo@bar.com'],
+
+     # Atom
+     ['<author><name>Foo Bar</name><email>foo@bar.com</email></author>',
+      'Foo Bar <foo@bar.com>'],
+     ['<author><name>00</name><email>foo@bar.com</email></author>',
+      '00 <foo@bar.com>'],
+     ['<author><name></name><email>foo@bar.com</email></author>',
+      'foo@bar.com'],
+     ['<author><email>foo@bar.com</email></author>',
+      'foo@bar.com'],
+     ['<author><email>00</email></author>',
+      '00'],
+     ['<author><name>some (parens)</name></author>',
+      '"some (parens)" <'.$r2l->DUMMY_EMAIL_ADDRESS.'>'],
+
+     # Atom
+     ['<author><name>Foo Bar</name><email></email></author>',
+      'Foo Bar <'.$r2l->DUMMY_EMAIL_ADDRESS.'>'],
+     ['<author><name>Foo Bar</name></author>',
+      'Foo Bar <'.$r2l->DUMMY_EMAIL_ADDRESS.'>'],
+     ["<author><name>Foo</name><email>
+\t  foo\@bar.com\t
+</email></author>",
+      'Foo <foo@bar.com>'],
+
+     # itunes
+     ['<itunes:owner xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+         <itunes:name>Foo</itunes:name>
+         <itunes:email>foo@bar.com</itunes:email>
+       </itunes:owner>',   # structured owner
+      'Foo <foo@bar.com>'],
+     ['<itunes:author xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+         Some Body
+       </itunes:author>',  # plain text
+      'Some Body <'.$r2l->DUMMY_EMAIL_ADDRESS.'>'],
+    ) {
+    my ($fragment, $want) = @$data;
+
+    my $xml = <<"HERE";
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item><title>Item One</title> $fragment </item>
+ </channel>
+</rss>
+HERE
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+    if ($err) { diag $err; }
+    my $elt = $twig->root->first_descendant
+      (qr/^(author|itunes:owner|itunes:author)$/);
+
+    is ($r2l->elt_to_email($elt),
+        $want,
+        "elt_to_email() on $fragment");
+  }
 }
 
 
@@ -1086,77 +1171,32 @@ HERE
   }
 }
 
-
-#------------------------------------------------------------------------------
-# elt_to_email()
-
-{
-  my $r2l = App::RSS2Leafnode->new;
-  require URI;
-  $r2l->{'uri'} = URI->new('http://feedhost.com');
-
-  foreach my $data
-    (# Atom
-     ['<author><name>Foo Bar</name><email>foo@bar.com</email></author>',
-      'Foo Bar <foo@bar.com>'],
-     ['<author><name>00</name><email>foo@bar.com</email></author>',
-      '00 <foo@bar.com>'],
-     ['<author><name></name><email>foo@bar.com</email></author>',
-      'foo@bar.com'],
-     ['<author><email>foo@bar.com</email></author>',
-      'foo@bar.com'],
-     ['<author><email>00</email></author>',
-      '00'],
-
-     # Atom
-     ['<author><name>Foo Bar</name><email></email></author>',
-      'Foo Bar'],
-     ['<author><name>Foo Bar</name></author>',
-      'Foo Bar'],
-     ["<author><name>Foo</name><email>
-\t  foo\@bar.com\t
-</email></author>",
-      'Foo <foo@bar.com>'],
-
-     # RSS
-     ['<author>foo@bar.com (Foo)</author>',
-      'foo@bar.com (Foo)'],
-     ["<author>\t\nfoo\@bar.com\n\t(Foo)   </author>",
-      'foo@bar.com (Foo)'],
-     ['',
-      undef],
-
-     # itunes
-     ['<itunes:owner xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
-         <itunes:name>Foo</itunes:name>
-         <itunes:email>foo@bar.com</itunes:email>
-       </itunes:owner>',   # structured owner
-      'Foo <foo@bar.com>'],
-     ['<itunes:author xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
-         Some Body
-       </itunes:author>',  # plain text
-      'Some Body'],
-    ) {
-    my ($fragment, $want) = @$data;
-
-    my $xml = <<"HERE";
-<?xml version="1.0"?>
-<rss version="2.0">
- <channel>
-  <item><title>Item One</title> $fragment </item>
- </channel>
-</rss>
-HERE
-    my ($twig, $err) = $r2l->twig_parse ($xml);
-    if ($err) { diag $err; }
-    my $elt = $twig->root->first_descendant
-      (qr/^(author|itunes:owner|itunes:author)$/);
-
-    is (App::RSS2Leafnode::elt_to_email($elt),
-        $want,
-        "elt_to_email() $fragment");
-  }
-}
+# http_to_host()
+#
+# diag "http_to_host()";
+# {
+#   require HTTP::Response;
+#   my $resp = HTTP::Response->new (200, 'OK');
+#   is (App::RSS2Leafnode::http_to_host($resp), 'localhost',
+#       'http_to_host() with no request object');
+# 
+#   require HTTP::Request;
+#   my $req = HTTP::Request->new;
+#   $resp->request ($req);
+#   is (App::RSS2Leafnode::http_to_host($resp), 'localhost',
+#       'http_to_host() with no uri in request');
+# 
+#   foreach my $elem (['http://foo.com/index.html', 'foo.com'],
+#                     ['file:///tmp/index.html','localhost'],
+#                     ['file://hostname.invalid/tmp/index.html','hostname.invalid'],
+#                     ['data:,Foo','localhost'],
+#                    ) {
+#     my ($uri_str, $want) = @$elem;
+#     $req->uri($uri_str);
+#     is (App::RSS2Leafnode::http_to_host($resp), $want,
+#         "http_to_host() with $uri_str");
+#   }
+# }
 
 
 #------------------------------------------------------------------------------
@@ -1167,22 +1207,62 @@ HERE
   require URI;
   $r2l->{'uri'} = URI->new('http://feedhost.com');
   my $host = $r2l->{'uri'}->host;
+  my $dummyaddr = $r2l->DUMMY_EMAIL_ADDRESS;
 
-  foreach my $data (['<author><name>Foo Bar</name><email>foo@bar.com</email></author>',
-                     'Foo Bar <foo@bar.com>'],
-                    ['<author><name>Foo Bar</name></author>',
-                     'Foo Bar'],
-                    ['<author><email>foo@bar.com</email></author>',
-                     'foo@bar.com'],
-                    ['<author></author>',
-                     'nobody@'.$host],
-                    ['',
-                     'nobody@'.$host]) {
+  foreach my $data
+    (['<dc:contributor>
+         <rdf:Description link="http://some.where/home.html">
+	   <rdf:value>Some Body</rdf:value>
+         </rdf:Description>
+       </dc:contributor>',
+      [ From => 'Some Body <'.$r2l->DUMMY_EMAIL_ADDRESS.'>',
+        'X-From-URL:' => 'http://some.where/home.html' ] ],
+
+     ['<dc:contributor>
+         <rdf:Description rss:link="http://some.where/home.html">
+	   <rdf:value>Some Body</rdf:value>
+         </rdf:Description>
+       </dc:contributor>',
+      [ From => 'Some Body <'.$r2l->DUMMY_EMAIL_ADDRESS.'>',
+        'X-From-URL:' => 'http://some.where/home.html' ] ],
+
+     ['<author>
+         <name>Foo Bar</name>
+         <email>foo@bar.com</email>
+         <uri>http://foo.com/home.html</uri>
+       </author>',
+      [ From => 'Foo Bar <foo@bar.com>',
+        'X-From-URL:' => 'http://foo.com/home.html' ] ],
+
+     ['<author><name>Foo Bar</name><email>foo@bar.com</email></author>',
+      [ From => 'Foo Bar <foo@bar.com>',
+        'X-From-URL:' => undef ] ],
+
+     ['<author><name>Foo Bar</name></author>',
+      [ From => 'Foo Bar <'.$r2l->DUMMY_EMAIL_ADDRESS.'>',
+        'X-From-URL:' => undef ] ],
+
+     ['<author><email>foo@bar.com</email></author>',
+      [ From => 'foo@bar.com',
+        'X-From-URL:' => undef ] ],
+
+     ['<author></author>',
+      [ From => 'nobody@'.$host,
+        'X-From-URL:' => undef ] ],
+
+     ['',
+      [ From => 'nobody@'.$host,
+        'X-From-URL:' => undef ] ],
+    ) {
     my ($fragment, $want) = @$data;
 
     my $xml = <<"HERE";
 <?xml version="1.0"?>
-<feed version="0.3" xmlns="http://purl.org/atom/ns#">
+<feed version="0.3"
+      xmlns="http://purl.org/atom/ns#"
+      xmlns:rss="http://purl.org/rss/1.0/"
+      xmlns:dc="http://purl.org/dc/elements/1.1/"
+      xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
   <entry><title>Item One</title> $fragment </entry>
 </feed>
 HERE
@@ -1190,9 +1270,9 @@ HERE
     if ($err) { diag $err; }
     my $item = $twig->root->first_descendant('entry');
 
-    is ($r2l->item_to_from ($item),
-        $want,
-        "item_to_from() $fragment");
+    is_deeply ([ $r2l->item_to_from ($item) ],
+               $want,
+               "item_to_from() $fragment");
   }
 }
 
@@ -1284,6 +1364,32 @@ HERE
     is ($str, undef, 'html_title_urititle() no <title>');
   }
 }
+
+#------------------------------------------------------------------------------
+# http_resp_to_from()
+
+diag "http_resp_to_from()";
+{
+  my $r2l = App::RSS2Leafnode->new;
+  $r2l->{'uri'} = URI->new('http://foo.com/index.html');
+
+  require HTTP::Response;
+  my $resp = HTTP::Response->new (200, 'OK');
+  is ($r2l->http_resp_to_from($resp), 'nobody@foo.com',
+      'http_resp_to_from() with no request object');
+
+  require HTTP::Request;
+  my $req = HTTP::Request->new;
+  $resp->request ($req);
+  is ($r2l->http_resp_to_from($resp), 'nobody@foo.com',
+      'http_resp_to_from() with no uri in request');
+
+  $req->uri($r2l->{'uri'});
+  is ($r2l->http_resp_to_from($resp), 'nobody@foo.com',
+      "http_resp_to_from() with $r2l->{'uri'}");
+  diag $r2l->uri_to_host;
+}
+
 
 #------------------------------------------------------------------------------
 # str_ensure_newline()
