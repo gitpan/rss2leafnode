@@ -25,10 +25,14 @@ use Hash::Util::FieldHash;
 use List::Util;
 use List::MoreUtils;
 use POSIX (); # ENOENT, etc
+use Text::Trim;
 use URI;
 use HTML::Entities::Interpolate;
 
-our $VERSION = 29;
+# uncomment this to run the ### lines
+#use Smart::Comments;
+
+our $VERSION = 30;
 
 # version 1.17 for __p(), and version 1.16 for turn_utf_8_on()
 use Locale::TextDomain 1.17;
@@ -98,13 +102,15 @@ BEGIN {
 # Mail Messages
 #   RFC 850, RFC 1036 -- News message format, inc headers and rnews format
 #   RFC 2076, RFC 4021 -- headers summary.
-#   RFC 1327 -- X.400 to RFC822 introducing Language header
 #   RFC 2557 -- MHTML Content-Location
 #   RFC 1864 -- Content-MD5 header
-#   RFC 3282 -- Content-Language header
 #   RFC 2369 -- List-Post header and friends
 #   http://www3.ietf.org/proceedings/98dec/I-D/draft-ietf-drums-mail-followup-to-00.txt
 #       Draft "Mail-Followup-To" header.
+#
+#   RFC 1327 -- X.400 to RFC822 introducing Language header
+#   RFC 3282 -- Content-Language header
+#   RFC 1766, RFC 3066, RFC 4646 -- language tag form
 #
 # RFC 977 -- NNTP
 # RFC 4642 -- NNTP with SSL
@@ -175,19 +181,11 @@ sub join_non_empty {
   return non_empty (join($sep, map {non_empty($_)} @_));
 }
 
-sub trim_whitespace {
-  my ($str) = @_;
-  defined $str or return undef;
-  $str =~ s/^\s+//; # leading whitespace
-  $str =~ s/\s+$//; # trailing whitespace
-  return $str;
-}
-
 sub collapse_whitespace {
   my ($str) = @_;
   defined $str or return undef;
   $str =~ s/(\s+)/($1 eq '  ' ? $1 : ' ')/ge;
-  return trim_whitespace($str);
+  return Text::Trim::trim($str);
 }
 
 sub is_ascii {
@@ -658,23 +656,35 @@ sub nntp_post {
 # HTML title
 
 Hash::Util::FieldHash::fieldhash (my %resp_exiftool_info);
+
+# return hashref { Title => $str, ... }, or empty {} if no exiftool etc
 sub resp_exiftool_info {
   my ($resp) = @_;
   defined $resp or return {};
   if (! exists $resp_exiftool_info{$resp}) {
     $resp_exiftool_info{$resp} = _resp_exiftool_info($resp);
+    ### exiftool info: $resp_exiftool_info{$resp}
   }
   return $resp_exiftool_info{$resp};
 }
 sub _resp_exiftool_info {
   my ($resp) = @_;
-  # want ExifTool 8.22 to have PNG tEXt returned as utf8, but don't
-  # bother to enforce that
+
+  # Want ExifTool 8.22 to have PNG tEXt returned as utf8, but don't bother
+  # to enforce that.
+  #
+  # The returned fields from image formats with a defined charset are
+  # converted to the exiftool default "Charset" of utf8, and from other
+  # image formats the fields are bytes of something unknown.  Might slightly
+  # like to know which is the case, and show raw bytes different from "bytes
+  # which ought to be utf8", but for now just Encode::decode_utf8() and let
+  # its Encode::FB_DEFAULT() put substitution chars for non-ascii non-utf8.
+  #
   eval { require Image::ExifTool; 1 } || return {};
   my $data = $resp->decoded_content (charset => 'none');
   return Image::ExifTool::ImageInfo
     (\$data,
-     ['Title','Author'], # just these tags
+     ['Title','Author','Copyright'], # just these tags
      {List => 0});       # get list values as comma separated
 }
 
@@ -756,7 +766,7 @@ sub mime_build {
   # specified charset.
   foreach my $key (sort keys %$headers) {
     $headers->{$key}
-      = mimewords_non_ascii(trim_whitespace($headers->{$key}));
+      = mimewords_non_ascii(Text::Trim::trim($headers->{$key}));
   }
 
   %$headers = (%$headers, @args);
@@ -1373,18 +1383,29 @@ sub error_message {
 
 sub http_resp_to_from {
   my ($self, $resp) = @_;
-  return http_resp_exiftool_author($resp)
+  ### http_resp_to_from()
+  return $self->http_resp_exiftool_author($resp)
     // 'nobody@'.$self->uri_to_host;
 }
 sub http_resp_exiftool_author {
-  my ($resp) = @_;
+  my ($self, $resp) = @_;
   # PNG Author field, or HTML <meta> author
   my $author = resp_exiftool_info($resp)->{'Author'} // return;
-  return Encode::decode_utf8($author);
+  return $self->email_format_maybe (Encode::decode_utf8($author), '', undef);
+}
+
+sub http_resp_to_copyright {
+  my ($self, $resp) = @_;
+  ### http_resp_to_copyright()
+  if ($resp->content_type =~ m{^text/}) { return; }
+  # PNG Copyright field, perhaps other formats
+  my $copyright = resp_exiftool_info($resp)->{'Copyright'} // return;
+  return Encode::decode_utf8($copyright);
 }
 
 sub fetch_html {
   my ($self, $group, $url) = @_;
+  ### fetch_html()
   if ($self->{'verbose'} >= 1) { say "page: $url"; }
 
   my $group_uri = URI->new($group,'news');
@@ -1434,7 +1455,8 @@ sub fetch_html {
      From                => scalar ($self->http_resp_to_from($resp)),
      Subject             => $subject,
      Date                => scalar ($resp->header('Last-Modified')),
-     'Message-ID'        => $msgid);
+     'Message-ID'        => $msgid,
+     'X-Copyright:'      => scalar ($self->http_resp_to_copyright($resp)));
 
   $self->nntp_post($top) || return;
   $self->status_etagmod_resp ($url, $resp);
@@ -1784,10 +1806,10 @@ sub twig_parse {
       if ($twig->safe_parse ($liberal_xml)) {
         $twig->root->set_att('rss2leafnode:fixup',
                              "XML::Liberal fixed: {error}",
-                             error => trim_whitespace($err));
+                             error => Text::Trim::trim($err));
         print __x("Feed {url}\n  parse error: {error}\n  continuing with repairs by XML::Liberal\n",
                   url     => $self->{'uri'},
-                  error => trim_whitespace($err));
+                  error => Text::Trim::trim($err));
         undef $err;
       }
     }
@@ -1795,7 +1817,7 @@ sub twig_parse {
 
   if ($err) {
     # XML::Parser seems to stick some spurious leading whitespace on the error
-    $err = trim_whitespace($err);
+    $err = Text::Trim::trim($err);
 
     if ($self->{'verbose'} >= 1) {
       say __x("Parse error on URL {url}\n{error}",
@@ -1931,20 +1953,20 @@ sub item_to_keywords {
 sub uri_to_host {
   my ($self) = @_;
   my $uri = $self->{'uri'};
-  return (non_empty ($uri->can('host') && $uri->host)
+  ### uri_to_host(): $uri
+  return (non_empty ($uri && $uri->can('host') && $uri->host)
           // 'localhost');
 }
 
 use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
 
 # $elt is an XML::Twig::Elt
-# return an email address, either just the text part of $elt or Atom style
-# <name> and <email> sub-elements
+# return an email address, either just the text part of $elt or Atom
+# sub-elements <name> and <email>
 #
 sub elt_to_email {
   my ($self, $elt) = @_;
   return unless defined $elt;
-  require Email::Address;
 
   # <email> - under Atom
   # <itunes:email> - under <itunes:owner>
@@ -1964,13 +1986,25 @@ sub elt_to_email {
          && $rdfdesc->first_child_text('rdf:value')
      }));
 
+  return $self->email_format_maybe ($maybe, $display, $email);
+}
+
+# $maybe is some free-form author part possibly including a foo@bar.com
+# $display is a display part for the email like "Foo", possibly empty ""
+# $email is a mailbox "foo@bar.com", or undef
+# return an rfc822 "Foo <foo@bar.com>"
+#
+sub email_format_maybe {
+  my ($self, $maybe, $display, $email) = @_;
+  require Email::Address;
+
   # "Foo (mailto:foo@bar.com)" -> "Foo (foo@bar.com)"
   # "mailto:foo@bar.com" -> "foo@bar.com"
   $maybe =~ s/\bmailto://g;
 
   # "Foo (foo@bar.com)" -> "Foo <foo@bar.com>"
   $maybe =~ s{\(($Email::Address::addr_spec)\)\s*$}
-             { '<' . trim_whitespace($1) . '>' }ge;
+             { '<' . Text::Trim::trim($1) . '>' }ge;
 
   my $ret;
   if (is_empty($email) && $maybe =~ /^$Email::Address::mailbox$/) {
@@ -1990,14 +2024,19 @@ sub elt_to_email {
   # newlines, but not tabs.
   return non_empty(collapse_whitespace($ret));
 }
+
+# $display is a display part for the email "Foo", possibly empty ""
+# $email is a mailbox "foo@bar.com", or undef or empty ""
+# return an rfc822 "Foo <foo@bar.com>"
+#
 sub email_format {
   my ($display, $email) = @_;
-  $display = trim_whitespace($display);
+  $display = Text::Trim::trim($display);
   if (is_empty($display)) {
     if (is_empty($email)) {
       return;
     } else {
-      return trim_whitespace($email);
+      return Text::Trim::trim($email);
     }
   }
   if (is_empty($email)) {
@@ -2006,10 +2045,13 @@ sub email_format {
     # omit
     $email = 'nobody@rss2leafnode.invalid';
   } else {
-    $email = trim_whitespace($email);
+    $email = Text::Trim::trim($email);
   }
   return email_phrase_quote_maybe($display) . " <$email>";
 }
+
+# return $str with quotes like "Foo Bar" if it needs them to go in an email
+# display part
 sub email_phrase_quote_maybe {
   my ($str) = @_;
   return if ! defined $str;
@@ -2103,9 +2145,17 @@ sub item_to_subject {
 }
 
 # return language code string or undef
+# return is per RFC1766/RFC3066/RFC4646 for Content-Language
+#
+# xml:lang is defined to be per RFC 4646, no mangling needed
+# RSS <language> seems close enough http://www.rssboard.org/rss-language-codes
+# dc:language is recommended as RFC 4646
+# cf. I18N::LangTags if mangling might be needed one day
+#
 sub item_to_language {
   my ($self, $item) = @_;
   my $lang;
+
   if (my $elt = $item->first_child('content')) {
     $lang = non_empty ($elt->att('xml:lang'));
   }
@@ -2586,6 +2636,13 @@ user-level operation.
 =head1 FUNCTIONS
 
 =over 4
+
+=item C<< $exitcode = App::RSS2Leafnode->command_line () >>
+
+=item C<< $exitcode = $r2l->command_line () >>
+
+Run the C<rss2leafnode> program command line.  Arguments are taken from
+C<@ARGV> and the return value is an exit code suitable for C<exit>.
 
 =item C<< $r2l = App::RSS2Leafnode->new (key=>value,...) >>
 

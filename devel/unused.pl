@@ -20,6 +20,31 @@
 
 __END__
 
+#------------------------------------------------------------------------------
+# trim_whitespace()
+
+{
+  foreach my $data (["ab c",                   'ab c'],
+                    [" ab c  ",                'ab c'],
+                    ["\r\n\f\t ab c \r\n\f\t", 'ab c'],
+                   ) {
+    my ($str, $want) = @$data;
+    is (App::RSS2Leafnode::trim_whitespace($str),
+        $want,
+        "trim_whitespace() '$str'");
+  }
+}
+
+sub trim_whitespace {
+  my ($str) = @_;
+  defined $str or return undef;
+  $str =~ s/^\s+//; # leading whitespace
+  $str =~ s/\s+$//; # trailing whitespace
+  return $str;
+}
+
+#------------------------------------------------------------------------------
+
 # $a and $b are XML::Twig::Elt items
 # Return the one with the greatest date, or $a if they're equal or don't
 # both have a pubDate.

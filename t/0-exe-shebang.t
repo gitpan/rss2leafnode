@@ -71,7 +71,8 @@ sub check {
   }
 
   my $good = 1;
-  foreach my $filename (@exe_files) {
+  foreach (@exe_files) {
+    my $filename = $_;
     unless (open FH, "<$filename") {
       &$diag ("Oops, cannot open $filename");
       $good = 0;

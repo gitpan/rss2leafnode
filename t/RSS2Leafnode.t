@@ -14,13 +14,13 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# You can get a copy of the GNU General Public License online at
-# http://www.gnu.org/licenses.
+# You should have received a copy of the GNU General Public License along
+# with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 184;
+use Test::More tests => 181;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
 # version 2.04 provokes warnings from perl 5.11, load before NoWarnings
@@ -40,7 +40,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 29;
+  my $want_version = 30;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -362,22 +362,6 @@ HERE
     is (App::RSS2Leafnode::elt_content_type($elt),
         $want,
         "elt_content_type() $xml");
-  }
-}
-
-
-#------------------------------------------------------------------------------
-# trim_whitespace()
-
-{
-  foreach my $data (["ab c",                   'ab c'],
-                    [" ab c  ",                'ab c'],
-                    ["\r\n\f\t ab c \r\n\f\t", 'ab c'],
-                   ) {
-    my ($str, $want) = @$data;
-    is (App::RSS2Leafnode::trim_whitespace($str),
-        $want,
-        "trim_whitespace() '$str'");
   }
 }
 

@@ -14,8 +14,8 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# You can get a copy of the GNU General Public License online at
-# http://www.gnu.org/licenses.
+# You should have received a copy of the GNU General Public License along
+# with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 use strict;
 use warnings;
@@ -26,7 +26,7 @@ SKIP: { eval 'use Test::NoWarnings; 1'
           or skip 'Test::NoWarnings not available', 1; }
 
 
-my $want_version = 29;
+my $want_version = 30;
 is ($News::Rnews::VERSION, $want_version, 'VERSION variable');
 is (News::Rnews->VERSION,  $want_version, 'VERSION class method');
 { ok (eval { News::Rnews->VERSION($want_version); 1 },

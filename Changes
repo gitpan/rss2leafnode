@@ -16,6 +16,10 @@ You should have received a copy of the GNU General Public License along
 with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
+Version 30, July 2010
+    - fetch_html use From dummy mailbox protection, and for images
+      extract X-Copyright from data if possible
+
 Version 29, June 2010
     - add dummy mailbox to From to protect names with parens
     - new X-From-URL

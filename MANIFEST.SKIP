@@ -73,6 +73,7 @@
 #/[^Z])[^/]+\.c$
 
 # built - configury
+^a\.out$
 ^conftest
 ^config\.h$
 ^myconfig\.h$
@@ -111,6 +112,10 @@ devel/h2xs/TestConstFoo/
 ^devel/invisible-blank$
 # special case xor executables
 ^devel/gtk-gc-colour$
+# special case ipw and other executables
+^devel/misc$
+# special case m-i executables
+^devel/gen-bits$
 
 
 # special htmlext environs

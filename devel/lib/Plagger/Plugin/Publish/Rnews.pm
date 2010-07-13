@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 # Copyright 2008, 2009, 2010 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
@@ -31,7 +29,7 @@ use URI;
 use News::Rnews;
 use base 'Plagger::Plugin';
 
-our $VERSION = 29;
+our $VERSION = 30;
 
 
 sub rule_hook { return 'publish.feed' }

@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 # Copyright 2007, 2008, 2009, 2010 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
@@ -24,7 +22,7 @@ use strict;
 use warnings;
 use base 'Plagger::Plugin';
 
-our $VERSION = 29;
+our $VERSION = 30;
 
 sub register {
   my ($self, $context) = @_;

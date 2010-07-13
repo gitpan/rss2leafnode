@@ -24,7 +24,7 @@ use strict;
 use warnings;
 use App::RSS2Leafnode;
 
-our $VERSION = 29;
+our $VERSION = 30;
 
 my $r2l = App::RSS2Leafnode->new;
 exit $r2l->command_line;
@@ -129,6 +129,12 @@ F</etc/news/leafnode/local.groups> file like
 The group name is arbitrary and the description is optional, but note it
 must be a tab character between the name and the "y" and between the "y" and
 any description.  "y" means posting is allowed.
+
+Small news "sn" is good too.  Groups are created in it with C<snnewgroup
+r2l.something>.  When running C<snntpd> from C<inetd> or similar don't
+forget a logger program argument on the command line, as shown in sn's
+F<INSTALL.run>, or log messages from C<snntpd> will confuse client programs,
+including C<Net::NNTP> as used by C<rss2leafnode>.
 
 =head1 COMMAND LINE OPTIONS
 
@@ -343,12 +349,12 @@ C<rss2leafnode> run will recreate it.
 
 =head1 SEE ALSO
 
-C<leafnode(8)>,
+L<leafnode(8)>,
 L<HTML::FormatText>, L<HTML::FormatText::WithLinks>, L<HTML::FormatExternal>,
-C<lynx(1)>,
+L<lynx(1)>,
 L<URI::Title>, L<XML::Parser>, L<XML::Liberal>
 
-L<Plagger>, C<feed2imap>, C<rss2email>, C<rssdrop>, C<toursst>
+L<Plagger>, L<feed2imap(1)>, L<rss2email(1)>, L<rssdrop(1)>, L<toursst(1)>
 
 =head1 HOME PAGE
 

@@ -22,6 +22,14 @@ use strict;
 use warnings;
 
 {
+  use Smart::Comments;
+  require Text::Trim;
+  my @str = Text::Trim::trim('  x  ');
+  ### @str;
+}
+
+__END__
+{
   my $r2l = App::RSS2Leafnode->new;
 
   my $xml = <<"HERE";

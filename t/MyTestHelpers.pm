@@ -27,13 +27,43 @@ use vars qw(@EXPORT_OK %EXPORT_TAGS);
                 main_iterations
                 warn_suppress_gtk_icon
                 glib_gtk_versions
-                any_signal_connections);
+                any_signal_connections
+                nowarnings);
 %EXPORT_TAGS = (all => \@EXPORT_OK);
 
 use constant DEBUG => 0;
 
 
 #-----------------------------------------------------------------------------
+
+{
+  my $warning_count;
+  my $want_stacktrace;
+  sub nowarnings_handler {
+    $warning_count++;
+    if ($want_stacktrace && eval { require Devel::StackTrace }) {
+      unshift @_, Devel::StackTrace->new->as_string;
+    }
+    warn @_;
+  }
+  sub nowarnings {
+    ($want_stacktrace) = @_;
+    $SIG{'__WARN__'} = \&nowarnings_handler;
+  }
+  END {
+    if ($warning_count) {
+      require Carp;
+
+      my $save_stacktrace = $want_stacktrace;
+      $want_stacktrace = 0;
+      Carp::carp ("Saw $warning_count warning(s)");
+      my $want_stacktrace = $save_stacktrace;
+
+      Test::More::diag('Exit code 1 for warnings');
+      $? = 1;
+    }
+  }
+}
 
 sub findrefs {
   my ($obj) = @_;

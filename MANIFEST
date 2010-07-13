@@ -4,6 +4,7 @@ debian/changelog
 debian/compat
 debian/control
 debian/copyright
+debian/emacsen-startup
 debian/patches/pod-sample-conf-file.diff
 debian/prerm
 debian/rules
@@ -18,6 +19,7 @@ devel/html-enc.pl
 devel/html-format.pl
 devel/html-formattext.pl
 devel/html-withlinks.pl
+devel/icons.pl
 devel/ihave.pl
 devel/Leafnode.pm
 devel/lib/Localize/GetSetMethod.pm
