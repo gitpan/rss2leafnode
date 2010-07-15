@@ -292,7 +292,7 @@ check-copyright-years:
 	      | COPYING | MANIFEST* | SIGNATURE | META.yml \
 	      | version.texi | */version.texi \
 	      | *utf16* \
-	      | */MathImage/ln2.gz | */MathImage/pi.gz \
+	      | */Math''Image/ln2.gz | */Math''Image/pi.gz \
 	      | *.mo | *.locatedb | t/samp.*) \
 	        continue ;; \
 	      *.gz) GREP=zgrep ;; \

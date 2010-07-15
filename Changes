@@ -16,6 +16,9 @@ You should have received a copy of the GNU General Public License along
 with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
+Version 31, July 2010
+    - forgot Text::Trim dependency in Makefile.PL
+
 Version 30, July 2010
     - fetch_html use From dummy mailbox protection, and for images
       extract X-Copyright from data if possible

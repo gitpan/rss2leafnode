@@ -32,7 +32,7 @@ use HTML::Entities::Interpolate;
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-our $VERSION = 30;
+our $VERSION = 31;
 
 # version 1.17 for __p(), and version 1.16 for turn_utf_8_on()
 use Locale::TextDomain 1.17;

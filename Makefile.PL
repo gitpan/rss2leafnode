@@ -78,6 +78,7 @@ MyMakeMakerExtras::WriteMakefile
                     'Sort::Key::Top' => 0,
                     'File::HomeDir' => 0,
                     'List::MoreUtils' => 0,
+                    'Text::Trim' => 0,
 
                     # 1.17 for __p()
                     'Locale::TextDomain' => '1.17',
