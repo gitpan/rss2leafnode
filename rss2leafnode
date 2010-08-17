@@ -24,7 +24,7 @@ use strict;
 use warnings;
 use App::RSS2Leafnode;
 
-our $VERSION = 31;
+our $VERSION = 32;
 
 my $r2l = App::RSS2Leafnode->new;
 exit $r2l->command_line;
@@ -130,11 +130,14 @@ The group name is arbitrary and the description is optional, but note it
 must be a tab character between the name and the "y" and between the "y" and
 any description.  "y" means posting is allowed.
 
-Small news "sn" is good too.  Groups are created in it with C<snnewgroup
-r2l.something>.  When running C<snntpd> from C<inetd> or similar don't
-forget a logger program argument on the command line, as shown in sn's
-F<INSTALL.run>, or log messages from C<snntpd> will confuse client programs,
-including C<Net::NNTP> as used by C<rss2leafnode>.
+=head2 Small News
+
+The Small News "sn" program is a possible local server too.  Create groups
+in it with C<snnewgroup r2l.something>.  When running C<snntpd> from
+C<inetd> or similar don't forget a logger program argument on the command
+line as shown in its F<INSTALL.run>, otherwise log messages from C<snntpd>
+will confuse client programs, including C<Net::NNTP> as used by
+C<rss2leafnode>.
 
 =head1 COMMAND LINE OPTIONS
 
@@ -227,7 +230,7 @@ or any special width needed by a particular feed.
 
 If set then force RSS content to be interpreted in this charset,
 irrespective of what the document says.  See L<XML::Parser/ENCODINGS> for
-the charsets supported by the parser (F<.enc> files under
+the charsets supported by the parser (the F<.enc> files under
 F</usr/lib/perl5/XML/Parser/Encodings/> plus some builtins).
 
 Use this option if the document is wrong or has no charset specified and
@@ -249,8 +252,9 @@ warning is given like
       (line 214, column 75, byte 13196)
 
 Bad single-byte codings generally aren't detected and will just go through
-to display something incorrect.  In both cases nose around the raw feed to
-see where it goes wrong.
+to display something incorrect (eg. MS-DOS codepage 1252 used where Latin-1
+is claimed).  Nose around the raw feed as necessary to see where it goes
+wrong.
 
 =item $html_charset_from_content (default 0)
 
@@ -283,8 +287,8 @@ generated messages so for non-ascii content you'll need a newsreader which
 supports that.  Unrendered HTML is left in the charset the server gave, to
 ensure it matches any C<< <meta http-equiv> >> in the document.  In all
 cases the charset is specified in the MIME message headers or attachment
-parts.  Transfer format in the message body is left to C<MIME::Entity>
-(except for Atom base64 C<< <content> >>) and normally means
+parts.  Transfer format in the message body is chosen by C<MIME::Entity>
+(except for Atom base64 C<< <content> >>) which normally means
 quoted-printable for non-ascii or very long lines.
 
 Google Groups mailing list feeds such as
@@ -309,27 +313,33 @@ C<< <thr:in-reply-to> >> is used for an C<In-Reply-To> header which might
 help thread display in a news reader, though of course only if the parent
 item was downloaded too.
 
+Common Alerts Protocol (CAP) fields for severe weather alerts etc are shown
+if present (eg. from the US NOAA).  This is slightly experimental.
+
 Some pre-releases of leafnode 2 have trouble with posts to local newsgroups
 while a C<fetchnews> run is in progress.  The local articles don't show up
 until after a subsequent further C<fetchnews>.
 
 An attempt is made to repair bad XML from a feed using C<XML::Liberal> if
-you have that module.  It's C<XML::LibXML> based so needs that library too.
-This can help annoying things like bad entities and may be enough to at
-least see something.
+you have that module.  It uses C<XML::LibXML> so needs that module and
+library too.  A repair can help on annoying things like bad entities and may
+be enough to at least see something.
 
 Too much or too little entity escaping tends to be the most common feed
-problem.  Too little can turn HTML into nested XML elements instead of plain
-and RSS2Leafnode can extract that as if it was XHTML, though the result is
+problem.  Too little can turn HTML into nested XML elements instead of text.
+RSS2Leafnode can extract that as if it was XHTML, though the result is
 likely to be imperfect.  Too much escaping currently ends up displaying as
-raw or semi-raw HTML.  An option for an extra unescaping might be possible,
-to at least improve the display of a particular bad feed.
+raw or semi-raw HTML.  An option for extra unescaping might be possible, to
+at least improve the display of a particular bad feed.
 
 Some extended message headers are added to propagate information from the
-feed.  These are slightly experimental but currently include C<X-RSS-Url>
-for the originating feed URL, C<X-Copyright> for rights statements (perhaps
-several), C<X-RSS-Generator> from the feed in case it helps assign blame for
-bad formatting, and C<X-From-Url> for the author's home page.
+feed.  These are slightly experimental but currently include
+
+    X-RSS-Url        - originating feed URL
+    X-From-Url       - the author's home page
+    X-Copyright      - rights statements, perhaps several
+    X-RSS-Generator  - from the feed in case it helps assign
+                       blame for bad formatting
 
 =head1 FILES
 
@@ -354,7 +364,8 @@ L<HTML::FormatText>, L<HTML::FormatText::WithLinks>, L<HTML::FormatExternal>,
 L<lynx(1)>,
 L<URI::Title>, L<XML::Parser>, L<XML::Liberal>
 
-L<Plagger>, L<feed2imap(1)>, L<rss2email(1)>, L<rssdrop(1)>, L<toursst(1)>
+L<Plagger>, L<feed2imap(1)>, L<rss2email(1)>, L<rssdrop(1)>, L<toursst(1)>,
+L<http://www.gwene.org>
 
 =head1 HOME PAGE
 

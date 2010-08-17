@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 # Copyright 2010 Kevin Ryde
 
@@ -25,6 +25,7 @@ use Test::More;
 
 use lib 't';
 use MyTestHelpers;
+BEGIN { MyTestHelpers::nowarnings() }
 use Test::Weaken::ExtraBits;
 
 my $have_test_weaken = eval "use Test::Weaken 2.000; 1";

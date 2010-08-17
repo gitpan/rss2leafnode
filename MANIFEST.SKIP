@@ -55,6 +55,8 @@
 \.def$
 ^dll\.base$
 ^dll\.exp$
+# msdos compiler stuff using ms c
+\.pdb$
 
 # built - cdbs and debhelper
 ^debian/stamp-
@@ -67,6 +69,7 @@
 ^[^/]+\.c$
 # built .o compiled and .bs from .xs
 \.o$
+\.obj$
 \.bs$
 #
 #(^|/)[A-Z][A-Za-z0-9_]*\.c$
@@ -110,7 +113,7 @@ devel/h2xs/TestConstFoo/
 ^devel/grandom-[a-z]+$
 # special case widget-cursor executables
 ^devel/invisible-blank$
-# special case xor executables
+# special case x'or executables
 ^devel/gtk-gc-colour$
 # special case ipw and other executables
 ^devel/misc$

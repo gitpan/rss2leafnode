@@ -19,12 +19,13 @@
 
 use strict;
 use warnings;
-use Test::More tests => 17;
+use Test::More tests => 16;
 
-SKIP: { eval 'use Test::NoWarnings; 1'
-          or skip 'Test::NoWarnings not available', 1; }
+use lib 't';
+use MyTestHelpers;
+BEGIN { MyTestHelpers::nowarnings() }
 
-my $want_version = 17;
+my $want_version = 32;
 
 SKIP: {
   if (! eval { require Plagger::Plugin::Publish::Rnews; }) {

@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 # Copyright 2008, 2009, 2010 Kevin Ryde
 #
@@ -17,7 +17,6 @@
 # You should have received a copy of the GNU General Public License along
 # with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
-use 5.010;
 use strict;
 use warnings;
 use App::RSS2Leafnode;
@@ -32,7 +31,7 @@ my $r2l = App::RSS2Leafnode->new
   (
    # rss_charset_override => 'windows-1252',
    # rss_charset_override => 'iso-8859-1',
-   verbose => 9,
+   verbose => 1,
    # render => 'lynx',
    rss_newest_only => 3,
    # rss_get_links => 1,

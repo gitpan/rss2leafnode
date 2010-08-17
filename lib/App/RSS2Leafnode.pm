@@ -22,7 +22,7 @@ use warnings;
 use Carp;
 use Encode;
 use Hash::Util::FieldHash;
-use List::Util;
+use List::Util 'min', 'max';
 use List::MoreUtils;
 use POSIX (); # ENOENT, etc
 use Text::Trim;
@@ -32,7 +32,7 @@ use HTML::Entities::Interpolate;
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-our $VERSION = 31;
+our $VERSION = 32;
 
 # version 1.17 for __p(), and version 1.16 for turn_utf_8_on()
 use Locale::TextDomain 1.17;
@@ -115,6 +115,7 @@ BEGIN {
 # RFC 977 -- NNTP
 # RFC 4642 -- NNTP with SSL
 # RFC 2616 -- HTTP/1.1 Accept-Encoding header
+# RFC 2980 -- NNTP extensions
 #
 #
 # For XML in Perl there's several ways to do it!
@@ -201,6 +202,11 @@ use constant::defer NUMBER_FORMAT => sub {
      -mega_suffix => __p('number-format-megabytes','M'),
      -giga_suffix => __p('number-format-gigabytes','G'));
 };
+
+sub str_count_lines {
+  my ($str) = @_;
+  return scalar($str =~ tr/\n//) + (length($str) && substr($str,-1) ne "\n");
+}
 
 #------------------------------------------------------------------------------
 
@@ -684,18 +690,18 @@ sub _resp_exiftool_info {
   my $data = $resp->decoded_content (charset => 'none');
   return Image::ExifTool::ImageInfo
     (\$data,
-     ['Title','Author','Copyright'], # just these tags
+     ['Title','Author','Copyright','ImageSize'], # just these tags
      {List => 0});       # get list values as comma separated
 }
 
-# $resp is a HTTP::Response, return title per URI::Title or $resp->title.
-# The latter is either the obsolete "Title" header or parsed from <title>.
-# In both cases entities &foo; are undone so the return is plain.
-# Return undef if nothing known.
-#
+# $resp is a HTTP::Response, return title
 sub html_title {
   my ($resp) = @_;
-  return (non_empty (html_title_urititle($resp))
+  
+  return (# for images prefer filename+size over URI::Title just filename
+          non_empty (html_title_exiftool_image($resp))
+
+          // non_empty (html_title_urititle($resp))
           // non_empty (html_title_exiftool($resp))
           // $resp->title);
 }
@@ -711,6 +717,17 @@ sub html_title_urititle {
   return URI::Title::title
     ({ url  => ($resp->request->uri // ''),
        data => $resp->decoded_content (charset => 'none')});
+}
+sub html_title_exiftool_image {
+  my ($resp) = @_;
+  $resp->content_type =~ m{^image/} or return;
+  if (defined (my $title = html_title_exiftool($resp))) {
+    return $title;
+  }
+  my $info = resp_exiftool_info($resp) // return;
+  ### html_title_exiftool_image() on: $info
+  defined $info->{'ImageSize'} or return;
+  return $resp->filename.' '.$info->{'ImageSize'};
 }
 sub html_title_exiftool {
   my ($resp) = @_;
@@ -829,6 +846,15 @@ sub mime_part_from_response {
      Charset     => $charset,
      Data        => $content,
      Filename    => $resp->filename);
+}
+
+
+# set "Lines:" header per RFC 1036
+# MIME::Entity 5.428 doesn't seem to have anything for this itself
+# this is after qp or base64, is that right? the actual message lines
+sub mime_entity_lines {
+  my ($top) = @_;
+  $top->head->set('Lines', str_count_lines ($top->stringify_body));
 }
 
 #------------------------------------------------------------------------------
@@ -1373,6 +1399,7 @@ sub error_message {
     $top->add_part ($part);
   }
 
+  mime_entity_lines($top);
   $self->nntp_post($top) || return;
   say __x('{group} 1 new article', group => $self->{'nntp_group'});
 }
@@ -1458,6 +1485,7 @@ sub fetch_html {
      'Message-ID'        => $msgid,
      'X-Copyright:'      => scalar ($self->http_resp_to_copyright($resp)));
 
+  mime_entity_lines($top);
   $self->nntp_post($top) || return;
   $self->status_etagmod_resp ($url, $resp);
   say __x("{group} 1 new article", group => $group);
@@ -1736,6 +1764,7 @@ my $map_xmlns
      'http://rssnamespace.org/feedburner/ext/1.0'   => 'feedburner',
      'http://search.yahoo.com/mrss'                 => 'media',
      'http://backend.userland.com/creativeCommonsRssModule'=>'creativeCommons',
+     'urn:oasis:names:tc:emergency:cap:1.1'         => 'cap',
 
      # don't need to distinguish dcterms from plain dc as yet
      'http://purl.org/dc/elements/1.1/'             => 'dc',
@@ -1795,7 +1824,7 @@ sub twig_parse {
     }
   }
 
-  # Or atempt to put it through XML::Liberal, if available.
+  # Or attempt to put it through XML::Liberal, if available.
   #
   if ($err && eval { require XML::Liberal; 1 }) {
     my $liberal = XML::Liberal->new('LibXML');
@@ -1894,10 +1923,14 @@ sub item_to_msgid {
      md5_of_utf8 (join_non_empty ('',
                                   map {$item->first_child_text($_)}
                                   qw(title
-                                     author dc:creator
-                                     description content
+                                     author
+                                     dc:creator
+                                     description
+                                     content
                                      link
-                                     pubDate published updated
+                                     pubDate
+                                     published
+                                     updated
                                    ))));
 }
 
@@ -2008,13 +2041,15 @@ sub email_format_maybe {
 
   my $ret;
   if (is_empty($email) && $maybe =~ /^$Email::Address::mailbox$/) {
+    # the $maybe part is a foo@bar.com
     $ret = $maybe;
   } else {
     $display = join_non_empty (' ', $display, $maybe);
     if (is_non_empty ($display)) {
-      $ret = email_format ($display,
-                           non_empty($email) //  $self->DUMMY_EMAIL_ADDRESS);
+      # have a display part, format it up, if $email is empty it gets a dummy
+      $ret = $self->email_format ($display, $email);
     } else {
+      # no display part, just a foo@bar.com $email part, possibly empty
       $ret = $email;
     }
   }
@@ -2030,7 +2065,7 @@ sub email_format_maybe {
 # return an rfc822 "Foo <foo@bar.com>"
 #
 sub email_format {
-  my ($display, $email) = @_;
+  my ($self, $display, $email) = @_;
   $display = Text::Trim::trim($display);
   if (is_empty($display)) {
     if (is_empty($email)) {
@@ -2043,7 +2078,7 @@ sub email_format {
     # think can't have empty <> or omitted, otherwise the quoted part is
     # still parsed as an address, certainly it's not rfc822 compliant to
     # omit
-    $email = 'nobody@rss2leafnode.invalid';
+    $email = $self->DUMMY_EMAIL_ADDRESS;
   } else {
     $email = Text::Trim::trim($email);
   }
@@ -2107,17 +2142,21 @@ sub item_to_from {
      // $self->elt_to_email ($elt = $channel->first_child('itunes:owner'))
      // do { undef $elt }
 
-     # Atom <title> can have type="html" etc in the usual way, so render
-     // email_format (elt_to_rendered_line ($channel->first_child('title')))
+     # Atom <title> can have type="html" etc in the usual way, so render.
+     # Hope the channel title is different from the item title.
+     // $self->email_format (elt_to_rendered_line
+                             ($channel->first_child('title')))
 
      // ('nobody@'.$self->uri_to_host)
     );
   my $uri;
   if ($elt) {
     $uri = (# Atom
-            # <author> <name>Foo Bar</name>
-            #          <uri>http://some.where</uri>
+            # <author>
+            #   <name>Foo Bar</name>
+            #   <uri>http://some.where</uri>
             # </author>
+            #
             non_empty ($elt->first_child_text('uri'))
 
             # ModWiki dc:contributor example
@@ -2125,6 +2164,7 @@ sub item_to_from {
             #       <rdf:value>Foo Bar</rdf:value>
             #     </rdf:Description>
             # The text shows rss:link= and the example just link=.
+            #
             // non_empty (do {
               my $child; ($child = $elt->first_child('rdf:Description'))
                 && ($child->att('link') // $child->att('rss:link'))
@@ -2295,6 +2335,38 @@ sub enforce_rss_charset_override {
   return $xml;
 }
 
+# slightly experimental extract of "cap" fields as from
+# http://www.nws.noaa.gov/alerts-beta/
+# http://www.weather.gov/alerts-beta/ca.php?x=0
+sub item_common_alert_protocol {
+  my ($self, $item, $want_html) = @_;
+  my @fields;
+  foreach my $elt ($item->children(qr/^cap:/)) {
+    (my $field = $elt->name) =~ s/^cap://;
+    if ($field eq 'geocode' || $field eq 'parameter') {
+      # dunno how to show these yet ...
+      next;
+    }
+    my $value = elt_to_rendered_line ($elt);
+    $value = Text::Trim::trim ($value);
+    if (is_non_empty ($value)) {
+      push @fields, [ "\u$field:", $value ];
+    }
+  }
+  if (! @fields) {
+    return '';
+  }
+  # FIXME: This indenting doesn't come out in html, only in text.  The NOAA
+  # is Atom plain text, so that one is ok at least.
+  my $width = max(map {length $_->[0]} @fields);
+  @fields = map { sprintf("%-*s %s\n", $width, $_->[0], $_->[1]) } @fields;
+  if ($want_html) {
+    return "<p>" . join("<br>\n", map {$Entitize{$_}} @fields) . "</p>\n";
+  } else {
+    return "\n" . join("\n", map{$self->text_wrap($_)} @fields);
+  }
+}
+
 # $item is an XML::Twig::Elt
 #
 sub fetch_rss_process_one_item {
@@ -2345,7 +2417,7 @@ sub fetch_rss_process_one_item {
   # as well as <itunes:summary>.
   #
   my $body = (           # <content:encoded> generally bigger or better than
-                         # <description>, so prefer that
+              # <description>, so prefer that
               $item->first_child('content:encoded')
               || $item->first_child('description')
               || $item->first_child('dc:description')
@@ -2397,10 +2469,12 @@ sub fetch_rss_process_one_item {
 
   my $body_is_html = ($body_type ~~ ['html','text/html']);
   my $links_want_html = ($body_is_html && ! $self->{'render'});
+  if ($self->{'verbose'} >= 3) { print " links_want_html: ",
+                                   ($links_want_html ? "yes\n" : "no\n"); }
   my $links_str = ($links_want_html
                    ? links_to_html(@links)
                    : links_to_text(@links));
-
+  $links_str .= $self->item_common_alert_protocol($item, $links_want_html);
   my @parts;
 
   if ($self->{'rss_get_links'}) {
@@ -2488,6 +2562,7 @@ sub fetch_rss_process_one_item {
                                        Data        => $links_str);
   }
 
+
   my $top = $self->mime_build (\%headers,
                                Top     => 1,
                                Type    => $body_type,
@@ -2510,6 +2585,7 @@ sub fetch_rss_process_one_item {
     $top->add_part ($part);
   }
 
+  mime_entity_lines($top);
   $self->nntp_post($top) || return 0;
   if ($self->{'verbose'} >= 1) { say __('   posted'); }
   return 1;

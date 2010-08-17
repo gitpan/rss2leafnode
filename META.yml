@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               rss2leafnode
-version:            31
+version:            32
 abstract:           Download RSS feeds or web pages to an NNTP news server.
 author:
     - Kevin Ryde <user42@zip.com.au>
@@ -80,6 +80,7 @@ optional_features:
             Perl6::Slurp:         0
             URI::file:            0
             URI::Title:           0
+            warnings::unused:     0
             XML::Atom:            0
             XML::Atom::Feed:      0
             XML::Liberal:         0
@@ -108,7 +109,6 @@ optional_features:
         requires:
             Parse::CPAN::Meta:   0
             Test::DistManifest:  0
-            Test::NoWarnings:    0
             Test::Pod:           1.00
             Test::Synopsis:      0
             Test::Weaken:        2.0

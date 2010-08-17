@@ -20,9 +20,10 @@
 package MyTestHelpers;
 use strict;
 use warnings;
+use Exporter;
+use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
 
-use base 'Exporter';
-use vars qw(@EXPORT_OK %EXPORT_TAGS);
+@ISA = ('Exporter');
 @EXPORT_OK = qw(findrefs
                 main_iterations
                 warn_suppress_gtk_icon
@@ -31,7 +32,7 @@ use vars qw(@EXPORT_OK %EXPORT_TAGS);
                 nowarnings);
 %EXPORT_TAGS = (all => \@EXPORT_OK);
 
-use constant DEBUG => 0;
+sub DEBUG { 0 }
 
 
 #-----------------------------------------------------------------------------
@@ -149,10 +150,14 @@ sub glib_gtk_versions {
   }
 }
 
-# return true if there's any signal handlers connected to $obj
+# Return true if there's any signal handlers connected to $obj.
+#
+# Signal IDs are from 1 up, don't pass 0 to signal_handler_is_connected()
+# since in Glib 2.4.1 it spits out a g_log() error.
+#
 sub any_signal_connections {
   my ($obj) = @_;
-  my @connected = grep {$obj->signal_handler_is_connected ($_)} (0 .. 500);
+  my @connected = grep {$obj->signal_handler_is_connected ($_)} (1 .. 500);
   if (@connected) {
     my $connected = join(',',@connected);
     Test::More::diag ("$obj signal handlers connected: $connected");

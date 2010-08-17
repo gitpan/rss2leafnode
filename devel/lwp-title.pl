@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 # Copyright 2010 Kevin Ryde
 #
@@ -25,7 +25,7 @@ use FindBin;
 
 use lib "$ENV{HOME}/perl/image/Image-ExifTool-8.22/lib";
 
-
+use Smart::Comments;
 {
   my $filename;
   $filename = '/usr/share/doc/sqlite3-doc/images/arch.png';
@@ -34,14 +34,17 @@ use lib "$ENV{HOME}/perl/image/Image-ExifTool-8.22/lib";
   $filename = "/usr/share/games/funnyboat/data/titanic.png";
   $filename = "$ENV{HOME}/image/samples/utf8.png";
   $filename = "$ENV{HOME}/image/samples/latin1-keyword.png";
+  $filename = 'devel/lwp-title.html';
+  $filename = 'samp/IDX0104.gif';
 
+  -e $filename or die;
   require Image::ExifTool;
   print Image::ExifTool->VERSION,"\n";
   my $info = Image::ExifTool::ImageInfo
     ($filename,
-     #      ['Titxxle'],
-     {List => 0,    # give list values as comma separated
-      Charset => 'UTF8'},
+#      ['Title','ImageWidth','ImageHeight'],
+#      {List => 0,    # give list values as comma separated
+#       Charset => 'UTF8'},
     );
 
   #   $e->ExtractInfo($filename,
@@ -64,7 +67,7 @@ use lib "$ENV{HOME}/perl/image/Image-ExifTool-8.22/lib";
 {
   require App::RSS2Leafnode;
   my $filename = "$ENV{HOME}/image/samples/latin1.png";
-   $filename = "$ENV{HOME}/image/samples/utf8.png";
+  $filename = "$ENV{HOME}/image/samples/utf8.png";
   my $ua = LWP::UserAgent->new;
   my $url = "file://$filename";
   my $resp = $ua->get($url);

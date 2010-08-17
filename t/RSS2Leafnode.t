@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 # Copyright 2007, 2008, 2009, 2010 Kevin Ryde
 
@@ -20,16 +20,15 @@
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 181;
+use Test::More tests => 192;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
-# version 2.04 provokes warnings from perl 5.11, load before NoWarnings
+# version 2.04 provokes warnings from perl 5.12, load before nowarnings()
 use HTML::Formatter;
 
-BEGIN {
- SKIP: { eval 'use Test::NoWarnings; 1'
-           or skip 'Test::NoWarnings not available', 1; }
-}
+use lib 't';
+use MyTestHelpers;
+BEGIN { MyTestHelpers::nowarnings() }
 
 require App::RSS2Leafnode;
 require POSIX;
@@ -40,7 +39,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 31;
+  my $want_version = 32;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -58,6 +57,34 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
   ok (! eval { $r2l->VERSION($check_version); 1 },
       "VERSION object check $check_version");
 }
+
+
+#------------------------------------------------------------------------------
+# str_count_lines()
+
+is (App::RSS2Leafnode::str_count_lines(""),          0);
+is (App::RSS2Leafnode::str_count_lines("\n"),        1);
+is (App::RSS2Leafnode::str_count_lines("\n\n"),      2);
+is (App::RSS2Leafnode::str_count_lines("\n\n\n"),    3);
+is (App::RSS2Leafnode::str_count_lines("foo"),       1);
+is (App::RSS2Leafnode::str_count_lines("foo\n"),     1);
+is (App::RSS2Leafnode::str_count_lines("foo\n\n"),   2);
+is (App::RSS2Leafnode::str_count_lines("foo\n\n\n"), 3);
+is (App::RSS2Leafnode::str_count_lines("foo\n\n\n\n"), 4);
+is (App::RSS2Leafnode::str_count_lines("foo\n\n\n\n\n"), 5);
+is (App::RSS2Leafnode::str_count_lines("foo\nbar"),  2);
+is (App::RSS2Leafnode::str_count_lines("foo\nbar\n"), 2);
+
+
+#------------------------------------------------------------------------------
+# str_ensure_newline()
+
+is (App::RSS2Leafnode::str_ensure_newline("foo"),     "foo\n");
+is (App::RSS2Leafnode::str_ensure_newline("foo\n"),   "foo\n");
+is (App::RSS2Leafnode::str_ensure_newline("foo\nbar"), "foo\nbar\n");
+is (App::RSS2Leafnode::str_ensure_newline(""),     "\n");
+is (App::RSS2Leafnode::str_ensure_newline("\n"),   "\n");
+is (App::RSS2Leafnode::str_ensure_newline("\n\n"), "\n\n");
 
 
 #------------------------------------------------------------------------------
@@ -1373,17 +1400,6 @@ diag "http_resp_to_from()";
       "http_resp_to_from() with $r2l->{'uri'}");
   diag $r2l->uri_to_host;
 }
-
-
-#------------------------------------------------------------------------------
-# str_ensure_newline()
-
-is (App::RSS2Leafnode::str_ensure_newline("foo"),     "foo\n");
-is (App::RSS2Leafnode::str_ensure_newline("foo\n"),   "foo\n");
-is (App::RSS2Leafnode::str_ensure_newline("foo\nbar"), "foo\nbar\n");
-is (App::RSS2Leafnode::str_ensure_newline(""),     "\n");
-is (App::RSS2Leafnode::str_ensure_newline("\n"),   "\n");
-is (App::RSS2Leafnode::str_ensure_newline("\n\n"), "\n\n");
 
 
 #------------------------------------------------------------------------------

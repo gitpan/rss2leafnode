@@ -21,7 +21,8 @@ package MyMakeMakerExtras;
 use strict;
 use warnings;
 
-sub DEBUG () { 0 }
+# uncomment this to run the ### lines
+#use Smart::Comments;
 
 my %my_options;
 
@@ -55,10 +56,7 @@ sub WriteMakefile {
     $my_options{$opt} = delete $opts{$opt};
   }
 
-  if (DEBUG) {
-    require Data::Dumper;
-    print Data::Dumper->new([\%opts],['opts'])->Indent(1)->Useqq(1)->Dump;
-  }
+  ### %opts
   ExtUtils::MakeMaker::WriteMakefile (%opts);
 }
 
@@ -99,7 +97,6 @@ sub _meta_merge_shared_tests {
                            'File::Spec' => 0);
     }
     _meta_merge_req_add (_meta_merge_maximum_tests($opts),
-                         'Test::NoWarnings'  => 0,
                          'YAML'              => 0,
                          'YAML::Syck'        => 0,
                          'YAML::Tiny'        => 0,
@@ -119,6 +116,9 @@ sub _meta_merge_maximum_tests {
 
 sub _meta_merge_shared_devel {
   my ($opts) = @_;
+  _meta_merge_req_add (_meta_merge_maximum_devel($opts),
+                       # the "make unused" target below
+                       'warnings::unused' => 0);
   if (-e 'inc/my_pod2html') {
     if (_min_perl_version_lt ($opts, 5.009003)) {
       _meta_merge_req_add (_meta_merge_maximum_devel($opts),
@@ -145,7 +145,7 @@ sub _min_perl_version_lt {
 
 sub _meta_merge_req_add {
   my $req = shift;
-  if (DEBUG) { local $,=' '; print "MyMakeMakerExtras META_MERGE",@_,"\n"; }
+  ### MyMakeMakerExtras META_MERGE: @_
   while (@_) {
     my $module = shift;
     my $version = shift;
@@ -163,14 +163,12 @@ sub _meta_merge_req_add {
 
 sub postamble {
   my ($makemaker) = @_;
-  if (DEBUG) { print "MyMakeMakerExtras postamble() $makemaker\n"; }
+  ### MyMakeMakerExtras postamble(): $makemaker
 
-  if (DEBUG >= 2) {
-    require Data::Dumper;
-    print Data::Dumper::Dumper($makemaker);
-  }
   my $post = $my_options{'postamble_docs'};
 
+  my @exefiles_html;
+  my @pmfiles_html;
   unless ($my_options{'MY_NO_HTML'}) {
     $post .= <<'HERE';
 
@@ -192,7 +190,8 @@ $munghtml_extra/;
                     : ());
     my %html_files;
 
-    foreach my $pm (@exefiles, @pmfiles) {
+    my $html_rule = sub {
+      my ($pm) = @_;
       my $fullhtml = $pm;
       $fullhtml =~ s{lib/}{};     # remove lib/
       $fullhtml =~ s{\.p[ml]$}{}; # remove .pm or .pl
@@ -213,6 +212,14 @@ $parthtml: $pm Makefile
 	\$(MY_POD2HTML) $pm >$parthtml
 HERE
       }
+      return $parthtml;
+    };
+
+    foreach my $filename (@exefiles) {
+      push @exefiles_html, &$html_rule ($filename);
+    }
+    foreach my $filename (@pmfiles) {
+      push @pmfiles_html, &$html_rule ($filename);
     }
 
     $post .= "MY_HTML_FILES = " . join(' ', keys %html_files) . "\n";
@@ -291,9 +298,9 @@ check-copyright-years:
 	      | debian/patches/*.diff | debian/source/format \
 	      | COPYING | MANIFEST* | SIGNATURE | META.yml \
 	      | version.texi | */version.texi \
-	      | *utf16* \
+	      | *utf16* | examples/rs''s2lea''fnode.conf \
 	      | */Math''Image/ln2.gz | */Math''Image/pi.gz \
-	      | *.mo | *.locatedb | t/samp.*) \
+	      | *.mo | *.locatedb* | t/samp.*) \
 	        continue ;; \
 	      *.gz) GREP=zgrep ;; \
 	    esac; \
@@ -313,8 +320,7 @@ check-debug-constants:
 	if egrep -nH 'DEBUG => [1-9]|^[ \t]*use Smart::Comments' $(EXE_FILES) $(TO_INST_PM); then exit 1; else exit 0; fi
 
 check-spelling:
-	if egrep -nHi 'requrie|noticable|continous|existant|explict|agument|destionation|\bthe the\b|\bnote sure\b' -r . \
-	  | egrep -v '(MyMakeMakerExtras|Makefile|dist-deb).*grep -nH'; \
+	if find . -type f | egrep -v '(Makefile|dist-deb)' | xargs egrep --color=always -nHi '\b[o]mmitt?ed|[o]mited|[$$][rd]elf|[r]equrie|[n]oticable|[c]ontinous|[e]xistant|[e]xplict|[a]gument|[d]estionation|\b[t]he the\b|\b[n]ote sure\b'; \
 	then false; else true; fi
 
 diff-prev:
@@ -348,8 +354,8 @@ HERE
                  : "\Llib$makemaker->{'DISTNAME'}-perl");
   $post .=
     "DEBNAME = $debname\n"
-    . "DPKG_ARCH = $arch\n"
-    . <<'HERE';
+      . "DPKG_ARCH = $arch\n"
+        . <<'HERE';
 DEBVNAME = $(DEBNAME)_$(VERSION)-1
 DEBFILE = $(DEBVNAME)_$(DPKG_ARCH).deb
 
@@ -366,7 +372,7 @@ DEBFILE = $(DEBVNAME)_$(DPKG_ARCH).deb
 # DISPLAY is unset for making a deb since under fakeroot gtk stuff may try
 # to read config files like ~/.pangorc from root's home dir /root/.pangorc,
 # and that dir will be unreadable by ordinary users (normally), provoking
-# warnings and possible failures from Test::NoWarnings.
+# warnings and possible failures from nowarnings().
 #
 $(DEBFILE) deb:
 	test -f $(DISTVNAME).tar.gz || $(MAKE) $(DISTVNAME).tar.gz
@@ -399,6 +405,25 @@ lintian-source:
 	rm -rf temp-lintian
 
 HERE
+
+  {
+    my $list_html = join(' ',@exefiles_html);
+    if (! $list_html && @pmfiles_html <= 3) {
+      $list_html = join(' ',@pmfiles_html);
+    }
+    my $make_list_html = ($list_html ? "\n\tmake $list_html" : "");
+    $post .= <<"HERE";
+my-list:$make_list_html
+	ls -l -U $list_html \$(EXE_FILES) *.tar.gz *.deb
+HERE
+    $post .= <<'HERE';
+	@echo -n '$(DEBFILE) '
+	@dpkg-deb -f $(DEBFILE) | grep Installed-Size
+HERE
+    if ($list_html) {
+      $post .= "\trm -f $list_html\n";
+    }
+  }
 
   return $post;
 }

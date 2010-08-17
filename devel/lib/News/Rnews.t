@@ -20,13 +20,13 @@
 use strict;
 use warnings;
 use News::Rnews;
-use Test::More tests => 5;
+use Test::More tests => 4;
 
-SKIP: { eval 'use Test::NoWarnings; 1'
-          or skip 'Test::NoWarnings not available', 1; }
+use lib 't';
+use MyTestHelpers;
+BEGIN { MyTestHelpers::nowarnings() }
 
-
-my $want_version = 31;
+my $want_version = 32;
 is ($News::Rnews::VERSION, $want_version, 'VERSION variable');
 is (News::Rnews->VERSION,  $want_version, 'VERSION class method');
 { ok (eval { News::Rnews->VERSION($want_version); 1 },
