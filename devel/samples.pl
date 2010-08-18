@@ -31,11 +31,13 @@ my $r2l = App::RSS2Leafnode->new
   (
    # rss_charset_override => 'windows-1252',
    # rss_charset_override => 'iso-8859-1',
-   verbose => 1,
+   verbose => 2,
+   msgidextra => 'Z',
+
    # render => 'lynx',
    rss_newest_only => 3,
-   # rss_get_links => 1,
-   msgidextra => 'Z',
+   rss_get_links => 1,
+   get_icon => 1,
   );
 
 my @uris;

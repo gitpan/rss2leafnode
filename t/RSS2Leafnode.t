@@ -20,15 +20,18 @@
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 192;
+use Test::More tests => 197;
 use Locale::TextDomain ('App-RSS2Leafnode');
+
+# uncomment this to run the ### lines
+use Smart::Comments;
 
 # version 2.04 provokes warnings from perl 5.12, load before nowarnings()
 use HTML::Formatter;
 
 use lib 't';
 use MyTestHelpers;
-BEGIN { MyTestHelpers::nowarnings() }
+BEGIN { MyTestHelpers::nowarnings('backtrace') }
 
 require App::RSS2Leafnode;
 require POSIX;
@@ -39,7 +42,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 32;
+  my $want_version = 33;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -112,6 +115,10 @@ is (App::RSS2Leafnode::str_ensure_newline("\n\n"), "\n\n");
       'Some Body <foo@bar.com>'],
      ['<author>mailto:foo@bar.com</author>',
       'foo@bar.com'],
+     ['<author> Some Body &lt;foo@bar.com&gt;   </author>',
+      'Some Body <foo@bar.com>'],
+     ['<author>&lt;foo@bar.com&gt;</author>',
+      'foo@bar.com'], # think stripping the angles is good
 
      # Atom
      ['<author><name>Foo Bar</name><email>foo@bar.com</email></author>',
@@ -135,6 +142,13 @@ is (App::RSS2Leafnode::str_ensure_newline("\n\n"), "\n\n");
      ["<author><name>Foo</name><email>
 \t  foo\@bar.com\t
 </email></author>",
+      'Foo <foo@bar.com>'],
+     # name in fact a mailbox noticed
+     ['<author><name>foo@bar.com</name></author>',
+      'foo@bar.com'],
+     ['<author><name>foo@bar.com (Foo)</name></author>',
+      'foo@bar.com (Foo)'],
+     ['<author><name>Foo &lt;foo@bar.com&gt;</name></author>',
       'Foo <foo@bar.com>'],
 
      # itunes

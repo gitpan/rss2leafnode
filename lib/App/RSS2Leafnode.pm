@@ -29,11 +29,6 @@ use Text::Trim;
 use URI;
 use HTML::Entities::Interpolate;
 
-# uncomment this to run the ### lines
-#use Smart::Comments;
-
-our $VERSION = 32;
-
 # version 1.17 for __p(), and version 1.16 for turn_utf_8_on()
 use Locale::TextDomain 1.17;
 use Locale::TextDomain ('App-RSS2Leafnode');
@@ -43,6 +38,11 @@ BEGIN {
   Locale::Messages::bind_textdomain_filter ('App-RSS2Leafnode',
                                             \&Locale::Messages::turn_utf_8_on);
 }
+
+# uncomment this to run the ### lines
+#use Smart::Comments;
+
+our $VERSION = 33;
 
 # Cribs:
 #
@@ -111,12 +111,14 @@ BEGIN {
 #   RFC 1327 -- X.400 to RFC822 introducing Language header
 #   RFC 3282 -- Content-Language header
 #   RFC 1766, RFC 3066, RFC 4646 -- language tag form
+#   RFC 1911, RFC 2156 -- voice and X.400 messaging, "Importance" header
 #
-# RFC 977 -- NNTP
+# NNTP
+#     RFC 977 -- NNTP
+#     RFC 2616 -- HTTP/1.1 Accept-Encoding header
+#     RFC 2980 -- NNTP extensions
+#
 # RFC 4642 -- NNTP with SSL
-# RFC 2616 -- HTTP/1.1 Accept-Encoding header
-# RFC 2980 -- NNTP extensions
-#
 #
 # For XML in Perl there's several ways to do it!
 #   - XML::Parser looks likely for stream/event processing, but its builtin
@@ -141,11 +143,14 @@ BEGIN {
 #   - XML::Feed tries to unify XML::RSS and XML::Atom but again doesn't seem
 #     to go much beyond the basics.  It too is geared towards writing as
 #     well as reading.
-# So the choice of XML::Twig is based on wanting both RSS and Atom, but
+#   - XML::TreePP pure perl parser to a hash tree.
+#
+# The choice of XML::Twig is based on wanting both RSS and Atom, but
 # XML::Feed not going far enough.  Tree processing is easier than stream,
 # and an RSS isn't meant to be huge.  A tree may help if channel fields
-# follow items or something equally unnatural.  Then between the tree styles
-# XML::LibXML is harder to get into than Twig.
+# follow items or something equally unnatural, but will probably assume that
+# doesn't happen and look at the twig partial-tree mode.  Between the tree
+# styles XML::LibXML is harder to get into than Twig.
 #
 
 #------------------------------------------------------------------------------
@@ -651,7 +656,8 @@ sub nntp_post {
   my ($self, $msg) = @_;
   my $nntp = $self->nntp;
   if (! $nntp->post ($msg->as_string)) {
-    say __x('Cannot post: {message}', message => $nntp->message);
+    say __x('Cannot post: {message}',
+            message => scalar($nntp->message));
     return 0;
   }
   return 1;
@@ -739,6 +745,8 @@ sub html_title_exiftool {
 #------------------------------------------------------------------------------
 # mime
 
+# use constant HEADER_LENGTH_LIMIT => 998;
+
 # return "X-Mailer" header string
 use constant::defer mime_mailer => sub {
   require MIME::Entity;
@@ -824,7 +832,7 @@ sub mime_part_from_response {
   my ($self, $resp, @headers) = @_;
 
   my $content_type = $resp->content_type;
-  if ($self->{'verbose'} >= 2) { say "content-type: $content_type"; }
+  if ($self->{'verbose'} >= 2) { say " content-type: $content_type"; }
   my $content      = $resp->decoded_content (charset=>'none');  # the bytes
   my $charset      = $resp->content_charset;              # and their charset
   my $url          = $resp->request->uri->as_string;
@@ -872,6 +880,9 @@ sub elt_tree_strip_prefix {
 # make it absolute.
 # If $url is undef then return undef, which is handy if passing a possibly
 # attribute like $elt->att('href').
+# The feed toplevel has an xml:base set to the feed location if no other
+# value, so elt_xml_based_uri() ends up relative to the feed location if no
+# other xml:base.
 #
 sub elt_xml_based_uri {
   my ($elt, $url) = @_;
@@ -1359,6 +1370,255 @@ sub text_wrap {
 }
 
 #------------------------------------------------------------------------------
+# Face icons
+
+# $item is an XML::Twig::Elt of an RSS or Atom item
+# return a string value for the Face: header, or undef if no icon
+sub item_to_face {
+  my ($self, $item) = @_;
+  $self->{'get_icon'} || return;
+  my ($uri, $width, $height) = $self->item_image_uwh ($item)
+    or return;
+  $self->face_wh_ok ($width, $height) || return;
+  return $self->download_face ($uri, $width, $height);
+}
+
+# $item is an XML::Twig::Elt of an RSS or Atom item
+# return values ($uri, $width, $height) of the <image> etc from it
+#
+sub item_image_uwh {
+  my ($self, $item) = @_;
+
+  # normally only in channel, doesn't hurt to look in item the same as
+  # <itunes:image> can be in the item
+  #
+  foreach my $where ($item, item_to_channel($item)) {
+
+    # RSS
+    # <image>
+    #   <url>foo.png</url>
+    #   <width>...</width>     optional
+    #   <height>...</height>   optional
+    # </image>
+    my $elt;
+    my $elt_url;
+    if (($elt = $where->first_child('image'))
+        && ($elt_url = $elt->first_child('url'))
+        && (is_non_empty (my $url = $elt_url->trimmed_text))) {
+      require Scalar::Util;
+      my $width = $elt->first_child_text('width');
+      unless (Scalar::Util::looks_like_number($width) && $width > 0) {
+        $width = 0;
+      }
+      my $height = $elt->first_child_text('height');
+      unless (Scalar::Util::looks_like_number($height) && $height > 0) {
+        $height = 0;
+      }
+      ### item_image_uwh() RSS: $url
+      return (elt_xml_based_uri ($elt_url, $url),
+              $width, $height);
+    }
+
+    # <itunes:image href="http://..."> in item or channel.  Supposedly this
+    # is bigger than the RSS 48x48, so would probably need shrinking.  Rate
+    # it below <icon> or <logo> for that reason.
+    #
+    # Atom channel <icon>foo.png</icon>   should be square
+    # or   channel <logo>foo.png</logo>   bigger form, rectangle 2*K x K
+    #
+    my $url = ((($elt = $where->first_child('icon'))
+                && non_empty ($elt->text))
+               || (($elt = $where->first_child('logo'))
+                   && non_empty ($elt->text))
+               || (($elt = $where->first_child('itunes:image'))
+                   && non_empty ($elt->att('href'))));
+    if ($url) {
+      return (elt_xml_based_uri ($elt, $url),
+              0,  # no width known
+              0); # no height known
+    }
+  }
+  return;
+}
+
+# $resp is a HTTP::Response
+# return a string value for the Face: header, or undef if no icon
+sub http_resp_to_face {
+  my ($self, $resp) = @_;
+  $self->{'get_icon'} || return;
+
+  my $uri = http_resp_favicon_uri($resp) || return;
+  if ($self->{'verbose'} >= 2) {
+    say " response favicon URI: $uri";
+  }
+  return $self->download_face ($uri, 0, 0);
+}
+
+# $resp is a HTTP::Response
+# if it's a html with a favicon link return a URI object of that image
+#
+sub http_resp_favicon_uri {
+  my ($resp) = @_;
+  $resp->headers->content_is_html || return;
+  require HTML::Parser;
+  my $href;
+  my $p;
+  $p = HTML::Parser->new (api_version => 3,
+                          start_h => [ sub {
+                                         my ($tagname, $attr) = @_;
+                                         if ($tagname eq 'link'
+                                             && $attr->{'rel'} eq 'icon') {
+                                           $href = $attr->{'href'};
+                                           $p->eof;
+                                         }
+                                       }, "tagname, attr"]);
+  $p->parse ($resp->decoded_content (charset => 'none'));
+  return $href && URI->new_abs ($href, $resp->base);
+}
+
+# return base64 string value for "Face:" header
+sub download_face {
+  my ($self, $uri, $width, $height) = @_;
+  my $key = $uri->canonical->as_string;
+  if (! exists $self->{'download_face'}->{$key}) {
+    $self->{'download_face'}->{$key}
+      = $self->download_face_uncached ($uri, $width, $height);
+  }
+  return $self->{'download_face'}->{$key};
+}
+sub download_face_uncached {
+  my ($self, $url, $width, $height) = @_;
+
+  if ($self->{'verbose'}) {
+    print "  image download: $url\n";
+  }
+  require HTTP::Request;
+  my $req = HTTP::Request->new (GET => $url);
+  my $resp = $self->ua->request($req);
+  if (! $resp->is_success) {
+    print __x("  no image: {status}\n",
+              status => $resp->status_line);
+    return;
+  }
+
+  my $type = $resp->content_type;
+  ### $type
+  if ($type =~ m{^image/(.*)$}i) {
+    $type = $1;
+  } else {
+    if ($self->{'verbose'} >= 2) {
+      print "ignore non-image icon type: $type\n";
+    }
+    return;
+  }
+
+  my $data = $resp->decoded_content(charset=>'none');
+  if ($type ne 'png'
+      || $width == 0 || $height == 0
+      || $width > 48 || $height > 48) {
+    $data = $self->imagemagick_to_png($type,$data) // return;
+  }
+  if ($self->{'verbose'} >= 2) {
+    print "  image for Face ",length($data)," bytes\n";
+  }
+
+  # use a space as a separator since MIME::Entity will collapse out a
+  # newline and make an enormous long word which then can't be split across
+  # header lines and will likely exceed the nntp 998 char single-line limit
+  require MIME::Base64;
+  $data = MIME::Base64::encode_base64($data, " ");
+  ### $data
+
+  return $data;
+}
+
+sub face_wh_ok {
+  my ($self, $width, $height) = @_;
+
+  if ($width > 0 && $width > 2*$height) {
+    # some obnoxious banner
+    if ($self->{'verbose'} >= 2) {
+      print "   image is some obnoxious banner (${width}x${height})\n";
+    }
+    return 0;
+  }
+  return 1;
+}
+
+#------------------------------------------------------------------------------
+# ImageMagick bits
+
+# $type is "gif", "ico" etc, $data is an image in a byte string
+# return a byte string of png, or undef if $data unrecognised
+sub imagemagick_to_png {
+  my ($self, $type, $data) = @_;
+  ### $type
+  my $image = $self->imagemagick_from_data($type,$data) // return;
+
+  my $width = $image->Get('width');
+  my $height = $image->Get('height');
+  ### compress: $image->Get('compression')
+  if ($self->{'verbose'} >= 2) {
+    print "  image ${width}x${height}\n";
+  }
+  if ($width == 0 || $height == 0) {
+    return;
+  }
+  if ($width <= 48 && $height <= 48 && $type eq 'png') {
+    return $data;
+  }
+
+  if ($width > 48 || $height > 48) {
+    my $factor;
+    if ($width <= 2*48 && $height <= 2*48) {
+      $factor = 0.5;
+    } else {
+      $factor = max (48 / $width, 48 / $height);
+    }
+    $width = POSIX::ceil ($width * $factor);
+    $height = POSIX::ceil ($height * $factor);
+    if ($self->{'verbose'} >= 2) {
+      print "  image shrink by $factor to ${width}x${height}\n";
+    }
+    $image->Resize (width => $width, height => $height);
+  }
+
+  my $ret = $image->Set (magick => 'PNG8');
+  ### ret: "$ret"
+  ### ret: $ret+0
+  if ($ret != 0) {
+    print "oops, imagemagick doesn't like PNG8: $ret\n";
+    return;
+  }
+  ### compress: $image->Get('compression')
+
+  # $image->Write ('/tmp/x.png');
+  ($data) = $image->ImageToBlob ();
+  return $data;
+}
+
+
+# $type is "png", "ico" etc, $data is an image in a byte string
+# return a Image::Magick object, or undef if Perl-Magick not available
+sub imagemagick_from_data {
+  my ($self, $type, $data) = @_;
+  eval { require Image::Magick } or return;
+  my $image = Image::Magick->new;
+  # $image->Set(debug=>'All');
+  $image->Set (magick=>$type);
+  my $ret = $image->BlobToImage ($data);
+  ### ret: "$ret"
+  ### ret: $ret+0
+  if ($ret != 1) {
+    print "  imagemagick doesn't like image data: $ret\n";
+    return;
+  }
+  return $image;
+}
+
+
+
+#------------------------------------------------------------------------------
 # error as news message
 
 sub error_message {
@@ -1483,6 +1743,7 @@ sub fetch_html {
      Subject             => $subject,
      Date                => scalar ($resp->header('Last-Modified')),
      'Message-ID'        => $msgid,
+     'Face:'             => scalar ($self->http_resp_to_face($resp)),
      'X-Copyright:'      => scalar ($self->http_resp_to_copyright($resp)));
 
   mime_entity_lines($top);
@@ -1746,6 +2007,222 @@ sub links_to_text {
   return join ('', map {"$_->{'name'} $_->{'uri'}\n"} @_);
 }
 
+
+#------------------------------------------------------------------------------
+# "From:" and email addresses
+
+use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
+
+# return list of key=>value headers
+sub item_to_from {
+  my ($self, $item) = @_;
+  my $channel = item_to_channel($item);
+
+  # <author> is supposed to be an email address whereas <dc:creator> is
+  # looser.  The RSS recommendation is to use author when revealing an email
+  # and dc:creator when hiding it.
+  #
+  # <dc:contributor> appears in wiki: feeds as the item's author.
+  #
+  # <contributor> can appear multiple times in Atom item.  Could show them
+  # as multiple addresses in From:, but for now prefer just one primary
+  # author.
+  #
+  my $elt;
+  my $from =
+    ($self->elt_to_email    ($elt = $item->first_child('author'))
+     // $self->elt_to_email ($elt = $item->first_child('dc:creator'))
+     // $self->elt_to_email ($elt = $item->first_child('dc:contributor'))
+     // $self->elt_to_email ($elt = $item->first_child('wiki:username'))
+     // $self->elt_to_email ($elt = $item->first_child('itunes:author'))
+
+     // $self->elt_to_email ($elt = $channel->first_child('author'))
+     // $self->elt_to_email ($elt = $channel->first_child('dc:creator'))
+     // $self->elt_to_email ($elt = $channel->first_child('itunes:author'))
+     // $self->elt_to_email ($elt = $channel->first_child('managingEditor'))
+     // $self->elt_to_email ($elt = $channel->first_child('webMaster'))
+
+     // $self->elt_to_email ($elt = $item   ->first_child('dc:publisher'))
+     // $self->elt_to_email ($elt = $channel->first_child('dc:publisher'))
+     // $self->elt_to_email ($elt = $channel->first_child('itunes:owner'))
+     // do { undef $elt }
+
+     # Atom <title> can have type="html" etc in the usual way, so render.
+     # Hope the channel title is different from the item title.
+     // $self->email_format (elt_to_rendered_line
+                             ($channel->first_child('title')))
+
+     // ('nobody@'.$self->uri_to_host)
+    );
+  my $uri;
+  if ($elt) {
+    $uri = (# Atom
+            # <author>
+            #   <name>Foo Bar</name>
+            #   <uri>http://some.where</uri>
+            # </author>
+            #
+            non_empty ($elt->first_child_text('uri'))
+
+            # ModWiki dc:contributor example
+            #     <rdf:Description link="http://openwiki.com/?FooBar">
+            #       <rdf:value>Foo Bar</rdf:value>
+            #     </rdf:Description>
+            # The text shows rss:link= and the example just link=.
+            #
+            // non_empty (do {
+              my $child; ($child = $elt->first_child('rdf:Description'))
+                && ($child->att('link') // $child->att('rss:link'))
+              }));
+  }
+  return (From => $from,
+          'X-From-URL:' => $uri);
+}
+
+# $elt is an XML::Twig::Elt
+# return an email address, either just the text part of $elt or Atom
+# sub-elements <name> and <email>
+#
+sub elt_to_email {
+  my ($self, $elt) = @_;
+  return unless defined $elt;
+
+  # <email> - under Atom
+  # <itunes:email> - under <itunes:owner>
+  my $email = elt_to_rendered_line ($elt->first_child(qr/^(itunes:)?email$/));
+
+  # <name> - under Atom
+  # <itunes:name> - under <itunes:owner>
+  my $display = elt_to_rendered_line ($elt->first_child(qr/^(itunes:)?name$/))
+    // '';
+
+  my $maybe = join
+    (' ',
+     non_empty ($elt->text_only),
+     non_empty (do {
+       # <rdf:Description><rdf:value>...</></> under dc authors etc
+       my $rdfdesc; ($rdfdesc = $elt->first_child('rdf:Description'))
+         && $rdfdesc->first_child_text('rdf:value')
+     }));
+
+  return $self->email_format_maybe ($maybe, $display, $email);
+}
+
+# $maybe is some free-form author part possibly including a foo@bar.com
+# $display is a display part for the email like "Foo", possibly empty ""
+# $email is a mailbox "foo@bar.com", or undef
+# return an rfc822 "Foo <foo@bar.com>"
+#
+sub email_format_maybe {
+  my ($self, $maybe, $display, $email) = @_;
+  require Email::Address;
+  ### $maybe
+  ### $display
+
+  ### $email
+
+  # $maybe mailbox like
+  #     "foo@bar.com"
+  #     "mailto:foo@bar.com"
+  #     "foo@bar.com (Foo)"
+  #
+  # look also at $display the same in case Atom no <email> but a <name>
+  # which is a mailbox and can be corrected,
+  # eg. http://www.weather.gov/alerts-beta/hi.php?x=0
+  #
+  if (is_empty($email)) {
+    foreach ($maybe, $display) {
+      #     1         2
+      if (/^(mailto:)?($Email::Address::addr_spec)$/) {
+        ### maybe or display is a mailbox
+        $email = $2;
+        undef $_;
+        last;
+      }
+    }
+  }
+
+  # $maybe full email like
+  #     "Foo (mailto:foo@bar.com)"
+  #     "Foo (foo@bar.com)"
+  #     "Foo <foo@bar.com>"
+  if (is_empty($email)) {
+    #                 1     2         3
+    if ($maybe    =~ /(.*)\((mailto:)?($Email::Address::addr_spec)\)\s*$/
+        || $maybe =~ /(.*)<(mailto:)?($Email::Address::addr_spec)>\s*$/) {
+      ### the maybe part is display plus mailbox
+      $maybe = $1;
+      $email = $3;
+      ### $maybe
+      ### $email
+    }
+  }
+
+  $display .= ' '.($maybe//'');
+  my $ret;
+  if (is_empty($email) && $display =~ /^$Email::Address::mailbox$/) {
+    # display or maybe is a "foo@bar.com" or "foo@bar.com (Foo)", return it
+    # as-is, in particular leave it in "(Foo)" style comment
+    $ret = $display;
+  } else {
+    $ret = $self->email_format ($display, $email);
+  }
+
+  # Collapse whitespace against possible tabs and newlines in an <author> as
+  # from googlegroups for instance.  MIME::Entity seems to collapse
+  # newlines, but not tabs.
+  return non_empty (collapse_whitespace ($ret));
+}
+
+# $display is a display part for the email "Foo", possibly empty ""
+# $email is a mailbox "foo@bar.com", or undef or empty ""
+# return an rfc822 "Foo <foo@bar.com>"
+#
+sub email_format {
+  my ($self, $display, $email) = @_;
+  $display = Text::Trim::trim($display);
+  if (is_empty($display)) {
+    if (is_empty($email)) {
+      return;
+    } else {
+      return Text::Trim::trim($email);
+    }
+  }
+  if (is_empty($email)) {
+    # think can't have empty <> or omitted, otherwise the quoted part is
+    # still parsed as an address, certainly it's not rfc822 compliant to
+    # omit
+    $email = $self->DUMMY_EMAIL_ADDRESS;
+  } else {
+    $email = Text::Trim::trim($email);
+  }
+  return email_phrase_quote_maybe($display) . " <$email>";
+}
+
+# return $str with quotes like "Foo Bar" if it needs them to go in an email
+# display part
+sub email_phrase_quote_maybe {
+  my ($str) = @_;
+  return if ! defined $str;
+
+  # RFC2822 "atext" characters, with "-" last
+  if ($str =~ q<[^[:alnum:][:space:]!#\$%&'*+/=?^_`{|}~-]>) {
+    # strange chars, need to quote
+    return email_phrase_quote($str);
+  } else {
+    # alphanumeric and whitespace, no quotes
+    return $str;
+  }
+}
+sub email_phrase_quote {
+  my ($str) = @_;
+  return if ! defined $str;
+  $str =~ s/^"(.*)"$/$1/;   # strip existing quotes
+  $str =~ s/(["\\])/\\$1/g; # escape internal quotes and backslashes
+  return "\"$str\"";
+}
+
+
 #------------------------------------------------------------------------------
 # fetch RSS
 
@@ -1917,7 +2394,7 @@ sub item_to_msgid {
 
   # nothing in the item, use the feed url and MD5 of some fields which
   # will hopefully distinguish it from other items at this url
-  if ($self->{'verbose'} >= 2) { say 'msgid from MD5'; }
+  if ($self->{'verbose'} >= 2) { say '  msgid from MD5'; }
   return $self->url_to_msgid
     ($self->{'uri'},
      md5_of_utf8 (join_non_empty ('',
@@ -1959,10 +2436,16 @@ sub item_to_keywords {
   #
   # <itunes:category> might be covered by <itunes:keywords> anyway, but work
   # it in for more classification for now.  Can have child <itunes:category>
-  # elements as sub-categories, but don't worry about them.
+  # elements as sub-categories, but don't worry about them, haven't seen any
+  # real ones, only the sample at
+  # http://www.apple.com/itunes/podcasts/specs.html#example
   #
   # <slash:section> might in theory be turned into keyword, but it's
   # normally just "news" or something not particularly informative.
+  #
+  # <cap:category> is "Geo", "Met", "Safety", "Fire" etc.  Not sure if it
+  # should be in the keywords if it's also in the body text, but at least
+  # offers a bit of classification in the headers.
   #
   # How much value is there in the channel keywords?
   #
@@ -1970,6 +2453,7 @@ sub item_to_keywords {
               |itunes:category
               |media:keywords
               |itunes:keywords
+              |cap:category
               )$/x;
   return join_non_empty
     (', ',
@@ -1982,6 +2466,79 @@ sub item_to_keywords {
        item_to_channel($item)->children($re))));
 }
 
+{
+  # return a string for the "Importance:" header of RFC 1911, RFC 2156
+  # possible values 'high', 'normal', 'low'
+  # 'normal' is the header default, return undef in that case in the
+  # interests of not junking up headers with defaults
+  #
+  my %cap_severity_high   = (extreme => 1,
+                             severe => 1);
+  my %cap_severity_normal = (moderate => 1);
+  my %cap_severity_low    = (minor => 1);
+
+  sub item_to_importance {
+    my ($self, $item) = @_;
+    
+    my $cap_severity = lc($item->first_child_trimmed_text('cap:severity')
+                          // '');
+    if ($self->{'verbose'} >= 2) {
+      if ($cap_severity) {
+        print "  CAP severity: $cap_severity\n";
+      }
+    }
+      
+    if ($cap_severity_high{$cap_severity}) {
+      return 'high';
+    }
+    if ($cap_severity_normal{$cap_severity}) {
+      return undef; # default "normal"
+    }
+    if ($cap_severity_low{$cap_severity}) {
+      return 'low';
+    }
+    return undef; # unknown
+  }
+}
+{
+  # return a string for the "Priority:" header of RFC 1327, RFC 2156
+  # possible values 'urgent', 'normal', 'non-urgent'
+  # 'normal' is the header default, return undef in that case in the
+  # interests of not junking up headers with defaults
+  #
+  # <cap:urgency> is "Immediate", "Expected", "Future", "Past", "Unknown"
+  # for when response action should be taken.  Is the <cap:severity> the
+  # better indicator of transmission priority?
+  #
+  my %cap_severity_urgent = (extreme => 1,
+                             severe => 1);
+  # my %cap_severity_normal = (moderate => 1);
+  sub item_to_priority {
+    my ($self, $item) = @_;
+
+    my $cap_severity = lc($item->first_child_trimmed_text('cap:severity')
+                          // '');
+
+    if ($cap_severity_urgent{$cap_severity}) {
+      return 'urgent';
+    }
+    #     if ($cap_severity_normal{$cap_severity}) {
+    #       return undef; # default "normal"
+    #     }
+    return undef; # unknown
+  }
+}
+
+# return a string for the slightly unofficial "Precedence:" header
+# might be able to identify lists gatewayed to RSS and give "list" for them
+# maybe "bulk" would suit low priority stuff
+# for now nothing
+#
+# sub item_to_precedence {
+#   my ($self, $item) = @_;
+#   return undef; # nothing
+# }
+
 # return the host part of $self->{'uri'}, or "localhost" if none
 sub uri_to_host {
   my ($self) = @_;
@@ -1989,189 +2546,6 @@ sub uri_to_host {
   ### uri_to_host(): $uri
   return (non_empty ($uri && $uri->can('host') && $uri->host)
           // 'localhost');
-}
-
-use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
-
-# $elt is an XML::Twig::Elt
-# return an email address, either just the text part of $elt or Atom
-# sub-elements <name> and <email>
-#
-sub elt_to_email {
-  my ($self, $elt) = @_;
-  return unless defined $elt;
-
-  # <email> - under Atom
-  # <itunes:email> - under <itunes:owner>
-  my $email = elt_to_rendered_line ($elt->first_child(qr/^(itunes:)?email$/));
-
-  # <name> - under Atom
-  # <itunes:name> - under <itunes:owner>
-  my $display = elt_to_rendered_line ($elt->first_child(qr/^(itunes:)?name$/))
-    // '';
-
-  my $maybe = join
-    (' ',
-     non_empty ($elt->text_only),
-     non_empty (do {
-       # <rdf:Description><rdf:value>...</></> under dc authors etc
-       my $rdfdesc; ($rdfdesc = $elt->first_child('rdf:Description'))
-         && $rdfdesc->first_child_text('rdf:value')
-     }));
-
-  return $self->email_format_maybe ($maybe, $display, $email);
-}
-
-# $maybe is some free-form author part possibly including a foo@bar.com
-# $display is a display part for the email like "Foo", possibly empty ""
-# $email is a mailbox "foo@bar.com", or undef
-# return an rfc822 "Foo <foo@bar.com>"
-#
-sub email_format_maybe {
-  my ($self, $maybe, $display, $email) = @_;
-  require Email::Address;
-
-  # "Foo (mailto:foo@bar.com)" -> "Foo (foo@bar.com)"
-  # "mailto:foo@bar.com" -> "foo@bar.com"
-  $maybe =~ s/\bmailto://g;
-
-  # "Foo (foo@bar.com)" -> "Foo <foo@bar.com>"
-  $maybe =~ s{\(($Email::Address::addr_spec)\)\s*$}
-             { '<' . Text::Trim::trim($1) . '>' }ge;
-
-  my $ret;
-  if (is_empty($email) && $maybe =~ /^$Email::Address::mailbox$/) {
-    # the $maybe part is a foo@bar.com
-    $ret = $maybe;
-  } else {
-    $display = join_non_empty (' ', $display, $maybe);
-    if (is_non_empty ($display)) {
-      # have a display part, format it up, if $email is empty it gets a dummy
-      $ret = $self->email_format ($display, $email);
-    } else {
-      # no display part, just a foo@bar.com $email part, possibly empty
-      $ret = $email;
-    }
-  }
-
-  # Collapse whitespace against possible tabs and newlines in an <author> as
-  # from googlegroups for instance.  MIME::Entity seems to collapse
-  # newlines, but not tabs.
-  return non_empty(collapse_whitespace($ret));
-}
-
-# $display is a display part for the email "Foo", possibly empty ""
-# $email is a mailbox "foo@bar.com", or undef or empty ""
-# return an rfc822 "Foo <foo@bar.com>"
-#
-sub email_format {
-  my ($self, $display, $email) = @_;
-  $display = Text::Trim::trim($display);
-  if (is_empty($display)) {
-    if (is_empty($email)) {
-      return;
-    } else {
-      return Text::Trim::trim($email);
-    }
-  }
-  if (is_empty($email)) {
-    # think can't have empty <> or omitted, otherwise the quoted part is
-    # still parsed as an address, certainly it's not rfc822 compliant to
-    # omit
-    $email = $self->DUMMY_EMAIL_ADDRESS;
-  } else {
-    $email = Text::Trim::trim($email);
-  }
-  return email_phrase_quote_maybe($display) . " <$email>";
-}
-
-# return $str with quotes like "Foo Bar" if it needs them to go in an email
-# display part
-sub email_phrase_quote_maybe {
-  my ($str) = @_;
-  return if ! defined $str;
-
-  # RFC2822 "atext" characters, with "-" last
-  if ($str =~ q<[^[:alnum:][:space:]!#\$%&'*+/=?^_`{|}~-]>) {
-    # strange chars, need to quote
-    return email_phrase_quote($str);
-  } else {
-    # alphanumeric and whitespace, no quotes
-    return $str;
-  }
-}
-sub email_phrase_quote {
-  my ($str) = @_;
-  return if ! defined $str;
-  $str =~ s/^"(.*)"$/$1/;   # strip existing quotes
-  $str =~ s/(["\\])/\\$1/g; # escape internal quotes and backslashes
-  return "\"$str\"";
-}
-
-# return list of key=>value headers
-sub item_to_from {
-  my ($self, $item) = @_;
-  my $channel = item_to_channel($item);
-
-  # <author> is supposed to be an email address whereas <dc:creator> is
-  # looser.  The RSS recommendation is to use author when revealing an email
-  # and dc:creator when hiding it.
-  #
-  # <dc:contributor> appears in wiki: feeds as the item's author.
-  #
-  # <contributor> can appear multiple times in Atom item.  Could show them
-  # as multiple addresses in From:, but for now prefer just one primary
-  # author.
-  #
-  my $elt;
-  my $from =
-    ($self->elt_to_email    ($elt = $item->first_child('author'))
-     // $self->elt_to_email ($elt = $item->first_child('dc:creator'))
-     // $self->elt_to_email ($elt = $item->first_child('dc:contributor'))
-     // $self->elt_to_email ($elt = $item->first_child('wiki:username'))
-     // $self->elt_to_email ($elt = $item->first_child('itunes:author'))
-
-     // $self->elt_to_email ($elt = $channel->first_child('author'))
-     // $self->elt_to_email ($elt = $channel->first_child('dc:creator'))
-     // $self->elt_to_email ($elt = $channel->first_child('itunes:author'))
-     // $self->elt_to_email ($elt = $channel->first_child('managingEditor'))
-     // $self->elt_to_email ($elt = $channel->first_child('webMaster'))
-
-     // $self->elt_to_email ($elt = $item   ->first_child('dc:publisher'))
-     // $self->elt_to_email ($elt = $channel->first_child('dc:publisher'))
-     // $self->elt_to_email ($elt = $channel->first_child('itunes:owner'))
-     // do { undef $elt }
-
-     # Atom <title> can have type="html" etc in the usual way, so render.
-     # Hope the channel title is different from the item title.
-     // $self->email_format (elt_to_rendered_line
-                             ($channel->first_child('title')))
-
-     // ('nobody@'.$self->uri_to_host)
-    );
-  my $uri;
-  if ($elt) {
-    $uri = (# Atom
-            # <author>
-            #   <name>Foo Bar</name>
-            #   <uri>http://some.where</uri>
-            # </author>
-            #
-            non_empty ($elt->first_child_text('uri'))
-
-            # ModWiki dc:contributor example
-            #     <rdf:Description link="http://openwiki.com/?FooBar">
-            #       <rdf:value>Foo Bar</rdf:value>
-            #     </rdf:Description>
-            # The text shows rss:link= and the example just link=.
-            #
-            // non_empty (do {
-              my $child; ($child = $elt->first_child('rdf:Description'))
-                && ($child->att('link') // $child->att('rss:link'))
-              }));
-  }
-  return (From => $from,
-          'X-From-URL:' => $uri);
 }
 
 sub item_to_subject {
@@ -2184,12 +2558,12 @@ sub item_to_subject {
      // __('no subject'));
 }
 
-# return language code string or undef
-# return is per RFC1766/RFC3066/RFC4646 for Content-Language
+# return language code string for Content-Language, or undef
+# return is per RFC 1766, RFC 3066, RFC 4646
 #
 # xml:lang is defined to be per RFC 4646, no mangling needed
 # RSS <language> seems close enough http://www.rssboard.org/rss-language-codes
-# dc:language is recommended as RFC 4646
+# <dc:language> is recommended as RFC 4646
 # cf. I18N::LangTags if mangling might be needed one day
 #
 sub item_to_language {
@@ -2226,8 +2600,8 @@ sub item_to_copyright {
   # Atom <rights> can be type="html" etc in its usual way, but think RSS is
   # always plain text
   #
-  my $re = qr/^(rights      # Atom
-              |copyright    # RSS, don't think entity-encoded html allowed there
+  my $re = qr/^(rights     # Atom
+              |copyright   # RSS, don't think entity-encoded html allowed there
               |dc:license
               |dc:rights
               |creativeCommons:license
@@ -2265,6 +2639,7 @@ sub item_to_feedburner {
   return URI->new_abs ($uri, 'http://feeds.feedburner.com/')->as_string;
 }
 
+# $elt is an Atom <content>
 sub atom_content_flavour {
   my ($elt) = @_;
   if (! defined $elt) { return ''; }
@@ -2396,6 +2771,9 @@ sub fetch_rss_process_one_item {
        'In-Reply-To:'      => scalar ($self->item_to_in_reply_to($item)),
        'Message-ID'        => $msgid,
        'Content-Language:' => scalar ($self->item_to_language($item)),
+       'Importance:'       => scalar ($self->item_to_importance($item)),
+       'Priority:'         => scalar ($self->item_to_priority($item)),
+       'Face:'             => scalar ($self->item_to_face($item)),
        'List-Post:'        => scalar (googlegroups_link_email(@links)),
        # ENHANCE-ME: Maybe transform <itunes:explicit> "yes","no","clean"
        # into PICS too maybe, unless it only applies to the enclosure as
@@ -2508,8 +2886,10 @@ sub fetch_rss_process_one_item {
 
       # suspect little value in a description when inlined
       # 'Content-Description:' => mimewords_non_ascii($l->{'title'})
+      # favicon used for Face if nothing in the item 
       #
       $self->enforce_html_charset_from_content ($resp);
+      $headers{'Face:'} ||= $self->http_resp_to_face($resp);
       push @parts, $self->mime_part_from_response ($resp);
     }
   }

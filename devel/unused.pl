@@ -20,6 +20,31 @@
 
 __END__
 
+
+  my @keywords = List::MoreUtils::uniq
+    (map { collapse_whitespace($_) }
+     map { split /,/ }
+     map { $_->att('text')   # itunes:category
+             // $_->text }   # other
+     ($item->children($re),
+      item_to_channel($item)->children($re)));
+  my $limit = $self->HEADER_LENGTH_LIMIT - length('Keywords: , ...');
+  my $trunc;
+  my $ret = '';
+  foreach my $keyword (@keywords) {
+    if (length($keyword) > $limit) {
+      # drop very long keywords but show "..."
+      $trunc = '...';
+    } elsif (length($ret) + 2 + length($keyword) > $limit) {
+      # stop when length limit reached
+      $trunc = '...';
+      last;
+    }
+    $ret = join_non_empty (', ', $ret, $keyword);
+  }
+  return join_non_empty (', ', $ret, $trunc);
+
+
 #------------------------------------------------------------------------------
 # trim_whitespace()
 

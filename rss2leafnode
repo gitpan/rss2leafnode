@@ -24,7 +24,7 @@ use strict;
 use warnings;
 use App::RSS2Leafnode;
 
-our $VERSION = 32;
+our $VERSION = 33;
 
 my $r2l = App::RSS2Leafnode->new;
 exit $r2l->command_line;
@@ -219,6 +219,28 @@ program (you must have C<HTML::FormatExternal> and the program).
 The number of columns to use when rendering HTML to plain text or when
 wrapping Atom text.  You can set this to whatever you find easiest to read,
 or any special width needed by a particular feed.
+
+=cut
+
+# =item $get_icon (default 0)
+# 
+# Download RSS/Atom icon image or HTML favicon for the C<Face> header.  This
+# header is used by Gnus, and perhaps only a few other news readers.  In
+# Gnus the face appears with the "From" in the article mode display on a
+# graphical screen.  It can be a nice visual cue to the channel origin etc,
+# but might not always be worth the extra download.
+# 
+#     $get_icon = 1;
+#     fetch_rss ('r2l.whatsnew',
+#                'http://www.archive.org/services/collection-rss.php');
+# 
+# C<Image::Magick> is required to convert or shrink an image.  Banner images
+# much wider than high are suppressed as probably advertising and in any
+# case not suited to 48x48 of the Face header specification.
+# 
+# For plain RSS and Atom feeds an image is normally per-channel so is the
+# same for all articles from it.  C<itunes:image> can be per-item and is
+# used if present.
 
 =back
 
