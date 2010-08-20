@@ -25,7 +25,7 @@ use Hash::Util::FieldHash;
 use List::Util 'min', 'max';
 use List::MoreUtils;
 use POSIX (); # ENOENT, etc
-use Text::Trim;
+use Text::Trim 1.02;  # version 1.02 for undef support
 use URI;
 use HTML::Entities::Interpolate;
 
@@ -42,7 +42,7 @@ BEGIN {
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-our $VERSION = 33;
+our $VERSION = 34;
 
 # Cribs:
 #
@@ -1537,8 +1537,8 @@ sub face_wh_ok {
 
   if ($width > 0 && $width > 2*$height) {
     # some obnoxious banner
-    if ($self->{'verbose'} >= 2) {
-      print "   image is some obnoxious banner (${width}x${height})\n";
+    if ($self->{'verbose'} >= 1) {
+      print "   image is a banner (${width}x${height}), ignore\n";
     }
     return 0;
   }
@@ -1559,7 +1559,7 @@ sub imagemagick_to_png {
   my $height = $image->Get('height');
   ### compress: $image->Get('compression')
   if ($self->{'verbose'} >= 2) {
-    print "  image ${width}x${height}\n";
+    print "   image ${width}x${height}\n";
   }
   if ($width == 0 || $height == 0) {
     return;
@@ -1568,19 +1568,24 @@ sub imagemagick_to_png {
     return $data;
   }
 
+  # having downloaded the image is it better to keep a banner but shrink it,
+  # or discard as no good?
+  #
+  # $self->face_wh_ok ($width, $height) || return;
+
   if ($width > 48 || $height > 48) {
     my $factor;
     if ($width <= 2*48 && $height <= 2*48) {
       $factor = 0.5;
     } else {
-      $factor = max (48 / $width, 48 / $height);
+      $factor = min (48 / $width, 48 / $height);
     }
     $width = POSIX::ceil ($width * $factor);
     $height = POSIX::ceil ($height * $factor);
     if ($self->{'verbose'} >= 2) {
       print "  image shrink by $factor to ${width}x${height}\n";
     }
-    $image->Resize (width => $width, height => $height);
+    $image->AdaptiveResize (width => $width, height => $height);
   }
 
   my $ret = $image->Set (magick => 'PNG8');
@@ -2180,12 +2185,14 @@ sub email_format_maybe {
 #
 sub email_format {
   my ($self, $display, $email) = @_;
+  ### $display
   $display = Text::Trim::trim($display);
+  $email   = Text::Trim::trim($email);
   if (is_empty($display)) {
     if (is_empty($email)) {
       return;
     } else {
-      return Text::Trim::trim($email);
+      return $email;
     }
   }
   if (is_empty($email)) {
@@ -2194,7 +2201,7 @@ sub email_format {
     # omit
     $email = $self->DUMMY_EMAIL_ADDRESS;
   } else {
-    $email = Text::Trim::trim($email);
+    $email = $email;
   }
   return email_phrase_quote_maybe($display) . " <$email>";
 }
@@ -2310,12 +2317,13 @@ sub twig_parse {
 
       $twig = XML::Twig->new (map_xmlns => $map_xmlns);
       if ($twig->safe_parse ($liberal_xml)) {
+        $err = Text::Trim::trim($err);
         $twig->root->set_att('rss2leafnode:fixup',
                              "XML::Liberal fixed: {error}",
-                             error => Text::Trim::trim($err));
+                             error => $err);
         print __x("Feed {url}\n  parse error: {error}\n  continuing with repairs by XML::Liberal\n",
-                  url     => $self->{'uri'},
-                  error => Text::Trim::trim($err));
+                  url   => $self->{'uri'},
+                  error => $err);
         undef $err;
       }
     }
@@ -2327,7 +2335,7 @@ sub twig_parse {
 
     if ($self->{'verbose'} >= 1) {
       say __x("Parse error on URL {url}\n{error}",
-              url => $self->{'uri'},
+              url   => $self->{'uri'},
               error => $err);
     }
     return (undef, $err);
@@ -2447,6 +2455,11 @@ sub item_to_keywords {
   # should be in the keywords if it's also in the body text, but at least
   # offers a bit of classification in the headers.
   #
+  # <dc:subject> is supposed to be from a "restricted vocabulary" so might
+  # want a bit of decoding.  Not much used, but for instance
+  # http://www.gdacs.org/xml/RSSTC.xml
+  # http://earthquake.usgs.gov/eqcenter/recenteqsww/catalogs/eqs7day-M5.xml
+  #
   # How much value is there in the channel keywords?
   #
   my $re = qr/^(category
@@ -2454,6 +2467,7 @@ sub item_to_keywords {
               |media:keywords
               |itunes:keywords
               |cap:category
+              |dc:subject
               )$/x;
   return join_non_empty
     (', ',
@@ -2554,6 +2568,8 @@ sub item_to_subject {
   # Atom <title> can have type="html" etc in the usual way.
   return
     (elt_to_rendered_line    ($item->first_child('title'))
+     # dc:subject is supposed to be a keyword type thing, but might be
+     # better than nothing
      // elt_to_rendered_line ($item->first_child('dc:subject'))
      // __('no subject'));
 }
@@ -2747,8 +2763,10 @@ sub item_common_alert_protocol {
 sub fetch_rss_process_one_item {
   my ($self, $item) = @_;
   my $subject = $self->item_to_subject ($item);
-  if ($self->{'verbose'} >= 1) { say __x(' item: {subject}',
-                                         subject => $subject); }
+  if ($self->{'verbose'} >= 1) {
+    say __x(' item: {subject}',
+            subject => $subject);
+  }
   my $msgid = $self->item_to_msgid ($item);
   return 0 if $self->nntp_message_id_exists ($msgid);
 
@@ -2886,7 +2904,7 @@ sub fetch_rss_process_one_item {
 
       # suspect little value in a description when inlined
       # 'Content-Description:' => mimewords_non_ascii($l->{'title'})
-      # favicon used for Face if nothing in the item 
+      # favicon used for Face if nothing in the item
       #
       $self->enforce_html_charset_from_content ($resp);
       $headers{'Face:'} ||= $self->http_resp_to_face($resp);

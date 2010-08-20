@@ -31,7 +31,7 @@ use HTML::Formatter;
 
 use lib 't';
 use MyTestHelpers;
-BEGIN { MyTestHelpers::nowarnings('backtrace') }
+BEGIN { MyTestHelpers::nowarnings() }
 
 require App::RSS2Leafnode;
 require POSIX;
@@ -42,7 +42,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 33;
+  my $want_version = 34;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 

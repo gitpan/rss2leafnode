@@ -78,7 +78,7 @@ MyMakeMakerExtras::WriteMakefile
                     'Sort::Key::Top' => 0,
                     'File::HomeDir' => 0,
                     'List::MoreUtils' => 0,
-                    'Text::Trim' => 0,
+                    'Text::Trim' => '1.02', # version 1.02 for undef support
 
                     # 1.17 for __p()
                     'Locale::TextDomain' => '1.17',

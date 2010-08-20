@@ -24,8 +24,27 @@ use URI;
 use URI::file;
 use Getopt::Long;
 
+# uncomment this to run the ### lines
+use Smart::Comments;
+
 use FindBin;
 my $progname = $FindBin::Script;
+
+use Encode;           # for Encode::PERLQQ
+use PerlIO::encoding; # for fallback
+# version 0.06 for bug fix of a struct size for perl 5.10 (there's some
+# fragile duplication)
+use PerlIO::locale 0.06;
+
+our $VERSION = 33;
+
+# locale encoding conversion on the tty, wide-chars everywhere internally
+# for instance $subject from an item might be wide chars printed when --verbose
+{ no warnings 'once';
+  local $PerlIO::encoding::fallback = Encode::PERLQQ; # \x{1234} style
+  (binmode (STDOUT, ':locale') && binmode (STDERR, ':locale'))
+    or die "Cannot set :encoding on stdout/stderr: $!\n";
+}
 
 my $r2l = App::RSS2Leafnode->new
   (
@@ -36,8 +55,8 @@ my $r2l = App::RSS2Leafnode->new
 
    # render => 'lynx',
    rss_newest_only => 3,
-   rss_get_links => 1,
-   get_icon => 1,
+   # rss_get_links => 1,
+    get_icon => 1,
   );
 
 my @uris;
@@ -67,13 +86,32 @@ if (! $option_post) {
         "\n[$progname: end, mime_type ",$mime->mime_type,"]\n";
 
     if ($mime->mime_type eq 'text/html') {
-      my $html = $mime->bodyhandle->as_string;
-      # print $html;
+      my $head = $mime->head;
+      my $body = $mime->bodyhandle;
+      my $charset = $head->mime_attr('content-type.charset');
+      my $html = $body->as_string;
+
+      my $utf8 = utf8::is_utf8($html);
+      ### $utf8
+      if (! $utf8 && $charset) {
+        $html = Encode::decode($charset, $html)
+      }
+
+      #       require File::Temp;
+      #       my $tempfh = File::Temp->new;
+      #       $body->print($tempfh);
+      #       close $tempfh;
+
+      #       ### bodyhandle: ref($body)
+      #       my $utf8 = utf8::is_utf8($html);
+      #       ### $utf8
+      #       # print $html;
 
       require HTML::Lint;
       my $lint = HTML::Lint->new;
       $lint->newfile ('message');
       $lint->parse ($html);
+      # $lint->parse_file ($tempfh->filename);
 
       my @errors = $lint->errors;
       @errors = grep {$_->errcode ne 'text-use-entity'} @errors;

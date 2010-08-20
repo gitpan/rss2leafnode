@@ -24,7 +24,21 @@ use strict;
 use warnings;
 use App::RSS2Leafnode;
 
-our $VERSION = 33;
+use Encode;           # for Encode::PERLQQ
+use PerlIO::encoding; # for fallback
+# version 0.06 for bug fix of a struct size for perl 5.10 (there's some
+# fragile duplication)
+use PerlIO::locale 0.06;
+
+our $VERSION = 34;
+
+# locale encoding conversion on the tty, wide-chars everywhere internally
+# for instance $subject from an item might be wide chars printed when --verbose
+{ no warnings 'once';
+  local $PerlIO::encoding::fallback = Encode::PERLQQ; # \x{1234} style
+  (binmode (STDOUT, ':locale') && binmode (STDERR, ':locale'))
+    or die "Cannot set :encoding on stdout/stderr: $!\n";
+}
 
 my $r2l = App::RSS2Leafnode->new;
 exit $r2l->command_line;
@@ -138,6 +152,17 @@ C<inetd> or similar don't forget a logger program argument on the command
 line as shown in its F<INSTALL.run>, otherwise log messages from C<snntpd>
 will confuse client programs, including C<Net::NNTP> as used by
 C<rss2leafnode>.
+
+=head2 Copyright
+
+It's your responsibility to check the terms of use for any feeds or web
+pages you download with C<rss2leafnode>.  Pay particular attention if
+propagating or re-transmitting resulting messages.
+
+Copyright or license statements in a feed are included in the messages under
+an C<X-Copyright> header.  The author believes the transformations made by
+C<rss2leafnode> are purely mechanical and don't cause the program's terms to
+be imposed on its output (see L</LICENSE> below).
 
 =head1 COMMAND LINE OPTIONS
 

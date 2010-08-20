@@ -16,11 +16,16 @@ You should have received a copy of the GNU General Public License along
 with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
+Version 34, August 2010
+    - depend on new enough Text::Trim for undef handling
+    - add dc:subject to Keywords
+    - PerlIO::locale on stdout/stderr
+
 Version 33, August 2010
     - experimental $get_icon option
 
 Version 32, August 2010
-    - show common alert protocol fields
+    - show CAP common alert protocol fields
 
 Version 31, July 2010
     - forgot Text::Trim dependency in Makefile.PL
