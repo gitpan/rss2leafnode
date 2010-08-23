@@ -23,7 +23,8 @@ use 5.006;
 use strict;
 use warnings;
 
-use base 'Exporter';
+use Exporter;
+our @ISA = ('Exporter');
 our @EXPORT_OK = qw(ignore_Class_Singleton
                     ignore_DBI_dr
                     ignore_global_function

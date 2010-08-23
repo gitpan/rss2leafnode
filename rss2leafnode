@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 34;
+our $VERSION = 35;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -160,9 +160,8 @@ pages you download with C<rss2leafnode>.  Pay particular attention if
 propagating or re-transmitting resulting messages.
 
 Copyright or license statements in a feed are included in the messages under
-an C<X-Copyright> header.  The author believes the transformations made by
-C<rss2leafnode> are purely mechanical and don't cause the program's terms to
-be imposed on its output (see L</LICENSE> below).
+C<X-Copyright> headers.  Unless the content is in the public domain such
+copyright notices must be retained.
 
 =head1 COMMAND LINE OPTIONS
 
@@ -329,25 +328,14 @@ can confine a setting to a particular few feeds.  Eg.
 
 =head1 OTHER DETAILS
 
-Non-ascii RSS and Atom text and rendered HTML are coded as utf-8 in the
-generated messages so for non-ascii content you'll need a newsreader which
-supports that.  Unrendered HTML is left in the charset the server gave, to
-ensure it matches any C<< <meta http-equiv> >> in the document.  In all
-cases the charset is specified in the MIME message headers or attachment
+Non-ascii RSS and Atom text and rendered HTML text are all coded as utf-8 in
+the generated messages so for non-ascii content you'll need a newsreader
+which supports that.  Unrendered HTML is left in the charset the server
+gave, to ensure it matches any C<< <meta http-equiv> >> in the document.  In
+all cases the charset is specified in the MIME message headers or attachment
 parts.  Transfer format in the message body is chosen by C<MIME::Entity>
 (except for Atom base64 C<< <content> >>) which normally means
-quoted-printable for non-ascii or very long lines.
-
-Google Groups mailing list feeds such as
-L<http://groups.google.com/group/cake-php/feed/rss_v2_0_msgs.xml> get a
-"List-Post" header pointing to the list like "foolist@googlegroups.com".
-This may let you post a followup to the list, depending on your newsreader.
-(A followup to the newsgroup goes nowhere.)
-
-Yahoo Finance items repeated in different feeds are noticed using a special
-match of the links in the items so that just one copy is posted.  (As of
-March 2010 Yahoo's items don't offer RSS C<guid> identifiers which normally
-protect against duplication.)
+quoted-printable it there's any non-ascii or very long lines.
 
 Links are shown for RSS and Atom C<< <link> >>, RSS C<< <enclosure> >> and
 C<< <comments> >>, Atom external C<< <content> >> (except other XML feeds),
@@ -356,37 +344,160 @@ are not downloaded under C<$rss_get_links> (currently).  Comment or reply
 counts are shown from C<< <thr:total> >>, C<< thr:count >> and
 C<< <slash:comments> >>.
 
-C<< <thr:in-reply-to> >> is used for an C<In-Reply-To> header which might
-help thread display in a news reader, though of course only if the parent
-item was downloaded too.
+Common Alerts Protocol (CAP) fields for weather alerts etc are shown if
+present (eg. from the US NOAA).  This is slightly experimental but can have
+more detail than just the text.
 
-Common Alerts Protocol (CAP) fields for severe weather alerts etc are shown
-if present (eg. from the US NOAA).  This is slightly experimental.
+An attempt is made to repair bad XML from a feed using C<XML::Liberal> if
+you have that module.  It uses C<XML::LibXML> and the C<libxml> library.
+A repair can help annoying things like bad entities and may be enough to at
+least see something.
+
+Too much or too little entity escaping tends to be the most common feed
+problem.  Too little can turn HTML into nested XML elements instead of text.
+RSS2Leafnode extracts that as if it was XHTML, though the result is likely
+to be imperfect.  Too much escaping currently ends up displaying as raw or
+semi-raw HTML.  An option for extra unescaping might be possible, to at
+least improve the display of a particular bad feed.
+
+=head2 Message Headers
+
+For interest or for reference the headers in the messages are generated
+roughly as follows,
+
+=over
+
+=item From:
+
+First of <author>, <dc:creator>, <dc:contributor>, <wiki:username>,
+<itunes:author>, <managingEditor>, <webMaster>, <dc:publisher>,
+<itunes:owner>, channel <title>.
+
+If there's no identifiable mailbox part then C<nobody@rss2leafnode.dummy> is
+added.  The channel title as a fallback is good to at least show something
+about where a message came from when there's no other author identified.
+
+=item X-From-Url:
+
+<uri> from an Atom <author>, being the home page of the From: person.  This
+is experimental.
+
+=item Subject:
+
+<title> or <dc:subject>.  The <dc:subject> is normally only a keyword but
+might be better than nothing.
+
+=item Date:
+
+First present of <pubDate>, <dc:date>, <modified>, <updated>, <issued>,
+<created>, <lastBuildDate>, <published>
+
+=item Date-Received:
+
+The date/time when C<rss2leafnode> made the message.
+
+=item Message-ID:
+
+First of <id>, <guid isPermaLink="true">, Yahoo <link>, <guid
+isPermaLink="false"> plus feed URL, or MD5 hash of various fields plus feed
+URL.
+
+Yahoo Finance items repeated in different feeds are noticed using a special
+match of the <link> in the items so that just one copy is posted.  (As of
+March 2010 Yahoo's items don't offer RSS C<guid> identifiers.)
+
+=item Keywords:
+
+All of <category>, <itunes:category>, <cap:category>, <itunes:keywords>,
+<media:keywords>, <dc:subject>.  The sub-category system of
+<itunes:category> is not currently put through.
+
+=item In-Reply-To:
+
+<thr:in-reply-to>, turned into Message-ID style the same way as Atom <id>.
+This might help thread display in a news reader, though of course only if
+the parent item was downloaded too.
+
+=item Content-Location:
+
+The URL of a C<fetch_html()> or a C<$get_links> attachment part.  Good
+newsreaders use this to resolve relative links in HTML.
+
+=item Content-Language:
+
+<language>, <dc:language>, xml:lang="", or HTTP response Content-Language.
+xml:lang is a standard XML attribute and may be present on any element.
+It's sometimes found on Atom <content> text.
+
+=item Content-MD5:
+
+From the corresponding HTTP header of a C<fetch_html()> or C<$get_links>
+download, if present (which is almost never).
+
+=item Importance:
+
+=item Priority:
+
+From common alerts protocol <cap:severity>.  Extreme and Severe are treated
+as "high" importance and "urgent" priority.  These headers are supposed to
+be only for X.400 inter-operation though.
+
+A Precedence: header is not generated currently though it could get a
+similar value, plus maybe "list" or "bulk" if a feed is a mailing list or
+similar and if that could be identified.
+
+=item Face:
+
+Experimental C<$get_icons> option from item or channel <image>, <icon>,
+<logo>, <itunes:image>.
+
+=item List-Post:
+
+Mailbox of a Google Groups mailing list feeds such as
+L<http://groups.google.com/group/cake-php/feed/rss_v2_0_msgs.xml>.  This may
+help post a followup to the list, depending on the newsreader.  (A followup
+to an C<rss2leafnode> newsgroup will normally go nowhere.)
+
+=item PICS-Label:
+
+Channel <rating>.  Perhaps in the future <itunes:explicit> or <media:adult>
+could be turned into a rating too.
+
+=item X-Mailer:
+
+"RSS2Leafnode/VERSION" added to whatever C<MIME::Entity> gives.
+
+=item X-Copyright:
+
+An RSS2Leafnode extension, being all of <rights>, <copyright>, <dc:license>,
+<dc:rights>, <creativeCommons:license>.  See L</Copyright> above.
+
+=item X-RSS-Url:
+
+Originating C<fetch_rss()> feed URL downloaded.  This is handy if an item
+has come out badly and want to check the raw feed.
+
+=item X-RSS-Generator:
+
+Channel <generator>.  This might help assign blame for bad formatting etc.
+
+=back
+
+=head1 BUGS
+
+The way Message-IDs are checked on the server means the server should be
+setup to keep messages for at least as long as the feed retains items.  If
+that's not so then old articles will be re-posted by the next C<fetch_rss>
+and will look like new articles to a newsreader.
+
+Letting the news server track articles keeps down the amount of state
+C<rss2leafnode> must maintain and means multiple users can insert a feed
+without duplication, but perhaps long feeds will need further re-post
+protection.
 
 Some pre-releases of leafnode 2 have trouble with posts to local newsgroups
 while a C<fetchnews> run is in progress.  The local articles don't show up
 until after a subsequent further C<fetchnews>.
-
-An attempt is made to repair bad XML from a feed using C<XML::Liberal> if
-you have that module.  It uses C<XML::LibXML> so needs that module and
-library too.  A repair can help on annoying things like bad entities and may
-be enough to at least see something.
-
-Too much or too little entity escaping tends to be the most common feed
-problem.  Too little can turn HTML into nested XML elements instead of text.
-RSS2Leafnode can extract that as if it was XHTML, though the result is
-likely to be imperfect.  Too much escaping currently ends up displaying as
-raw or semi-raw HTML.  An option for extra unescaping might be possible, to
-at least improve the display of a particular bad feed.
-
-Some extended message headers are added to propagate information from the
-feed.  These are slightly experimental but currently include
-
-    X-RSS-Url        - originating feed URL
-    X-From-Url       - the author's home page
-    X-Copyright      - rights statements, perhaps several
-    X-RSS-Generator  - from the feed in case it helps assign
-                       blame for bad formatting
 
 =head1 FILES
 

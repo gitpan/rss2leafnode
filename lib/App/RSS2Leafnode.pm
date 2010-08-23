@@ -42,7 +42,10 @@ BEGIN {
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-our $VERSION = 34;
+our $VERSION;
+BEGIN {
+   $VERSION = 35;
+}
 
 # Cribs:
 #
@@ -745,14 +748,8 @@ sub html_title_exiftool {
 #------------------------------------------------------------------------------
 # mime
 
-# use constant HEADER_LENGTH_LIMIT => 998;
-
-# return "X-Mailer" header string
-use constant::defer mime_mailer => sub {
-  require MIME::Entity;
-  my $top = MIME::Entity->build (Type => 'multipart/mixed');
-  return ("RSS2Leafnode $VERSION " . $top->head->get('X-Mailer'));
-};
+# prepended to "X-Mailer" header
+use constant mime_mailer_extra => "RSS2Leafnode $VERSION";
 
 # $body is a MIME::Body object, append $str to it
 sub mime_body_append {
@@ -779,13 +776,6 @@ sub mimewords_non_ascii {
 sub mime_build {
   my ($self, $headers, @args) = @_;
 
-  my $now822 = rfc822_time_now();
-  if (delete $headers->{'my_top'}) {
-    $headers->{'Date'}           //= $now822;
-    $headers->{'Date-Received:'} = $now822;
-    $headers->{'X-Mailer'}       = $self->mime_mailer;
-  }
-
   # Headers in utf-8, the same as other text.  The docs of
   # encode_mimewords() isn't clear, but seems to expect bytes of the
   # specified charset.
@@ -798,6 +788,12 @@ sub mime_build {
   $headers->{'Top'}      //= 0;  # default to a part not a toplevel
   $headers->{'Encoding'} //= '-SUGGEST';
 
+  if ($headers->{'Top'}) {
+    my $now822 = rfc822_time_now();
+    $headers->{'Date'} //= $now822;
+    $headers->{'Date-Received:'} = $now822;
+  }
+
   if (utf8::is_utf8($headers->{'Data'})) {
     warn 'Oops, mime_build() data should be bytes';
   }
@@ -808,8 +804,8 @@ sub mime_build {
       && is_ascii ($headers->{'Data'})) {
     $headers->{'Charset'} = 'us-ascii';
 
-    # not sure mangling text/html is a good idea -- would only want it on
-    # generated html, not downloaded
+    # not sure mangling text/html body content is a good idea -- would only
+    # want it on generated html, not downloaded
     #
     # if ($headers->{'Type'} eq 'text/html') {
     #   $headers->{'Data'} =~ s{(<meta http-equiv=Content-Type content="text/html; charset=)([^"]+)}{$1us-ascii};
@@ -824,6 +820,13 @@ sub mime_build {
 
   require MIME::Entity;
   my $top = MIME::Entity->build (Disposition => 'inline', @args);
+
+  if ($headers->{'Top'} && ! defined $headers->{'X-Mailer:'}) {
+    my $head = $top->head;
+    $head->set('X-Mailer', join_non_empty (', ',
+                                           $self->mime_mailer_extra,
+                                           $head->get('X-Mailer')));
+  }
 
   return $top;
 }
@@ -1585,6 +1588,7 @@ sub imagemagick_to_png {
     if ($self->{'verbose'} >= 2) {
       print "  image shrink by $factor to ${width}x${height}\n";
     }
+    # cf LiquidResize() or plain Resize()
     $image->AdaptiveResize (width => $width, height => $height);
   }
 
@@ -2464,9 +2468,9 @@ sub item_to_keywords {
   #
   my $re = qr/^(category
               |itunes:category
-              |media:keywords
-              |itunes:keywords
               |cap:category
+              |itunes:keywords
+              |media:keywords
               |dc:subject
               )$/x;
   return join_non_empty

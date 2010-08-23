@@ -20,11 +20,11 @@
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 197;
+use Test::More tests => 199;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
 # uncomment this to run the ### lines
-use Smart::Comments;
+#use Smart::Comments;
 
 # version 2.04 provokes warnings from perl 5.12, load before nowarnings()
 use HTML::Formatter;
@@ -42,7 +42,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 34;
+  my $want_version = 35;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -336,12 +336,27 @@ HERE
 
 
 #------------------------------------------------------------------------------
-# mime_mailer()
+# mime_build()
 
 {
   my $r2l = App::RSS2Leafnode->new;
-  ok ($r2l->mime_mailer,
-      "mime_mailer() not empty");
+  my $top = $r2l->mime_build
+    ({
+      'Path:'       => 'localhost',
+      'Newsgroups:' => 'r2l.test',
+      From          => 'nobody@invalid.invalid',
+      'Message-ID'  => '<12345>',
+     },
+     Top     => 1,
+     Type    => 'text/plain',
+     Data    => 'hello world');
+  my $head = $top->head;
+
+  # defaults established by mime_build()
+  # diag $head->as_string;
+  ok ($head->get('Date'), 'Date header not empty');
+  ok ($head->get('Date-Received'), 'Date-Received header not empty');
+  like ($head->get('X-Mailer'), '/RSS2Leafnode/');
 }
 
 
