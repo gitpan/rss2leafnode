@@ -34,7 +34,8 @@ my $atom = 'http://www.w3.org/2005/Atom';
 #my $filename = "$FindBin::Bin/" . "../samp/dc-sample.rdf";
 #my $filename = '/so/plagger/Plagger-0.7.17/t/samples/atom10-example.xml';
 #my $filename = '/tmp/tv_epg.xml';
-my $filename = "$FindBin::Bin/" . "../samp/andrew-weil.rss";
+#my $filename = "$FindBin::Bin/" . "../samp/andrew-weil.rss";
+my $filename = "$FindBin::Bin/" . "../samp/cooperhewitt.rss";
 
 {
   require XML::Twig;
@@ -65,6 +66,10 @@ my $filename = "$FindBin::Bin/" . "../samp/andrew-weil.rss";
   # print $twig->base,"\n";
   # print $twig->root->base,"\n";
 
+
+  my ($elem) = $twig->root->get_xpath('/rss/channel/item/image');
+  print $elem->text;
+  exit 0;
 
   my ($elem) = $twig->root->get_xpath('/rss/channel/item/description');
   # $elem->print;

@@ -177,14 +177,14 @@ sub wait_for_event {
     ($signame => sub {
        if (DEBUG) { Test::More::diag ("wait_for_event()   $signame received"); }
        $done = 1;
-       return 0; # Gtk2::EVENT_PROPAGATE
+       return 0; # Gtk2::EVENT_PROPAGATE (new in Gtk2 1.220)
      });
   my $timer_id = Glib::Timeout->add
     (30_000, # 30 seconds
      sub {
        $done = 1;
        Test::More::diag ("wait_for_event() oops, timeout waiting for $signame on $widget");
-       return 1; # Glib::SOURCE_CONTINUE
+       return 1; # Glib::SOURCE_CONTINUE (new in Glib 1.220)
      });
   $widget->get_display->sync;
 

@@ -40,7 +40,8 @@ MyMakeMakerExtras::WriteMakefile
                 },
 
    PREREQ_PM    => {
-                    'XML::Twig' => '3.34', # for att_exists()
+                    # this is required by MIME-Tools anyway
+                    'Date::Parse' => 0,
 
                     # LWP 5.832 for content_charset()
                     'LWP' => '5.832',
@@ -49,40 +50,43 @@ MyMakeMakerExtras::WriteMakefile
                     'HTTP::Request' => 0,
                     'HTTP::Response' => 0,
 
+                    # MIME-Tools
+                    'MIME::Entity' => 0,
+                    'MIME::Tools' => 0,
+                    'MIME::Words' => 0,
+
+                    # 1.17 for __p()
+                    'Locale::TextDomain' => '1.17',
+                    'Locale::Messages' => 0, # part of libintl
+
+                    # 1.5 for format_bytes() options
+                    'Number::Format' => '1.5',
+
+                    # version 0.06 for perl 5.10 bug fix
+                    'PerlIO::locale' => '0.06',
+
+                    # version 1.02 for undef support
+                    'Text::Trim' => '1.02',
+
                     # maybe URI 1.13 circa 2001 for dotted ipv6 support, if
                     # using that
                     'URI' => 0,
                     'URI::Escape' => 0,
                     'URI::tag' => 0, # for hostname of atom <id>s
 
-                    # MIME-Tools
-                    'MIME::Entity' => 0,
-                    'MIME::Tools' => 0,
-                    'MIME::Words' => 0,
-
-                    # this is required by MIME-Tools anyway
-                    'Date::Parse' => 0,
-
-                    # 1.5 for format_bytes() options
-                    'Number::Format' => '1.5',
-
-                    # maybe 1.881 for regexp fixes
-                    'Email::Address' => '1.881',
+                    # version 3.34 for att_exists()
+                    'XML::Twig' => '3.34',
 
                     'constant::defer' => 0,
                     'HTML::Entities::Interpolate' => 0,
                     'HTML::FormatText' => 0,
                     'HTML::Formatter' => 0,
+                    'HTML::Parser' => 0,
                     'Text::WrapI18N' => 0,
                     'Scope::Guard' => 0,
                     'Sort::Key::Top' => 0,
                     'File::HomeDir' => 0,
                     'List::MoreUtils' => 0,
-                    'Text::Trim' => '1.02', # version 1.02 for undef support
-
-                    # 1.17 for __p()
-                    'Locale::TextDomain' => '1.17',
-                    'Locale::Messages' => 0, # part of libintl
                    },
 
    META_MERGE
@@ -185,6 +189,8 @@ MyMakeMakerExtras::WriteMakefile
                                 'Gtk2' => 0,
                                 'HTML::FormatText::WithLinks' => 0,
                                 'Image::ExifTool' => 0,
+                                # maybe 1.881 for regexp fixes
+                                'Email::Address' => '1.881',
                               },
                 },
            },

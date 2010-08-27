@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-   $VERSION = 35;
+   $VERSION = 36;
 }
 
 # Cribs:
@@ -89,6 +89,7 @@ BEGIN {
 #
 #   http://www.apple.com/itunes/podcasts/specs.html
 #   http://www.feedforall.com/itunes.htm
+#   http://www.w3.org/2003/01/geo/wgs84_pos -- <geo:lat> etc
 #
 # URIs
 #   RFC 1738, RFC 2396, RFC 3986 -- URI formats (news/nntp in 1738)
@@ -1397,29 +1398,47 @@ sub item_image_uwh {
   #
   foreach my $where ($item, item_to_channel($item)) {
 
+    ### image: $where->first_child_text('image')
+
     # RSS
     # <image>
     #   <url>foo.png</url>
     #   <width>...</width>     optional
     #   <height>...</height>   optional
     # </image>
-    my $elt;
-    my $elt_url;
-    if (($elt = $where->first_child('image'))
-        && ($elt_url = $elt->first_child('url'))
-        && (is_non_empty (my $url = $elt_url->trimmed_text))) {
-      require Scalar::Util;
-      my $width = $elt->first_child_text('width');
-      unless (Scalar::Util::looks_like_number($width) && $width > 0) {
-        $width = 0;
+    if (my $image_elt = $where->first_child('image')) {
+      my $url_elt; # XML::Twig::Elt where the url came from
+      my $url;     # url string
+      if ($url_elt = $image_elt->first_child('url')) {
+        $url = $url_elt->trimmed_text;
+      } else {
+        # Cooper Hewitt museum http://blog.cooperhewitt.org/rss/?limit=10
+        # item <image> as html text like
+        #    <image>
+        #       <![CDATA[<img src="http://blog.cooperhewitt.org/images/277t.jpg" alt="" />]]>
+        #    </image>
+        # don't want to encourage dodginess like this, but picking it out
+        # isn't too hard
+        if ($image_elt->text =~ /<img[^>]*\ssrc="([^"]*)/) {
+          ### image from html: $1
+          $url_elt = $image_elt;
+          $url = $1;
+        }
       }
-      my $height = $elt->first_child_text('height');
-      unless (Scalar::Util::looks_like_number($height) && $height > 0) {
-        $height = 0;
+      if (is_non_empty ($url)) {
+        require Scalar::Util;
+        my $width = $image_elt->first_child_text('width');
+        unless (Scalar::Util::looks_like_number($width) && $width > 0) {
+          $width = 0;
+        }
+        my $height = $image_elt->first_child_text('height');
+        unless (Scalar::Util::looks_like_number($height) && $height > 0) {
+          $height = 0;
+        }
+        ### item_image_uwh() RSS: $url
+        return (elt_xml_based_uri ($url_elt, $url),
+                $width, $height);
       }
-      ### item_image_uwh() RSS: $url
-      return (elt_xml_based_uri ($elt_url, $url),
-              $width, $height);
     }
 
     # <itunes:image href="http://..."> in item or channel.  Supposedly this
@@ -1429,16 +1448,19 @@ sub item_image_uwh {
     # Atom channel <icon>foo.png</icon>   should be square
     # or   channel <logo>foo.png</logo>   bigger form, rectangle 2*K x K
     #
-    my $url = ((($elt = $where->first_child('icon'))
-                && non_empty ($elt->text))
-               || (($elt = $where->first_child('logo'))
-                   && non_empty ($elt->text))
-               || (($elt = $where->first_child('itunes:image'))
-                   && non_empty ($elt->att('href'))));
-    if ($url) {
-      return (elt_xml_based_uri ($elt, $url),
-              0,  # no width known
-              0); # no height known
+    {
+      my $elt;
+      my $url = ((($elt = $where->first_child('icon'))
+                  && non_empty ($elt->text))
+                 || (($elt = $where->first_child('logo'))
+                     && non_empty ($elt->text))
+                 || (($elt = $where->first_child('itunes:image'))
+                     && non_empty ($elt->att('href'))));
+      if ($url) {
+        return (elt_xml_based_uri ($elt, $url),
+                0,  # no width known
+                0); # no height known
+      }
     }
   }
   return;
@@ -1795,9 +1817,10 @@ sub item_yahoo_permalink {
 sub googlegroups_link_email {
   ## no critic (RequireInterpolationOfMetachars)
   foreach my $l (@_) {
-    $l->{'uri'}->canonical =~ m{^http://groups\.google\.com/group/([^/]+)/}
-      or next;
-    return ($1 . '@googlegroups.com');
+    if ($l->{'uri'}
+        && $l->{'uri'}->canonical =~ m{^http://groups\.google\.com/group/([^/]+)/}) {
+      return ($1 . '@googlegroups.com');
+    }
   }
   return undef;
 }
@@ -1860,24 +1883,69 @@ sub item_to_links {
                                  |wiki:diff
                                  |comments
                                  |wfw:comment
-                                 )$/x);
+                                 |geo:lat
+                                 |geo:point
+                                 |georss:point
+                                 )$/ix);
   my @links;
   my %seen;
+  my $done_geo;
   foreach my $elt (@elts) {
     if ($self->{'verbose'} >= 2) { say "link ",$elt->sprint,"\n"; }
 
-    if ($elt->tag eq 'content' && atom_content_flavour($elt) ne 'link') {
+    my $tag = lc($elt->tag);
+    ### $tag
+    if ($tag eq 'content' && atom_content_flavour($elt) ne 'link') {
+      next;
+    }
+    my $l = { download => 1 };
+
+    # <geo:lat>, <geo:long> eg. USGS earthquakes
+    # http://earthquake.usgs.gov/eqcenter/recenteqsww/catalogs/eqs7day-M5.xml
+    if (! $done_geo && $tag =~ /^geo/) {
+      $done_geo = 1;
+      my ($lat, $long);
+      if ($tag eq 'georss:point') {
+        # <georss:point>46.183 -123.816</georss:point>
+        ($lat, $long) = split /\s+/, $elt->text, 2;
+      } else {
+        # <geo:lat> and sibling <geo:long>
+        # or <geo:Point> and <geo:lat>,<geo:long> children
+        $lat = (non_empty (trim ($elt->text_only))
+                // $elt->first_child_trimmed_text('geo:lat'));
+        $long = (non_empty ($item->first_child_trimmed_text('geo:long'))
+                 // $elt->first_child_trimmed_text('geo:long'));
+      }
+      ### $lat
+      ### $long
+
+      if (Scalar::Util::looks_like_number($lat)) {
+        $lat = ($lat >= 0
+                # TRANSLATORS: the latin1/unicode degree symbol can be used
+                # here instead of " deg"
+                ? __x('{number} deg N', number => $lat)
+                : __x('{number} deg S', number => -$lat));
+      }
+      if (defined $long && Scalar::Util::looks_like_number($long)) {
+        $long = ($long >= 0
+                 ? __x('{number} deg E', number => $long)
+                 : __x('{number} deg W', number => -$long));
+      }
+      $l->{'name'} = __x('Geo location: {latitude}, {longitude}',
+                         latitude => $lat,
+                         longitude => $long);
+      $l->{'download'} = 0;
+      push @links, $l;
       next;
     }
 
-    my $l = { download => 1 };
     foreach my $name ('hreflang', 'title', 'type') {
       $l->{$name} = ($elt->att("atom:$name") // $elt->att($name));
     }
 
     given (non_empty ($elt->att('atom:rel') // $elt->att('rel'))) {
       when (!defined) {
-        given ($elt->tag) {
+        given ($tag) {
           when (/diff/)      { $l->{'name'} = __('Diff:'); }
           when ('enclosure') { $l->{'name'} = __('Encl:'); }
           when (/comment/) {
@@ -1964,7 +2032,7 @@ sub item_to_links {
     }
     # <itunes:duration> applies to <enclosure>.  Just a number means
     # seconds, otherwise MM:SS or HH:MM:SS.
-    if ($elt->tag eq 'enclosure'
+    if ($tag eq 'enclosure'
         && defined (my $duration = non_empty ($item->first_child_text('itunes:duration')))) {
       if ($duration !~ /:/) {
         $duration = __px('s-for-seconds', '{duration}s',
@@ -1997,23 +2065,29 @@ sub links_to_html {
   my $str = '';
   my $sep = "\n\n<p>\n";
   foreach my $l (@_) {
-    $str .= "$sep<nobr>$Entitize{$l->{'name'}}&nbsp;<a";
+    $str .= "$sep<nobr>$Entitize{$l->{'name'}}";
     $sep = "<br>\n";
 
-    if (defined (my $hreflang = $l->{'hreflang'})) {
-      $str .= " hreflang=\"$Entitize{$hreflang}\"";
+    if (defined (my $uri = $l->{'uri'})) {
+      $str .= "&nbsp;<a";
+      if (defined (my $hreflang = $l->{'hreflang'})) {
+        $str .= " hreflang=\"$Entitize{$hreflang}\"";
+      }
+      if (defined (my $type = $l->{'type'})) {
+        $str .= " type=\"$Entitize{$type}\"";
+      }
+      $uri = $Entitize{$uri};
+      $str .= " href=\"$uri\">$uri</a>";
     }
-    if (defined (my $type = $l->{'type'})) {
-      $str .= " type=\"$Entitize{$type}\"";
-    }
-    my $uri = $Entitize{$l->{'uri'}};
-    $str .= " href=\"$uri\">$uri</a></nobr>\n";
+    $str .= "</nobr>\n";
   }
   return "$str</p>\n";
 }
 
 sub links_to_text {
-  return join ('', map {"$_->{'name'} $_->{'uri'}\n"} @_);
+  return join ('', map { join_non_empty (' ',
+                                         $_->{'name'},
+                                         $_->{'uri'}) . "\n" } @_);
 }
 
 
@@ -2117,6 +2191,19 @@ sub elt_to_email {
   return $self->email_format_maybe ($maybe, $display, $email);
 }
 
+# $mailbox_re is a mailbox with domain, like "foo@bar.com"
+# no dots like "foo@localhost" is allowed
+#
+# $mailbox_with_comment_re allows an optional paren comment part like
+# "foo@bar.com (Foo)"
+#
+# cf Email::Address $addr_spec, but its version 1.890 loosened to allow a
+# domain-less bare "foo", which is no good
+#
+my $words_with_dots_re = qr/\w+(\.\w+)*/;
+my $mailbox_re = qr/$words_with_dots_re\@$words_with_dots_re/o;
+my $mailbox_with_comment_re = qr/$mailbox_re(\s*\([^\)]*\))?/os;
+
 # $maybe is some free-form author part possibly including a foo@bar.com
 # $display is a display part for the email like "Foo", possibly empty ""
 # $email is a mailbox "foo@bar.com", or undef
@@ -2124,52 +2211,45 @@ sub elt_to_email {
 #
 sub email_format_maybe {
   my ($self, $maybe, $display, $email) = @_;
-  require Email::Address;
+  ### email_format_maybe() start
   ### $maybe
   ### $display
-
   ### $email
 
-  # $maybe mailbox like
-  #     "foo@bar.com"
-  #     "mailto:foo@bar.com"
-  #     "foo@bar.com (Foo)"
-  #
   # look also at $display the same in case Atom no <email> but a <name>
   # which is a mailbox and can be corrected,
   # eg. http://www.weather.gov/alerts-beta/hi.php?x=0
   #
+  # Or $maybe full email like
   if (is_empty($email)) {
     foreach ($maybe, $display) {
-      #     1         2
-      if (/^(mailto:)?($Email::Address::addr_spec)$/) {
+
+      if (/^\s*(mailto:)?($mailbox_with_comment_re)\s*$/o) {
         ### maybe or display is a mailbox
+        #     "foo@bar.com"
+        #     "mailto:foo@bar.com"
+        #     "foo@bar.com (Foo)"
         $email = $2;
         undef $_;
+        last;
+
+      } elsif (/(.*)\((mailto:)?($mailbox_re)\)\s*$/o
+               || /(.*)<(mailto:)?($mailbox_re)>\s*$/o) {
+        ### maybe or display part is display plus mailbox
+        #     "Foo (mailto:foo@bar.com)"
+        #     "Foo (foo@bar.com)"
+        #     "Foo <foo@bar.com>"
+        #
+        $_ = $1;
+        $email = $3;
         last;
       }
     }
   }
 
-  # $maybe full email like
-  #     "Foo (mailto:foo@bar.com)"
-  #     "Foo (foo@bar.com)"
-  #     "Foo <foo@bar.com>"
-  if (is_empty($email)) {
-    #                 1     2         3
-    if ($maybe    =~ /(.*)\((mailto:)?($Email::Address::addr_spec)\)\s*$/
-        || $maybe =~ /(.*)<(mailto:)?($Email::Address::addr_spec)>\s*$/) {
-      ### the maybe part is display plus mailbox
-      $maybe = $1;
-      $email = $3;
-      ### $maybe
-      ### $email
-    }
-  }
-
   $display .= ' '.($maybe//'');
   my $ret;
-  if (is_empty($email) && $display =~ /^$Email::Address::mailbox$/) {
+  if (is_empty($email) && $display =~ /^$mailbox_re$/o) {
     # display or maybe is a "foo@bar.com" or "foo@bar.com (Foo)", return it
     # as-is, in particular leave it in "(Foo)" style comment
     $ret = $display;
@@ -2253,6 +2333,8 @@ my $map_xmlns
      'http://search.yahoo.com/mrss'                 => 'media',
      'http://backend.userland.com/creativeCommonsRssModule'=>'creativeCommons',
      'urn:oasis:names:tc:emergency:cap:1.1'         => 'cap',
+     'http://www.w3.org/2003/01/geo/wgs84_pos#'     => 'geo',
+     'http://www.georss.org/georss'                 => 'georss',
 
      # don't need to distinguish dcterms from plain dc as yet
      'http://purl.org/dc/elements/1.1/'             => 'dc',

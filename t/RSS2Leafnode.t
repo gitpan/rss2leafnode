@@ -27,6 +27,7 @@ use Locale::TextDomain ('App-RSS2Leafnode');
 #use Smart::Comments;
 
 # version 2.04 provokes warnings from perl 5.12, load before nowarnings()
+BEGIN { diag "Any spam here from perl 5.12 UNIVERSAL.pm about isa() ignored ..."; }
 use HTML::Formatter;
 
 use lib 't';
@@ -42,7 +43,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 35;
+  my $want_version = 36;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 

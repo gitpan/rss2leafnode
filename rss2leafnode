@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 35;
+our $VERSION = 36;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -346,7 +346,8 @@ C<< <slash:comments> >>.
 
 Common Alerts Protocol (CAP) fields for weather alerts etc are shown if
 present (eg. from the US NOAA).  This is slightly experimental but can have
-more detail than just the text.
+more detail than just the text.  A C<< <geo:> or <georss:> >> location is
+shown among the links (though with nowhere to go to).
 
 An attempt is made to repair bad XML from a feed using C<XML::Liberal> if
 you have that module.  It uses C<XML::LibXML> and the C<libxml> library.

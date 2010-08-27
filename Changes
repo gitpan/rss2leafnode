@@ -16,6 +16,10 @@ You should have received a copy of the GNU General Public License along
 with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
+Version 36, August 2010
+    - Email::Address 1.890 addr_spec is too loose :-(
+    - show geo:lat,geo:long with the links
+
 Version 35, August 2010
     - fix X-Mailer value and set Date-Received as intended
     - fix tests leftover Smart::Comments
