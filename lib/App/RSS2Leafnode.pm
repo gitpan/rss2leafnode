@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-   $VERSION = 36;
+   $VERSION = 37;
 }
 
 # Cribs:
@@ -801,7 +801,7 @@ sub mime_build {
 
   # downgrade utf-8 to us-ascii if possible
   if ($headers->{'Type'} eq 'text/plain'
-      && lc($headers->{'Charset'}) eq 'utf-8'
+      && lc($headers->{'Charset'}||0) eq 'utf-8'
       && is_ascii ($headers->{'Data'})) {
     $headers->{'Charset'} = 'us-ascii';
 
@@ -1048,7 +1048,7 @@ sub twig_to_timingfields {
   my %timingfields;
 
   if (my $ttl = $root->first_descendant('ttl')) {
-    $timingfields{'ttl'} = $ttl->text;
+    $timingfields{'ttl'} = $ttl->trimmed_text;
   }
   if (my $skipHours = $root->first_descendant('skipHours')) {
     $timingfields{'skipHours'} = [map {$_->text} $skipHours->children('hour')];
@@ -1392,13 +1392,13 @@ sub item_to_face {
 #
 sub item_image_uwh {
   my ($self, $item) = @_;
+  ### item_image_uwh()
 
   # normally only in channel, doesn't hurt to look in item the same as
   # <itunes:image> can be in the item
   #
   foreach my $where ($item, item_to_channel($item)) {
-
-    ### image: $where->first_child_text('image')
+    ### image text: $where->first_child_text('image')
 
     # RSS
     # <image>
@@ -1441,25 +1441,41 @@ sub item_image_uwh {
       }
     }
 
+    # Atom channel <icon>foo.png</icon>   should be square
+    # or   channel <logo>foo.png</logo>   bigger form, rectangle 2*K x K
+    #
     # <itunes:image href="http://..."> in item or channel.  Supposedly this
     # is bigger than the RSS 48x48, so would probably need shrinking.  Rate
     # it below <icon> or <logo> for that reason.
     #
-    # Atom channel <icon>foo.png</icon>   should be square
-    # or   channel <logo>foo.png</logo>   bigger form, rectangle 2*K x K
-    #
+    # <media:thumbnail href="" width="" height=""> snapshot of movie etc
+    # Is it better to show the channel icon, being the From person?
     {
       my $elt;
+      my ($width, $height);
       my $url = ((($elt = $where->first_child('icon'))
                   && non_empty ($elt->text))
                  || (($elt = $where->first_child('logo'))
                      && non_empty ($elt->text))
                  || (($elt = $where->first_child('itunes:image'))
-                     && non_empty ($elt->att('href'))));
+                     && non_empty ($elt->att('href')))
+                 || (($elt = $where->first_child('media:thumbnail'))
+                     && is_non_empty ($elt->att('url'))
+                     && do {
+                       $width = $elt->att('width');
+                       $height = $elt->att('height');
+                       $elt->att('url') }));
+      ### $url
       if ($url) {
+        unless (Scalar::Util::looks_like_number($width) && $width > 0) {
+          $width = 0;
+        }
+        unless (Scalar::Util::looks_like_number($height) && $height > 0) {
+          $height = 0;
+        }
         return (elt_xml_based_uri ($elt, $url),
-                0,  # no width known
-                0); # no height known
+                $width,
+                $height);
       }
     }
   }
@@ -1874,8 +1890,13 @@ sub item_to_links {
   # <feedburner:origLink> or <feedburner:origEnclosureLink> is when
   # something has been expanded into the item, or should it be shown?
 
-  # <media:content> can be a link, but have seen it just duplicating
+  # FIXME: <media:content> can be a link, but have seen it just duplicating
   # <enclosure> without a length.  Would probably skip medium="image".
+  # Can have a <media:title> sub-element.
+  #
+  # FIXME: <media:group> is a collection of <media:content> in different
+  # formats etc.  Have seen this from archive.org just duplicating
+  # <enclosure>.
   #
   my @elts = $item->children (qr/^(link
                                  |enclosure
@@ -1883,13 +1904,9 @@ sub item_to_links {
                                  |wiki:diff
                                  |comments
                                  |wfw:comment
-                                 |geo:lat
-                                 |geo:point
-                                 |georss:point
                                  )$/ix);
   my @links;
   my %seen;
-  my $done_geo;
   foreach my $elt (@elts) {
     if ($self->{'verbose'} >= 2) { say "link ",$elt->sprint,"\n"; }
 
@@ -1899,45 +1916,6 @@ sub item_to_links {
       next;
     }
     my $l = { download => 1 };
-
-    # <geo:lat>, <geo:long> eg. USGS earthquakes
-    # http://earthquake.usgs.gov/eqcenter/recenteqsww/catalogs/eqs7day-M5.xml
-    if (! $done_geo && $tag =~ /^geo/) {
-      $done_geo = 1;
-      my ($lat, $long);
-      if ($tag eq 'georss:point') {
-        # <georss:point>46.183 -123.816</georss:point>
-        ($lat, $long) = split /\s+/, $elt->text, 2;
-      } else {
-        # <geo:lat> and sibling <geo:long>
-        # or <geo:Point> and <geo:lat>,<geo:long> children
-        $lat = (non_empty (trim ($elt->text_only))
-                // $elt->first_child_trimmed_text('geo:lat'));
-        $long = (non_empty ($item->first_child_trimmed_text('geo:long'))
-                 // $elt->first_child_trimmed_text('geo:long'));
-      }
-      ### $lat
-      ### $long
-
-      if (Scalar::Util::looks_like_number($lat)) {
-        $lat = ($lat >= 0
-                # TRANSLATORS: the latin1/unicode degree symbol can be used
-                # here instead of " deg"
-                ? __x('{number} deg N', number => $lat)
-                : __x('{number} deg S', number => -$lat));
-      }
-      if (defined $long && Scalar::Util::looks_like_number($long)) {
-        $long = ($long >= 0
-                 ? __x('{number} deg E', number => $long)
-                 : __x('{number} deg W', number => -$long));
-      }
-      $l->{'name'} = __x('Geo location: {latitude}, {longitude}',
-                         latitude => $lat,
-                         longitude => $long);
-      $l->{'download'} = 0;
-      push @links, $l;
-      next;
-    }
 
     foreach my $name ('hreflang', 'title', 'type') {
       $l->{$name} = ($elt->att("atom:$name") // $elt->att($name));
@@ -2051,7 +2029,82 @@ sub item_to_links {
   use sort 'stable';
   @links = sort {$b->{'download'}} @links;
 
+  # lat/long last
+  if (defined (my $str = $self->item_to_lat_long_alt_str ($item))) {
+    push @links, { name => $str,
+                   download => 0 };
+  }
+
   return @links;
+}
+
+sub item_to_lat_long_alt_str {
+  my ($self, $item) = @_;
+  my ($lat, $long, $alt) = $self->item_to_lat_long_alt_values ($item)
+    or return;
+  ### $lat
+  ### $long
+  ### $alt
+
+  if (Scalar::Util::looks_like_number($lat)) {
+    $lat = ($lat >= 0
+            # TRANSLATORS: the latin1/unicode degree symbol can be used
+            # here instead of " deg"
+            ? __x('{latitude} deg N', latitude => $lat)
+            : __x('{latitude} deg S', latitude => -$lat));
+  }
+  if (Scalar::Util::looks_like_number($long)) {
+    $long = ($long >= 0
+             ? __x('{longitude} deg E', longitude => $long)
+             : __x('{longitude} deg W', longitude => -$long));
+  }
+
+  if (is_non_empty ($alt)) {
+    return __x('Geo location: {latitude}, {longitude}, alt {altitude}m',
+               latitude  => $lat,
+               longitude => $long,
+               altitude  => $alt);
+  } else {
+    return __x('Geo location: {latitude}, {longitude}',
+               latitude  => $lat,
+               longitude => $long);
+  }
+}
+
+sub item_to_lat_long_alt_values {
+  my ($self, $item) = @_;
+
+  # per-item <geo:lat>, <geo:long> eg. USGS earthquakes
+  # http://earthquake.usgs.gov/eqcenter/recenteqsww/catalogs/eqs7day-M5.xml
+  # <item>
+  #   <geo:lat>11</geo:lat>
+  #   <geo:long>22</geo:long>
+  #
+  # or under geo:Point, maybe, eg. http://www.gdacs.org/xml/RSSTC.xml
+  # <item>
+  #   <geo:Point>
+  #     <geo:lat>11</geo:lat>
+  #     <geo:long>22</geo:long>
+  #
+  foreach my $elt ($item, $item->children(qr/^geo:point$/i)) {
+    my $lat = $elt->first_child_trimmed_text('geo:lat');
+    if (is_non_empty ($lat)) {
+      return ($lat,
+              $elt->first_child_trimmed_text('geo:long'),
+              non_empty ($elt->first_child_trimmed_text('geo:alt')));
+    }
+  }
+
+  # <item>
+  #   <georss:point>46.183 -123.816</georss:point>
+  {
+    my $str = $item->first_child_trimmed_text ('georss:point');
+    if (is_non_empty ($str)) {
+      return split(/\s+/, $str, 2); # no altitude
+    }
+  }
+
+  return; # not found
 }
 
 sub links_to_html {

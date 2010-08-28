@@ -20,7 +20,7 @@
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 199;
+use Test::More tests => 205;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
 # uncomment this to run the ### lines
@@ -43,7 +43,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 36;
+  my $want_version = 37;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -62,6 +62,92 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
       "VERSION object check $check_version");
 }
 
+
+#------------------------------------------------------------------------------
+# item_to_lat_long_alt_values()
+
+{
+  my $r2l = App::RSS2Leafnode->new;
+
+  foreach my $data (
+                    # nothing
+                    [[], <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0" xmlns:georss="http://www.georss.org/georss">
+ <channel>
+  <item></item>
+ </channel>
+</rss>
+HERE
+                    # georss:point
+                    [[12,34], <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0" xmlns:georss="http://www.georss.org/georss">
+ <channel>
+  <item><georss:point> 12 34 </georss:point></item>
+ </channel>
+</rss>
+HERE
+
+                    [[12,34], <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0" xmlns:geo="http://www.w3.org/2003/01/geo/wgs84_pos#">
+ <channel>
+  <item><geo:lat>12</geo:lat><geo:long>34</geo:long></item>
+ </channel>
+</rss>
+HERE
+                    [[12,34,1000], <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0" xmlns:geo="http://www.w3.org/2003/01/geo/wgs84_pos#">
+ <channel>
+  <item>
+   <geo:lat>12</geo:lat>
+   <geo:long>34</geo:long>
+   <geo:alt> 1000 </geo:alt>
+  </item>
+ </channel>
+</rss>
+HERE
+
+                    [[12,34], <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0" xmlns:geo="http://www.w3.org/2003/01/geo/wgs84_pos#">
+ <channel>
+  <item>
+   <geo:Point>
+    <geo:lat>12</geo:lat>
+    <geo:long>34</geo:long>
+   </geo:Point>
+  </item>
+ </channel>
+</rss>
+HERE
+                    [[12,34,1000], <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0" xmlns:geo="http://www.w3.org/2003/01/geo/wgs84_pos#">
+ <channel>
+  <item>
+   <geo:Point>
+    <geo:lat>12</geo:lat>
+    <geo:long>34</geo:long>
+    <geo:alt> 1000 </geo:alt>
+   </geo:Point>
+  </item>
+ </channel>
+</rss>
+HERE
+                   ) {
+    my ($want, $xml) = @$data;
+    my ($twig, $err) = $r2l->twig_parse ($xml);
+    if ($err) { diag $err; }
+    my $item = $twig->root->first_descendant(qr/^(item|entry)$/) || die;
+
+    is_deeply ([ $r2l->item_to_lat_long_alt_values ($item) ],
+               $want,
+               "item_to_keywords() $xml");
+  }
+}
 
 #------------------------------------------------------------------------------
 # str_count_lines()

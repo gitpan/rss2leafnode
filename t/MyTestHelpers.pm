@@ -39,28 +39,25 @@ sub DEBUG { 0 }
 
 {
   my $warning_count;
-  my $want_stacktrace;
+  my $stacktraces;
+  my $stacktraces_count = 0;
   sub nowarnings_handler {
     $warning_count++;
-    if ($want_stacktrace && eval { require Devel::StackTrace }) {
-      unshift @_, Devel::StackTrace->new->as_string;
+    if ($stacktraces_count < 3 && eval { require Devel::StackTrace }) {
+      $stacktraces_count++;
+      $stacktraces .= "\n" . Devel::StackTrace->new->as_string() . "\n";
     }
     warn @_;
   }
   sub nowarnings {
-    ($want_stacktrace) = @_;
     $SIG{'__WARN__'} = \&nowarnings_handler;
   }
   END {
     if ($warning_count) {
-      require Carp;
-
-      my $save_stacktrace = $want_stacktrace;
-      $want_stacktrace = 0;
-      Carp::carp ("Saw $warning_count warning(s)");
-      my $want_stacktrace = $save_stacktrace;
-
-      Test::More::diag('Exit code 1 for warnings');
+      require Test::More;
+      Test::More::diag("Saw $warning_count warning(s):");
+      Test::More::diag($stacktraces);
+      Test::More::diag("Exit code 1 for warnings");
       $? = 1;
     }
   }

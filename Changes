@@ -16,8 +16,13 @@ You should have received a copy of the GNU General Public License along
 with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
+
+Version 37, August 2010
+    - add media:thumbnail for get_icon
+    - avoid lc(undef) for perl 5.12
+
 Version 36, August 2010
-    - Email::Address 1.890 addr_spec is too loose :-(
+    - Email::Address 1.890 $addr_spec is too loose :-(
     - show geo:lat,geo:long with the links
 
 Version 35, August 2010

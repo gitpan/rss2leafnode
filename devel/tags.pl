@@ -75,6 +75,21 @@ my %known =
       /channel/item/creativeCommons:license
       /channel/item/media:credit   --nothing-much-in-this-one
 
+
+      --feedburner-junk
+      /channel/feedburner:feedFlare
+
+      --cap-bits
+      /channel/item/cap:severity
+
+      --geo-location
+      /channel/item/geo:lat
+      /channel/item/geo:long
+      /channel/item/geo:alt
+      /channel/item/geo:Point
+      /channel/item/geo:Point/geo:lat
+      /channel/item/geo:Point/geo:long
+
       --dates
       /channel/dc:date
       /channel/lastBuildDate
@@ -126,11 +141,14 @@ my %known =
       /channel/items/rdf:Seq
       /channel/items/rdf:Seq/rdf:li
 
+      --images
       /channel/itunes:owner
       /channel/itunes:owner/itunes:name
       /channel/itunes:owner/itunes:email
       /channel/itunes:image
+      /channel/item/image
 
+      --ttl-and-skip-periods
       /channel/skipDays
       /channel/skipDays/day
       /channel/skipHours
@@ -230,8 +248,6 @@ my %known =
       /channel/yweather:wind
       /channel/yweather:atmosphere
       /channel/yweather:astronomy
-      /channel/item/geo:lat
-      /channel/item/geo:long
       /channel/item/yweather:condition
       /channel/item/yweather:forecast
 
