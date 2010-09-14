@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-   $VERSION = 37;
+   $VERSION = 38;
 }
 
 # Cribs:
@@ -90,6 +90,10 @@ BEGIN {
 #   http://www.apple.com/itunes/podcasts/specs.html
 #   http://www.feedforall.com/itunes.htm
 #   http://www.w3.org/2003/01/geo/wgs84_pos -- <geo:lat> etc
+#   http://www.georss.org/
+#       http://www.georss.org/Encodings
+#       http://www.georss.org/atom
+#       http://www.georss.org/rdf_rss1
 #
 # URIs
 #   RFC 1738, RFC 2396, RFC 3986 -- URI formats (news/nntp in 1738)
@@ -346,11 +350,16 @@ sub ua {
     require Scalar::Util;
     Scalar::Util::weaken ($ua->{(__PACKAGE__)} = $self);
     $ua->agent ('RSS2leafnode/' . $self->VERSION . ' ');
-    $ua->add_handler (request_send => \&lwp_request_send__verbose);
-    $ua->add_handler (response_done => \&lwp_response_done__check_md5);
 
-    # ask for everything decoded_content() can cope with, in particular "gzip"
-    # and "deflate" compression if Compress::Zlib or whatever is available
+    Scalar::Util::weaken (my $weak_self = $self);
+    $ua->add_handler (request_send => \&lwp_request_send__verbose);
+    $ua->add_handler (response_done => sub {
+                        lwp_response_done__check_md5 ($weak_self, @_);
+                      });
+
+    # ask for everything $resp->decode() / $resp->decoded_content() can cope
+    # with, in particular "gzip" and "deflate" compression if Compress::Zlib
+    # or whatever is available
     #
     require HTTP::Message;
     my $decodable = HTTP::Message::decodable();
@@ -373,14 +382,25 @@ sub lwp_request_send__verbose {
 }
 
 sub lwp_response_done__check_md5 {
-  my ($resp, $ua, $h) = @_;
-  my $want = $resp->header('Content-MD5') // return;
-  my $content = $resp->decoded_content (charset => 'none');
+  my ($self, $resp, $ua, $h) = @_;
+  $self || return;
+  my $want = $resp->header('Content-MD5') // do {
+    if ($self->{'verbose'} >= 2) {
+      print "no Content-MD5 header\n";
+    }
+    return;
+  };
+  $resp->decode;
+  my $cref = $resp->content_ref;
   require Digest::MD5;
-  my $got = Digest::MD5::md5_hex($content);
+  my $got = Digest::MD5::md5_hex($$cref);
   if ($got ne $want) {
     print __x("Warning, MD5 checksum mismatch on download {url}\n",
               url => $resp->request->uri);
+  } else {
+    if ($self->{'verbose'} >= 2) {
+      print "Content-MD5 ok\n";
+    }
   }
 }
 
@@ -409,6 +429,94 @@ sub enforce_html_charset_from_content {
   }
 }
 
+
+#------------------------------------------------------------------------------
+my %known;
+@known{qw(
+           /channel/cloud
+           /channel/link
+           /channel/docs
+           /channel/generator
+           /channel/rating
+           /channel/id
+           /channel/description
+           /channel/tagline
+           /channel/info      --atom-something-freeform
+           /channel/itunes:summary
+           /channel/item/dc:audience
+           /channel/feedburner:info
+
+           --nothing-much-in-these-as-yet-eg.-rssboard
+           /channel/item/sitemap:priority
+           /channel/item/sitemap:changefreq
+
+           --feedburner-junk
+           /channel/feedburner:feedFlare
+
+           --rdf-structure
+           /channel/items
+           /channel/items/rdf:Seq
+           /channel/items/rdf:Seq/rdf:li
+
+           --images
+           /channel/itunes:owner
+           /channel/itunes:owner/itunes:name
+           /channel/itunes:owner/itunes:email
+
+           /channel/textInput
+           /channel/textInput/description
+           /channel/textInput/link
+           /channel/textInput/name
+           /channel/textInput/title
+           /channel/textinput
+           /channel/textinput/title
+           /channel/textinput/description
+           /channel/textinput/name
+           /channel/textinput/link
+
+           /channel/openSearch:totalResults
+           /channel/openSearch:startIndex
+           /channel/openSearch:itemsPerPage
+
+           -------
+           /channel/item
+           /channel/item/source
+
+        )} = ();
+
+# --weather
+# /channel/item/w:current
+# /channel/item/w:forecast
+# /channel/yweather:location
+# /channel/yweather:units
+# /channel/yweather:wind
+# /channel/yweather:atmosphere
+# /channel/yweather:astronomy
+# /channel/item/yweather:condition
+# /channel/item/yweather:forecast
+
+# --central-bank
+# /channel/item/cb:statistics
+# /channel/item/cb:statistics/cb:country
+# /channel/item/cb:statistics/cb:institutionAbbrev
+# /channel/item/cb:statistics/cb:exchangeRate
+# /channel/item/cb:statistics/cb:exchangeRate/cb:value
+# /channel/item/cb:statistics/cb:exchangeRate/cb:baseCurrency
+# /channel/item/cb:statistics/cb:exchangeRate/cb:targetCurrency
+# /channel/item/cb:statistics/cb:exchangeRate/cb:rateType
+# /channel/item/cb:statistics/cb:exchangeRate/cb:observationPeriod
+# /channel/item/cb:speech
+# /channel/item/cb:speech/cb:simpleTitle
+# /channel/item/cb:speech/cb:occurrenceDate
+# /channel/item/cb:speech/cb:person
+# /channel/item/cb:speech/cb:person/cb:givenName
+# /channel/item/cb:speech/cb:person/cb:surname
+# /channel/item/cb:speech/cb:person/cb:personalTitle
+# /channel/item/cb:speech/cb:person/cb:nameAsWritten
+# /channel/item/cb:speech/cb:person/cb:role
+# /channel/item/cb:speech/cb:person/cb:role/cb:jobTitle
+# /channel/item/cb:speech/cb:person/cb:role/cb:affiliation
+# /channel/item/cb:speech/cb:venue
 
 #------------------------------------------------------------------------------
 # dates
@@ -464,6 +572,21 @@ sub item_to_date {
   }
   return isodate_to_rfc822($date);
 }
+@known{qw(/channel/dc:date
+          /channel/lastBuildDate
+          /channel/pubDate
+          /channel/updated
+          /channel/modified
+
+          /channel/item/dc:date
+          /channel/item/pubDate
+          /channel/item/updated
+          /channel/item/published
+          /channel/item/modified
+          /channel/item/created
+          /channel/item/issued
+        )} = ();
+
 
 sub item_to_timet {
   my ($self, $item) = @_;
@@ -697,9 +820,10 @@ sub _resp_exiftool_info {
   # its Encode::FB_DEFAULT() put substitution chars for non-ascii non-utf8.
   #
   eval { require Image::ExifTool; 1 } || return {};
-  my $data = $resp->decoded_content (charset => 'none');
+  $resp->decode;
+  my $cref = $resp->content_ref;
   return Image::ExifTool::ImageInfo
-    (\$data,
+    ($cref,
      ['Title','Author','Copyright','ImageSize'], # just these tags
      {List => 0});       # get list values as comma separated
 }
@@ -707,7 +831,7 @@ sub _resp_exiftool_info {
 # $resp is a HTTP::Response, return title
 sub html_title {
   my ($resp) = @_;
-  
+
   return (# for images prefer filename+size over URI::Title just filename
           non_empty (html_title_exiftool_image($resp))
 
@@ -724,9 +848,10 @@ sub html_title_urititle {
     my ($msg) = @_;
     $msg =~ /Use of uninitialized value/ or warn @_;
   };
+  $resp->decode;
   return URI::Title::title
     ({ url  => ($resp->request->uri // ''),
-       data => $resp->decoded_content (charset => 'none')});
+       data => $resp->content});
 }
 sub html_title_exiftool_image {
   my ($resp) = @_;
@@ -837,8 +962,9 @@ sub mime_part_from_response {
 
   my $content_type = $resp->content_type;
   if ($self->{'verbose'} >= 2) { say " content-type: $content_type"; }
-  my $content      = $resp->decoded_content (charset=>'none');  # the bytes
-  my $charset      = $resp->content_charset;              # and their charset
+  $resp->decode;
+  my $content      = $resp->content;         # the bytes
+  my $charset      = $resp->content_charset; # and their charset
   my $url          = $resp->request->uri->as_string;
   my $content_md5  = $resp->header('Content-MD5');
 
@@ -1077,6 +1203,14 @@ sub twig_to_timingfields {
 
   return \%timingfields;
 }
+@known{qw(/channel/skipDays
+          /channel/skipDays/day
+          /channel/skipHours
+          /channel/skipHours/hour
+          /channel/ttl
+          /channel/syn:updateBase
+          /channel/syn:updatePeriod
+          /channel/syn:updateFrequency)} = ();
 
 # return an XML::RSS::Timing object, or undef
 sub timingfields_to_timing {
@@ -1364,13 +1498,14 @@ sub _warn_suppress_unknown_base {
 
 # $str is a wide-char string of text
 sub text_wrap {
-  my ($self, $str) = @_;
+  my ($self, $str, $prefix) = @_;
+  if (! defined $prefix) { $prefix = ''; }
   require Text::WrapI18N;
   local $Text::WrapI18N::columns = $self->{'render_width'} + 1;
   local $Text::WrapI18N::unexpand = 0;       # no tabs in output
   local $Text::WrapI18N::huge = 'overflow';  # don't break long words
   $str =~ tr/\n/ /;
-  return Text::WrapI18N::wrap('', '', $str);
+  return Text::WrapI18N::wrap($prefix, ' 'x(length($prefix)+2), $str);
 }
 
 #------------------------------------------------------------------------------
@@ -1481,6 +1616,21 @@ sub item_image_uwh {
   }
   return;
 }
+@known{qw(/channel/logo
+          /channel/icon
+          /channel/image
+          /channel/image/url
+          /channel/image/width
+          /channel/image/height
+          /channel/image/title
+          /channel/image/link
+          /channel/image/description
+          /channel/itunes:image
+
+          /channel/item/image
+          /channel/item/media:thumbnail
+
+        )} = ();
 
 # $resp is a HTTP::Response
 # return a string value for the Face: header, or undef if no icon
@@ -1513,7 +1663,8 @@ sub http_resp_favicon_uri {
                                            $p->eof;
                                          }
                                        }, "tagname, attr"]);
-  $p->parse ($resp->decoded_content (charset => 'none'));
+  $resp->decode;
+  $p->parse ($resp->content);
   return $href && URI->new_abs ($href, $resp->base);
 }
 
@@ -1553,7 +1704,8 @@ sub download_face_uncached {
     return;
   }
 
-  my $data = $resp->decoded_content(charset=>'none');
+  $resp->decode;
+  my $data = $resp->content;
   if ($type ne 'png'
       || $width == 0 || $height == 0
       || $width > 48 || $height > 48) {
@@ -1771,7 +1923,8 @@ sub fetch_html {
     ($url,
      $resp->header('ETag') // do {
        require Digest::MD5;
-       my $content = $resp->decoded_content (charset=>'none');
+       $resp->decode;
+       my $content = $resp->content;
        Digest::MD5::md5_base64($content)
        });
   return 0 if $self->nntp_message_id_exists ($msgid);
@@ -1865,7 +2018,8 @@ sub aireview_follow {
   my ($self, $url, $resp) = @_;
 
   if ($resp->is_success) {
-    my $content = $resp->decoded_content (charset=>'none');
+    $resp->decode;
+    my $content = $resp->content;
     if ($content =~ /<META[^>]*Refresh[^>]*checkForCookies/i) {
       if ($self->{'verbose'}) {
         say '  following aireview META Refresh with cookies';
@@ -2037,6 +2191,34 @@ sub item_to_links {
 
   return @links;
 }
+@known{qw(
+           /channel/item/pheedo:origLink
+           /channel/item/feedburner:origLink
+
+           /channel/item/link
+           /channel/item/enclosure
+           /channel/item/comments
+           /channel/item/wfw:comment
+           /channel/item/wfw:commentRss
+           /channel/item/slash:comments
+           /channel/item/slash:hit_parade
+           /channel/item/thr:total
+           /channel/item/content  --atom
+           /channel/item/wiki:diff
+           /channel/item/itunes:duration
+
+           /channel/wiki:interwiki
+           /channel/wiki:interwiki/rdf:Description
+           /channel/wiki:interwiki/rdf:Description/rdf:value
+           /channel/item/wiki:version
+           /channel/item/wiki:status
+           /channel/item/wiki:importance
+           /channel/item/wiki:history
+
+           --believed-to-be-duplicate-of-description
+           /channel/item/media:content
+           /channel/item/media:text
+        )} = ();
 
 sub item_to_lat_long_alt_str {
   my ($self, $item) = @_;
@@ -2097,6 +2279,7 @@ sub item_to_lat_long_alt_values {
 
   # <item>
   #   <georss:point>46.183 -123.816</georss:point>
+  # space separator per http://www.georss.org/Encodings
   {
     my $str = $item->first_child_trimmed_text ('georss:point');
     if (is_non_empty ($str)) {
@@ -2106,6 +2289,13 @@ sub item_to_lat_long_alt_values {
 
   return; # not found
 }
+@known{qw(/channel/item/geo:lat
+          /channel/item/geo:long
+          /channel/item/geo:alt
+          /channel/item/geo:Point
+          /channel/item/geo:Point/geo:lat
+          /channel/item/geo:Point/geo:long)} = ();
+
 
 sub links_to_html {
   @_ or return '';
@@ -2214,6 +2404,37 @@ sub item_to_from {
   return (From => $from,
           'X-From-URL:' => $uri);
 }
+@known{qw(/channel/author
+          /channel/author/name   --atom
+          /channel/author/uri    --atom
+          /channel/author/url    --atom-typo-maybe
+          /channel/author/email  --atom
+          /channel/managingEditor
+          /channel/webMaster
+          /channel/dc:publisher
+          /channel/dc:creator
+          /channel/itunes:author
+
+          /channel/item/author
+          /channel/item/author/name   --atom
+          /channel/item/author/uri    --atom
+          /channel/item/author/url    --atom-typo-maybe
+          /channel/item/author/email  --atom
+          /channel/item/author/gd:extendedProperty  --good-dinner
+          /channel/item/dc:creator
+          /channel/item/dc:publisher
+          /channel/item/wiki:username
+          /channel/item/itunes:author
+          /channel/item/dc:contributor
+          /channel/item/dc:contributor/rdf:Description
+          /channel/item/dc:contributor/rdf:Description/rdf:value
+
+          /channel/item/contributor        --atom
+          /channel/item/contributor/name
+          /channel/item/contributor/uri
+          /channel/item/contributor/url    --atom-typo-maybe
+          /channel/item/contributor/email
+        )} = ();
 
 # $elt is an XML::Twig::Elt
 # return an email address, either just the text part of $elt or Atom
@@ -2239,7 +2460,7 @@ sub elt_to_email {
        # <rdf:Description><rdf:value>...</></> under dc authors etc
        my $rdfdesc; ($rdfdesc = $elt->first_child('rdf:Description'))
          && $rdfdesc->first_child_text('rdf:value')
-     }));
+       }));
 
   return $self->email_format_maybe ($maybe, $display, $email);
 }
@@ -2388,6 +2609,7 @@ my $map_xmlns
      'urn:oasis:names:tc:emergency:cap:1.1'         => 'cap',
      'http://www.w3.org/2003/01/geo/wgs84_pos#'     => 'geo',
      'http://www.georss.org/georss'                 => 'georss',
+     'http://www.pheedo.com/namespace/pheedo'       => 'pheedo',
 
      # don't need to distinguish dcterms from plain dc as yet
      'http://purl.org/dc/elements/1.1/'             => 'dc',
@@ -2557,6 +2779,10 @@ sub item_to_msgid {
                                      updated
                                    ))));
 }
+# FIXME: is <wordzilla:id> anything that can be used ?
+@known{qw(/channel/item/guid
+          /channel/item/id
+          /channel/item/wordzilla:id)} = ();
 
 # Return a Message-ID string (including angles <>) for $item, or empty list.
 # This matches up to an Atom <id> element, dunno if it's much used.
@@ -2573,6 +2799,8 @@ sub item_to_in_reply_to {
   $ref = elt_xml_based_uri ($inrep, $ref); # probably shouldn't be relative ...
   return $self->url_to_msgid ($ref);
 }
+@known{qw(/channel/item/thr:in-reply-to
+        )} = ();
 
 # Return a string of comma separated keywords per RFC1036 and RFC2822.
 sub item_to_keywords {
@@ -2618,6 +2846,14 @@ sub item_to_keywords {
       ($item->children($re),
        item_to_channel($item)->children($re))));
 }
+@known{qw(/channel/category
+           /channel/itunes:category
+           /channel/itunes:category/itunes:category
+
+           /channel/item/category
+           /channel/item/itunes:keywords
+           /channel/item/media:keywords
+           /channel/item/slash:section)} = ();
 
 {
   # return a string for the "Importance:" header of RFC 1911, RFC 2156
@@ -2632,7 +2868,7 @@ sub item_to_keywords {
 
   sub item_to_importance {
     my ($self, $item) = @_;
-    
+
     my $cap_severity = lc($item->first_child_trimmed_text('cap:severity')
                           // '');
     if ($self->{'verbose'} >= 2) {
@@ -2640,7 +2876,7 @@ sub item_to_keywords {
         print "  CAP severity: $cap_severity\n";
       }
     }
-      
+
     if ($cap_severity_high{$cap_severity}) {
       return 'high';
     }
@@ -2712,6 +2948,17 @@ sub item_to_subject {
      // elt_to_rendered_line ($item->first_child('dc:subject'))
      // __('no subject'));
 }
+@known{qw(/channel/title
+          /channel/dc:subject
+          /channel/subtitle
+          /channel/itunes:subtitle
+
+          /channel/item/dc:subject
+          /channel/item/title
+          /channel/item/itunes:title
+          /channel/item/itunes:subtitle  --not-using-this-as-yet
+        )} = ();
+
 
 # return language code string for Content-Language, or undef
 # return is per RFC 1766, RFC 3066, RFC 4646
@@ -2740,6 +2987,11 @@ sub item_to_language {
   }
   return ($lang // $self->{'resp'}->content_language);
 }
+@known{qw(/channel/language
+          /channel/dc:language
+          /channel/item/language
+          /channel/item/dc:language
+        )} = ();
 
 # return arrayref of copyright strings
 # Keep all of multiple rights/license/etc in the interests of preserving all
@@ -2768,6 +3020,16 @@ sub item_to_copyright {
              (map {$_->children($re)} $item->children('source')),
              $channel->children ($re))) ];
 }
+@known{qw(/channel/copyright
+          /channel/rights
+          /channel/dc:rights
+          /channel/dc:license
+          /channel/creativeCommons:license
+          /channel/item/dc:rights
+          /channel/item/dc:license
+          /channel/item/creativeCommons:license)} = ();
+# /channel/item/media:credit   --nothing-much-in-this-one
+
 
 # return copyright string or undef
 sub item_to_generator {
@@ -2877,25 +3139,75 @@ sub item_common_alert_protocol {
       # dunno how to show these yet ...
       next;
     }
+    $known{'/channel/item/'.$elt->name} = undef;
+
     my $value = elt_to_rendered_line ($elt);
     $value = Text::Trim::trim ($value);
     if (is_non_empty ($value)) {
-      push @fields, [ "\u$field:", $value ];
+      push @fields, [ "\u$field: ", $value ];
     }
   }
   if (! @fields) {
     return '';
   }
-  # FIXME: This indenting doesn't come out in html, only in text.  The NOAA
-  # is Atom plain text, so that one is ok at least.
+  # FIXME: This $width padding doesn't come out in html, only in text.  The
+  # NOAA is Atom plain text, so that one is ok at least.
   my $width = max(map {length $_->[0]} @fields);
-  @fields = map { sprintf("%-*s %s\n", $width, $_->[0], $_->[1]) } @fields;
+  @fields = map { my $field = $_->[0];
+                  my $value = $_->[1];
+                  $field = sprintf ('%-*s', $width, $field);
+                  $self->text_wrap ($value, $field)
+                } @fields;
   if ($want_html) {
-    return "<p>" . join("<br>\n", map {$Entitize{$_}} @fields) . "</p>\n";
+    return "<p>\n"
+      . join("<br>\n", map {$Entitize{$_}} @fields)
+        . "\n</p>\n";
   } else {
-    return "\n" . join("\n", map{$self->text_wrap($_)} @fields);
+    return "\n"
+      . join("\n",  @fields)
+        . "\n";
   }
 }
+
+sub item_unknowns {
+  my ($self, $item, $want_html) = @_;
+  my @fields;
+
+  foreach my $elt ($item->children) {
+    next if $elt->tag =~ /^#/;  # text
+    my $path = $elt->path;
+    $path =~ s{^/(rss|channel)/channel}{/channel};
+    $path =~ s{^/(feed|rdf:RDF)}{/channel};
+    $path =~ s{^/channel/entry}{/channel/item};
+    next if $path =~ m{/xhtml};
+    next if $path =~ m{^/channel/item/(description|content:encoded)/};
+    next if exists $known{$path};
+    my $str = $elt->sprint;
+    push @fields, $self->text_wrap ($str)
+  }
+  if (! @fields) {
+    return '';
+  }
+  if ($want_html) {
+    return "\n<p>\n"
+      . __('Further XML fields:') . "<br>\n"
+        . join("<br>\n", map {$Entitize{$_}} @fields) . "\n</p>\n";
+  } else {
+    return "\n"
+      . __('Further XML fields:')
+        . "\n"
+          . join("\n", @fields)
+            . "\n";
+  }
+}
+
+# $body construction below
+@known{qw(/channel/item/description
+           /channel/item/dc:description
+           /channel/item/itunes:summary
+           /channel/item/content:encoded
+           /channel/item/summary
+        )} = ();
 
 # $item is an XML::Twig::Elt
 #
@@ -3010,6 +3322,7 @@ sub fetch_rss_process_one_item {
                    ? links_to_html(@links)
                    : links_to_text(@links));
   $links_str .= $self->item_common_alert_protocol($item, $links_want_html);
+  $links_str .= $self->item_unknowns($item, $links_want_html);
   my @parts;
 
   if ($self->{'rss_get_links'}) {
@@ -3166,7 +3479,8 @@ sub fetch_rss {
   }
   local $self->{'resp'} = $resp;
 
-  my $xml = $resp->decoded_content (charset => 'none'); # raw bytes
+  $resp->decode;
+  my $xml = $resp->content; # raw bytes
   $xml = $self->enforce_rss_charset_override ($xml);
 
   my ($twig, $err) = $self->twig_parse($xml);

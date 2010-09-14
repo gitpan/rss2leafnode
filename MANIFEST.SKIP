@@ -58,6 +58,9 @@
 # msdos compiler stuff using ms c
 \.pdb$
 
+# built - recent Module::Build nonsense
+^MYMETA\.yml$
+
 # built - cdbs and debhelper
 ^debian/stamp-
 ^debian/.*\.log$

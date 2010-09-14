@@ -56,7 +56,7 @@ my $r2l = App::RSS2Leafnode->new
    # render => 'lynx',
    rss_newest_only => 3,
    # rss_get_links => 1,
-    get_icon => 1,
+   get_icon => 1,
   );
 
 my @uris;
@@ -72,7 +72,7 @@ GetOptions (require_order => 1,
             'all'        => sub { $r2l->{'rss_newest_only'} = 0 },
             '<>' => sub {
               my ($arg) = @_;
-              push @uris, URI->new("$arg",'file');
+              push @uris, URI::file->new("$arg");
             },
            ) or exit 1;
 
@@ -142,6 +142,9 @@ if (1) {
       my $md5 = Digest::MD5::md5_hex($content);
       $resp->headers->header ('Content-MD5' => $md5);
     }
+
+    print "$progname: check md5\n";
+    App::RSS2Leafnode::lwp_response_done__check_md5 ($r2l, $resp);
   }
 
   #       if ($uri->scheme eq 'file' && $uri->host ~~ ['','localhost']) {

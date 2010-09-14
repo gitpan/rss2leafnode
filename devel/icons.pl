@@ -79,7 +79,7 @@ sub imagemagick_to_x_face {
   my ($self, $type, $data) = @_;
   eval { require Image::XFace } or return;
   ### $type
-  my $image = $self->imagemagick_from_data($type,$data) // return;
+  my $image = $self->imagemagick_from_data($type,$data) || return;
   # $xface = Image::XFace::compface(@bits);
   return;
 }

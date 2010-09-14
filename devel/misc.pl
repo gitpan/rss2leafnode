@@ -21,8 +21,32 @@ use 5.010;
 use strict;
 use warnings;
 
+# uncomment this to run the ### lines
+use Smart::Comments;
+
 {
-  use Smart::Comments;
+  my $str = 'fdjsk fdjsk fjksd fksd jkfs jfk sjkf skjf sk fjks fskjf sdk fsd';
+  require Text::WrapI18N;
+  local $Text::WrapI18N::columns = 20;
+  local $Text::WrapI18N::unexpand = 0;       # no tabs in output
+  local $Text::WrapI18N::huge = 'overflow';  # don't break long words
+  $str =~ tr/\n/ /;
+  print Text::WrapI18N::wrap('xxxxxxxxx', 'yyyyyy', $str);
+  exit 0;
+}
+
+{
+  require HTTP::Response;
+  my $headers = [ 'Content-Type' => 'text/plain' ],
+  my $content = 'hello';
+  my $resp = HTTP::Response->new (200, 'OK', $headers, $content);
+  $resp->content_ref (\$content);
+  my $cref = $resp->content_ref;
+  ### $cref
+  exit 0;
+}
+
+{
   require Text::Trim;
   my @str = Text::Trim::trim('  x  ');
   ### @str;
