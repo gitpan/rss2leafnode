@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-   $VERSION = 38;
+   $VERSION = 39;
 }
 
 # Cribs:
@@ -432,6 +432,11 @@ sub enforce_html_charset_from_content {
 
 #------------------------------------------------------------------------------
 my %known;
+
+# <dc:valid> dates through which thing is valid
+# ENHANCE-ME: is this something to work into the skipdays? or a message expiry?
+$known{'/channel/item/dc:valid'} = undef;
+
 @known{qw(
            /channel/cloud
            /channel/link
@@ -1505,7 +1510,8 @@ sub text_wrap {
   local $Text::WrapI18N::unexpand = 0;       # no tabs in output
   local $Text::WrapI18N::huge = 'overflow';  # don't break long words
   $str =~ tr/\n/ /;
-  return Text::WrapI18N::wrap($prefix, ' 'x(length($prefix)+2), $str);
+  my $second_prefix = (length($prefix) ? ' 'x(length($prefix)+2) : '');
+  return Text::WrapI18N::wrap($prefix, $second_prefix, $str);
 }
 
 #------------------------------------------------------------------------------
@@ -2606,10 +2612,17 @@ my $map_xmlns
      'http://rssnamespace.org/feedburner/ext/1.0'   => 'feedburner',
      'http://search.yahoo.com/mrss'                 => 'media',
      'http://backend.userland.com/creativeCommonsRssModule'=>'creativeCommons',
-     'urn:oasis:names:tc:emergency:cap:1.1'         => 'cap',
      'http://www.w3.org/2003/01/geo/wgs84_pos#'     => 'geo',
      'http://www.georss.org/georss'                 => 'georss',
      'http://www.pheedo.com/namespace/pheedo'       => 'pheedo',
+
+     # Common Alerts Protocol
+     'urn:oasis:names:tc:emergency:cap:1.1'         => 'cap',
+
+     # central bank exchange rates format,
+     # spec http://www.cbwiki.net/wiki/index.php/RSS-CBMain
+     # eg. RBA http://www.rba.gov.au/rss/rss-cb-exchange-rates.xml
+     'http://www.cbwiki.net/wiki/index.php/Specification_1.1' => 'cb',
 
      # don't need to distinguish dcterms from plain dc as yet
      'http://purl.org/dc/elements/1.1/'             => 'dc',
@@ -2633,7 +2646,8 @@ sub twig_parse {
   #
   require XML::Twig;
   XML::Twig->VERSION('3.34'); # for att_exists()
-  my $twig = XML::Twig->new (map_xmlns => $map_xmlns);
+  my $twig = XML::Twig->new (map_xmlns => $map_xmlns,
+                             pretty_print => 'wrapped');
   $twig->safe_parse ($xml);
   my $err = $@;
 
@@ -2711,10 +2725,12 @@ sub twig_parse {
   elt_tree_strip_prefix ($root, 'atom');
   elt_tree_strip_prefix ($root, 'rss');
   #
+  # somehow map_xmlns mangles default attributes like "decimals=...", prefer
+  # to see them without rss: or atom: -- maybe
   #   foreach my $child ($root->descendants_or_self) {
   #     foreach my $attname ($child->att_names) {
-  #       if ($attname =~ /^atom:(.*)/) {
-  #         $child->change_att_name($attname, $1);
+  #       if ($attname =~ /^(atom|rss):(.*)/) {
+  #         $child->change_att_name($attname, $2);
   #       }
   #     }
   #   }
@@ -2803,9 +2819,6 @@ sub item_to_in_reply_to {
         )} = ();
 
 # Return a string of comma separated keywords per RFC1036 and RFC2822.
-sub item_to_keywords {
-  my ($self, $item) = @_;
-
   # <category> is often present with no other keywords, work that in as a
   # bit of a fallback, being better than nothing for classification.
   #
@@ -2829,6 +2842,7 @@ sub item_to_keywords {
   #
   # How much value is there in the channel keywords?
   #
+{
   my $re = qr/^(category
               |itunes:category
               |cap:category
@@ -2836,24 +2850,34 @@ sub item_to_keywords {
               |media:keywords
               |dc:subject
               )$/x;
-  return join_non_empty
-    (', ',
-     List::MoreUtils::uniq
-     (map { collapse_whitespace($_) }
-      map { split /,/ }
-      map { $_->att('text')   # itunes:category
-              // $_->text }   # other
-      ($item->children($re),
-       item_to_channel($item)->children($re))));
-}
-@known{qw(/channel/category
-           /channel/itunes:category
-           /channel/itunes:category/itunes:category
+  sub item_to_keywords {
+    my ($self, $item) = @_;
 
-           /channel/item/category
-           /channel/item/itunes:keywords
-           /channel/item/media:keywords
-           /channel/item/slash:section)} = ();
+    my @item_children = ($re);
+    my $channel = item_to_channel($item);
+
+    return join_non_empty
+      (', ',
+       List::MoreUtils::uniq
+       (map { collapse_whitespace($_) }
+        map { split /,/ }
+        map { $_->att('text')   # itunes:category
+                // $_->text }   # other
+        ($item->children($re),
+         $channel->children($re),
+         # <cb:news> etc sub-element <cb:category>
+         map {$_->children('cb:keyword')} $item->children,
+        )));
+  }
+  @known{qw(/channel/category
+            /channel/itunes:category
+            /channel/itunes:category/itunes:category
+
+            /channel/item/category
+            /channel/item/itunes:keywords
+            /channel/item/media:keywords
+            /channel/item/slash:section)} = ();
+}
 
 {
   # return a string for the "Importance:" header of RFC 1911, RFC 2156
@@ -3169,10 +3193,32 @@ sub item_common_alert_protocol {
   }
 }
 
+# RBA per http://www.rba.gov.au/rss/rss-cb-exchange-rates.xml
+# <cb:statistics> repeats in structured form the rate shown in the text
+#
+# Fed Reserve per http://www.federalreserve.gov/feeds/press_taf.xml
+# <cb:news> repeats plain text
+#
+# Fed eg. http://www.federalreserve.gov/feeds/speeches.xml
+# FIXME: <cb:speech> may have bit extra detail
+#
+# Fed eg. http://www.federalreserve.gov/feeds/ifdp.xml
+# <cb:paper> repeat in structured form
+# FIXME: except <cb:resource><cb:link> has extra pdf form link
+#
+# <cb:event> guess likewise
+#
+@known{qw(/channel/item/cb:statistics
+          /channel/item/cb:news
+          /channel/item/cb:speech
+          /channel/item/cb:paper
+          /channel/item/cb:event
+        )} = ();
+
 sub item_unknowns {
   my ($self, $item, $want_html) = @_;
-  my @fields;
 
+  my $xml = '';
   foreach my $elt ($item->children) {
     next if $elt->tag =~ /^#/;  # text
     my $path = $elt->path;
@@ -3182,22 +3228,27 @@ sub item_unknowns {
     next if $path =~ m{/xhtml};
     next if $path =~ m{^/channel/item/(description|content:encoded)/};
     next if exists $known{$path};
-    my $str = $elt->sprint;
-    push @fields, $self->text_wrap ($str)
+
+    my $part = do {
+      require Text::Wrap;
+      local $Text::Wrap::columns = $self->{'render_width'} + 1 + 4;
+      local $Text::Wrap::unexpand = 0;  # no tabs in output
+      $elt->sprint
+    };
+    $part =~ s/^    //mg; # indentation from element depth
+    $part =~ s/^\n+//;    # leading blank lines
+    $xml .= $part;
   }
-  if (! @fields) {
+  if ($xml eq '') {
     return '';
   }
+  ### $xml
+
   if ($want_html) {
-    return "\n<p>\n"
-      . __('Further XML fields:') . "<br>\n"
-        . join("<br>\n", map {$Entitize{$_}} @fields) . "\n</p>\n";
+    return "\n<p>\n" . __('Further XML fields:') . "<br>\n"
+        . "<pre>$Entitize{$xml}</pre>\n</p>\n";
   } else {
-    return "\n"
-      . __('Further XML fields:')
-        . "\n"
-          . join("\n", @fields)
-            . "\n";
+    return "\n" . __('Further XML fields:') . "\n" . $xml;
   }
 }
 

@@ -53,7 +53,7 @@ my $r2l = App::RSS2Leafnode->new
    verbose => 2,
    msgidextra => 'Z',
 
-   # render => 'lynx',
+   render => 'lynx',
    rss_newest_only => 3,
    # rss_get_links => 1,
    get_icon => 1,

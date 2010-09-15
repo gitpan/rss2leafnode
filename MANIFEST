@@ -67,14 +67,14 @@ po/header.pot
 po/README
 rss2leafnode
 SIGNATURE
-t/0-exe-shebang.t
-t/0-META-read.t
-t/0-Test-DistManifest.t
-t/0-Test-Pod.t
-t/0-Test-Synopsis.t
-t/0-Test-YAML-Meta.t
 t/MyTestHelpers.pm
 t/RSS2Leafnode.t
 t/test-weaken.t
 t/Test/Weaken/ExtraBits.pm
+xt/0-exe-shebang.t
+xt/0-META-read.t
+xt/0-Test-DistManifest.t
+xt/0-Test-Pod.t
+xt/0-Test-Synopsis.t
+xt/0-Test-YAML-Meta.t
 META.yml                                 Module meta-data (added by MakeMaker)

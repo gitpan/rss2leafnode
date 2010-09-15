@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 39, September 2010
+    - pick out cb:category, though skip other cb bits for now
+
 Version 38, September 2010
     - show any otherwise unknown item fields from the XML
 
