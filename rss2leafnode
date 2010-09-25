@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 39;
+our $VERSION = 40;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -337,12 +337,20 @@ parts.  Transfer format in the message body is chosen by C<MIME::Entity>
 (except Atom base64 C<< <content> >>) which normally means quoted-printable
 it there's any non-ascii or very long lines.
 
-Links are shown for RSS and Atom C<< <link> >>, RSS C<< <enclosure> >> and
-C<< <comments> >>, Atom external C<< <content> >> (except other XML feeds),
-C<< <wfw:comment> >> and C<< <wiki:diff> >>.  Comments and "replies" links
-are not downloaded under C<$rss_get_links> (currently).  Comment or reply
-counts are shown from C<< <thr:total> >>, C<< thr:count >> and
-C<< <slash:comments> >>.
+Links are shown for
+
+    <link>           RSS and Atom
+    <enclosure>      RSS
+    <comments>       RSS
+    <content>        Atom externals, except other XML feeds
+    <wfw:comment>    well-formed web
+    <wiki:diff>      various wikis
+    <wiki:history>   various wikis, not downloaded
+    Author home      Atom and wiki, not downloaded
+
+Comments and replies are not downloaded under C<$rss_get_links> (currently).
+Comment or reply counts are shown from C<< <thr:total> >>, C<< thr:count >>
+attribute, or C<< <slash:comments> >> (sub-element of C<< <comments> >>).
 
 Common Alerts Protocol (CAP) fields for weather alerts etc are shown if
 present (eg. from the US NOAA).  This is slightly experimental but can have
@@ -350,21 +358,21 @@ more detail than just the text.  A C<< <geo:> or <georss:> >> location is
 shown among the links (though with nowhere to go to).
 
 Unrecognised item fields are shown in XML at the end of the message so as
-not to drop information and to perhaps suggest extra things RSS2Leafnode
-could crunch.
+not to drop information, and to perhaps suggest extra things RSS2Leafnode
+might present or interpret.
 
-An attempt is made to repair bad XML from a feed using C<XML::Liberal> if
-you have that module.  It uses C<XML::LibXML> and the C<libxml> library and
-is often successful on annoying things like bad entities, at least enough to
+An attempt is made to repair bad XML from a feed with C<XML::Liberal> if you
+have that module.  It uses C<XML::LibXML> and the C<libxml> library and is
+often successful on annoying things like bad entities, at least enough to
 process something.
 
-Too much or too little entity escaping tends to be the most common feed
+Too much or too little entity escaping tends to be the most common XML
 problem.  Too little can turn HTML markup into nested XML elements.
-RSS2Leafnode extracts that as if it was XHTML, though the result is likely
-to be imperfect.  Too much escaping currently ends up displaying as raw or
-semi-raw HTML.  An option to unescape that might be possible, to improve the
-display of a particular bad feed, though bad feeds tend to be bad in too
-many different ways to anticipate.
+RSS2Leafnode treats that as if it was XHTML, though the result is likely to
+be imperfect.  Too much escaping currently ends up displaying as raw or
+semi-raw HTML.  An option to unescape that might improve the display of a
+particular bad feed, though in practice every bad feed is bad in its own
+different way.
 
 =head2 Message Headers
 
@@ -375,33 +383,45 @@ roughly as follows,
 
 =item From:
 
-First of <author>, <dc:creator>, <dc:contributor>, <wiki:username>,
-<itunes:author>, <managingEditor>, <webMaster>, <dc:publisher>,
-<itunes:owner>, channel <title>.
+First non-empty of
+
+    <author>
+    <dc:creator>
+    <dc:contributor>
+    <wiki:username>
+    <itunes:author>
+    <managingEditor>
+    <webMaster>
+    <dc:publisher>
+    <itunes:owner>
+    channel <title>
 
 If there's no identifiable mailbox part then C<nobody@rss2leafnode.dummy> is
-added to make an RFC822 style address.  The channel title as a fallback
-shows something about where a message came from when there's no other author
-identified.
-
-=item X-From-Url:
-
-An RSS2Leafnode extension, being the <uri> from an Atom <author> which is
-the home page of the From: person.  This is experimental and perhaps might
-be better shown in the message like a C<< <link> >> (not downloaded by
-C<$get_links>).
+added to make an RFC822 address.  The channel title as a fallback shows
+something about where a message came from when there's no other author
+identified.  An author's home page is shown in the links above.
 
 =item Subject:
 
-<title> or <dc:subject>.  The <dc:subject> is normally only a keyword but
-might be better than nothing.
+C<< <title> >> or C<< <dc:subject> >>.  A C<< <dc:subject> >> is normally
+only a keyword but might be better than nothing.
 
 =item Date:
 
-First present of <pubDate>, <dc:date>, <modified>, <updated>, <issued>,
-<created>, <lastBuildDate>, <published>.  These are all supposed to be in
-ISO format "2000-01-01T12:00:00Z" etc and are converted to RFC822 style.  An
-unrecognised form is put through unmodified.
+First present of
+
+    <pubDate>
+    <dc:date>
+    <modified>
+    <updated>
+    <issued>
+    <created>
+    <lastBuildDate>
+    <published>
+
+These are all supposed to be ISO format "2000-01-01T12:00:00Z" etc and are
+converted to RFC822 style, but an unrecognised form is put through
+unmodified.
 
 =item Date-Received:
 
@@ -409,9 +429,13 @@ The date/time when C<rss2leafnode> made the message.
 
 =item Message-ID:
 
-First of <id>, <guid isPermaLink="true">, Yahoo <link>, <guid
-isPermaLink="false"> and feed URL, or MD5 hash of various fields and feed
-URL.
+First of
+
+    <id>
+    <guid isPermaLink="true">
+    Yahoo <link>
+    <guid isPermaLink="false"> plus feed URL
+    MD5 hash of various fields and feed URL
 
 Yahoo Finance items repeated in different feeds are noticed using a special
 match of the <link> in the items so that just one copy is posted.  (As of
@@ -419,9 +443,16 @@ March 2010 those items don't offer RSS C<guid> identifiers.)
 
 =item Keywords:
 
-All of <category>, <itunes:category>, <cap:category>, <itunes:keywords>,
-<media:keywords>, <dc:subject>.  The sub-category system of
-<itunes:category> is not currently put through.
+All of
+
+    <category>
+    <itunes:category>
+    <cap:category>
+    <itunes:keywords>
+    <media:keywords>
+    <dc:subject>
+
+The sub-category system of <itunes:category> is not currently put through.
 
 =item In-Reply-To:
 
@@ -436,9 +467,9 @@ newsreaders use this to resolve relative links in a HTML part.
 
 =item Content-Language:
 
-<language>, <dc:language>, xml:lang="", or HTTP response Content-Language.
-xml:lang is a standard XML attribute which may be present on any element and
-is sometimes found on Atom <content> text.
+C<< <language> >>, C<< <dc:language> >>, C<xml:lang="">, or HTTP response
+C<Content-Language>.  C<xml:lang> is a standard XML attribute which may be
+present on any element and is sometimes found on Atom C<< <content> >> text.
 
 =item Content-MD5:
 
@@ -449,19 +480,29 @@ download, if present, which is almost never.
 
 =item Priority:
 
-From common alerts protocol <cap:severity>.  Extreme and Severe are treated
-as "high" importance and "urgent" priority.  These headers are only supposed
-to be for X.400 inter-operation though.
+Common Alerts Protocol C<< <cap:severity> >> Extreme and Severe treated as
+"high" importance and "urgent" priority.  And C<< <wiki:importance> >> minor
+is "low" importance.  These headers are only supposed to be for X.400
+inter-operation though.
 
-A Precedence: header is not generated currently though it could get a
-similar value, and maybe "list" or "bulk" if a feed is a mailing list or
-similar and if that could be identified.
+=item Precedence:
+
+Is "list" for certain Google Groups lists, identified by their link URLs,
+per C<List-Post> below.  Perhaps other feeds which come from mailing lists
+could be identified in the future.
 
 =item Face:
 
-Experimental C<$get_icons> option from item or channel <image>, <icon>,
-<logo>, <itunes:image>.  Gnus and perhaps other newsreaders can display
-this, see L<http://quimby.gnus.org/circus/face>
+Experimental C<$get_icons> option from item or channel
+
+     <image>           RSS
+     <icon>            Atom
+     <logo>            Atom
+     <itunes:image>
+     HTML favicon      for fetch_html()
+
+Gnus and perhaps other newsreaders can display C<Face:>, see
+L<http://quimby.gnus.org/circus/face>
 
 =item List-Post:
 
@@ -481,8 +522,13 @@ could be turned into a rating too.
 
 =item X-Copyright:
 
-An RSS2Leafnode extension, being all of <rights>, <copyright>, <dc:license>,
-<dc:rights>, <creativeCommons:license>.  See L</Copyright> above.
+An RSS2Leafnode extension, being all of following.  See L</Copyright> above.
+
+    <rights>
+    <copyright>
+    <dc:license>
+    <dc:rights>
+    <creativeCommons:license>
 
 =item X-RSS-Url:
 
@@ -492,8 +538,8 @@ the raw feed.
 
 =item X-RSS-Generator:
 
-An RSS2Leafnode extension, being the channel <generator>.  This might help
-assign blame for bad feed content etc.
+An RSS2Leafnode extension, being the channel C<< <generator> >>.  This might
+help assign blame for bad feed content etc.
 
 =back
 

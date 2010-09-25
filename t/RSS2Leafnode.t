@@ -43,7 +43,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 39;
+  my $want_version = 40;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -1342,44 +1342,53 @@ HERE
 	   <rdf:value>Some Body</rdf:value>
          </rdf:Description>
        </dc:contributor>',
-      [ From => 'Some Body <'.$r2l->DUMMY_EMAIL_ADDRESS.'>',
-        'X-From-URL:' => 'http://some.where/home.html' ] ],
+      [ 'Some Body <'.$r2l->DUMMY_EMAIL_ADDRESS.'>',
+        { uri      => URI->new('http://some.where/home.html'),
+          name     => __('Contributor:'),
+          download => 0,
+        }] ],
 
      ['<dc:contributor>
          <rdf:Description rss:link="http://some.where/home.html">
 	   <rdf:value>Some Body</rdf:value>
          </rdf:Description>
        </dc:contributor>',
-      [ From => 'Some Body <'.$r2l->DUMMY_EMAIL_ADDRESS.'>',
-        'X-From-URL:' => 'http://some.where/home.html' ] ],
+      [ 'Some Body <'.$r2l->DUMMY_EMAIL_ADDRESS.'>',
+        { uri      => URI->new('http://some.where/home.html'),
+          name     => __('Contributor:'),
+          download => 0,
+        } ] ],
 
      ['<author>
          <name>Foo Bar</name>
          <email>foo@bar.com</email>
          <uri>http://foo.com/home.html</uri>
        </author>',
-      [ From => 'Foo Bar <foo@bar.com>',
-        'X-From-URL:' => 'http://foo.com/home.html' ] ],
+      [ 'Foo Bar <foo@bar.com>',
+        { uri      => URI->new('http://foo.com/home.html'),
+          name     => __('Author:'),
+          download => 0,
+        } ] ],
 
      ['<author><name>Foo Bar</name><email>foo@bar.com</email></author>',
-      [ From => 'Foo Bar <foo@bar.com>',
-        'X-From-URL:' => undef ] ],
+      [ 'Foo Bar <foo@bar.com>',
+        undef ] ],
 
      ['<author><name>Foo Bar</name></author>',
-      [ From => 'Foo Bar <'.$r2l->DUMMY_EMAIL_ADDRESS.'>',
-        'X-From-URL:' => undef ] ],
+      [ 'Foo Bar <'.$r2l->DUMMY_EMAIL_ADDRESS.'>',
+        undef ] ],
 
      ['<author><email>foo@bar.com</email></author>',
-      [ From => 'foo@bar.com',
-        'X-From-URL:' => undef ] ],
+      [ 'foo@bar.com',
+        undef ] ],
 
      ['<author></author>',
-      [ From => 'nobody@'.$host,
-        'X-From-URL:' => undef ] ],
+      [ 'nobody@'.$host,
+        undef ] ],
 
      ['',
-      [ From => 'nobody@'.$host,
-        'X-From-URL:' => undef ] ],
+      [ 'nobody@'.$host,
+        undef ] ],
     ) {
     my ($fragment, $want) = @$data;
 

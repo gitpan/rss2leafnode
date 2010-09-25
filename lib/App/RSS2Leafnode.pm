@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-   $VERSION = 39;
+   $VERSION = 40;
 }
 
 # Cribs:
@@ -119,7 +119,6 @@ BEGIN {
 #   RFC 1327 -- X.400 to RFC822 introducing Language header
 #   RFC 3282 -- Content-Language header
 #   RFC 1766, RFC 3066, RFC 4646 -- language tag form
-#   RFC 1911, RFC 2156 -- voice and X.400 messaging, "Importance" header
 #
 # NNTP
 #     RFC 977 -- NNTP
@@ -437,6 +436,16 @@ my %known;
 # ENHANCE-ME: is this something to work into the skipdays? or a message expiry?
 $known{'/channel/item/dc:valid'} = undef;
 
+# <eq:depth> earthquake depth, repeat of text
+# <eq:seconds> unix seconds since 1970 date of earthquake, repeating text
+@known{qw(/channel/item/eq:depth
+          /channel/item/eq:seconds)} = ();
+
+# rdf structure stuff
+@known{qw(/channel/items
+          /channel/items/rdf:Seq
+          /channel/items/rdf:Seq/rdf:li)} = ();
+
 @known{qw(
            /channel/cloud
            /channel/link
@@ -458,11 +467,6 @@ $known{'/channel/item/dc:valid'} = undef;
            --feedburner-junk
            /channel/feedburner:feedFlare
 
-           --rdf-structure
-           /channel/items
-           /channel/items/rdf:Seq
-           /channel/items/rdf:Seq/rdf:li
-
            --images
            /channel/itunes:owner
            /channel/itunes:owner/itunes:name
@@ -483,7 +487,6 @@ $known{'/channel/item/dc:valid'} = undef;
            /channel/openSearch:startIndex
            /channel/openSearch:itemsPerPage
 
-           -------
            /channel/item
            /channel/item/source
 
@@ -500,6 +503,27 @@ $known{'/channel/item/dc:valid'} = undef;
 # /channel/item/yweather:condition
 # /channel/item/yweather:forecast
 
+# RBA per http://www.rba.gov.au/rss/rss-cb-exchange-rates.xml
+# <cb:statistics> repeats in structured form the rate shown in the text
+#
+# Fed Reserve per http://www.federalreserve.gov/feeds/press_taf.xml
+# <cb:news> repeats plain text
+#
+# Fed eg. http://www.federalreserve.gov/feeds/speeches.xml
+# FIXME: <cb:speech> may have bit extra detail
+#
+# Fed eg. http://www.federalreserve.gov/feeds/ifdp.xml
+# <cb:paper> repeat in structured form
+# FIXME: except <cb:resource><cb:link> has extra pdf form link
+#
+# <cb:event> guess likewise
+#
+@known{qw(/channel/item/cb:statistics
+          /channel/item/cb:news
+          /channel/item/cb:speech
+          /channel/item/cb:paper
+          /channel/item/cb:event
+        )} = ();
 # --central-bank
 # /channel/item/cb:statistics
 # /channel/item/cb:statistics/cb:country
@@ -522,6 +546,7 @@ $known{'/channel/item/dc:valid'} = undef;
 # /channel/item/cb:speech/cb:person/cb:role/cb:jobTitle
 # /channel/item/cb:speech/cb:person/cb:role/cb:affiliation
 # /channel/item/cb:speech/cb:venue
+
 
 #------------------------------------------------------------------------------
 # dates
@@ -2062,13 +2087,16 @@ sub item_to_links {
                                  |enclosure
                                  |content
                                  |wiki:diff
+                                 |wiki:history
                                  |comments
                                  |wfw:comment
                                  )$/ix);
   my @links;
   my %seen;
   foreach my $elt (@elts) {
-    if ($self->{'verbose'} >= 2) { say "link ",$elt->sprint,"\n"; }
+    if ($self->{'verbose'} >= 2) {
+      say "link\n", Text::Trim::trim($elt->sprint);
+    }
 
     my $tag = lc($elt->tag);
     ### $tag
@@ -2085,6 +2113,9 @@ sub item_to_links {
       when (!defined) {
         given ($tag) {
           when (/diff/)      { $l->{'name'} = __('Diff:'); }
+          when (/history/)   { $l->{'name'} = __('History:');
+                               $l->{'download'} = 0;
+                             }
           when ('enclosure') { $l->{'name'} = __('Encl:'); }
           when (/comment/) {
             if (defined (my $count = non_empty
@@ -2218,7 +2249,6 @@ sub item_to_links {
            /channel/wiki:interwiki/rdf:Description/rdf:value
            /channel/item/wiki:version
            /channel/item/wiki:status
-           /channel/item/wiki:importance
            /channel/item/wiki:history
 
            --believed-to-be-duplicate-of-description
@@ -2300,7 +2330,9 @@ sub item_to_lat_long_alt_values {
           /channel/item/geo:alt
           /channel/item/geo:Point
           /channel/item/geo:Point/geo:lat
-          /channel/item/geo:Point/geo:long)} = ();
+          /channel/item/geo:Point/geo:long
+          /channel/item/georss:point
+        )} = ();
 
 
 sub links_to_html {
@@ -2345,102 +2377,118 @@ sub links_to_text {
 
 use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
 
-# return list of key=>value headers
-sub item_to_from {
-  my ($self, $item) = @_;
-  my $channel = item_to_channel($item);
-
-  # <author> is supposed to be an email address whereas <dc:creator> is
-  # looser.  The RSS recommendation is to use author when revealing an email
-  # and dc:creator when hiding it.
-  #
-  # <dc:contributor> appears in wiki: feeds as the item's author.
-  #
-  # <contributor> can appear multiple times in Atom item.  Could show them
-  # as multiple addresses in From:, but for now prefer just one primary
-  # author.
-  #
-  my $elt;
-  my $from =
-    ($self->elt_to_email    ($elt = $item->first_child('author'))
-     // $self->elt_to_email ($elt = $item->first_child('dc:creator'))
-     // $self->elt_to_email ($elt = $item->first_child('dc:contributor'))
-     // $self->elt_to_email ($elt = $item->first_child('wiki:username'))
-     // $self->elt_to_email ($elt = $item->first_child('itunes:author'))
-
-     // $self->elt_to_email ($elt = $channel->first_child('author'))
-     // $self->elt_to_email ($elt = $channel->first_child('dc:creator'))
-     // $self->elt_to_email ($elt = $channel->first_child('itunes:author'))
-     // $self->elt_to_email ($elt = $channel->first_child('managingEditor'))
-     // $self->elt_to_email ($elt = $channel->first_child('webMaster'))
-
-     // $self->elt_to_email ($elt = $item   ->first_child('dc:publisher'))
-     // $self->elt_to_email ($elt = $channel->first_child('dc:publisher'))
-     // $self->elt_to_email ($elt = $channel->first_child('itunes:owner'))
-     // do { undef $elt }
-
-     # Atom <title> can have type="html" etc in the usual way, so render.
-     # Hope the channel title is different from the item title.
-     // $self->email_format (elt_to_rendered_line
-                             ($channel->first_child('title')))
-
-     // ('nobody@'.$self->uri_to_host)
+{
+  my %tag_to_link_name
+  = (author         => __('Author:'),
+     creator        => __('Creator:'),
+     contributor    => __('Contributor:'),
+     managingEditor => __('Managing Editor:'),
+     webMaster      => __('Webmaster:'),
+     publisher      => __('Publisher:'),
+     owner          => __('Owner:'),
+     username       => __('User:'),
     );
-  my $uri;
-  if ($elt) {
-    $uri = (# Atom
-            # <author>
-            #   <name>Foo Bar</name>
-            #   <uri>http://some.where</uri>
-            # </author>
-            #
-            non_empty ($elt->first_child_text('uri'))
 
-            # ModWiki dc:contributor example
-            #     <rdf:Description link="http://openwiki.com/?FooBar">
-            #       <rdf:value>Foo Bar</rdf:value>
-            #     </rdf:Description>
-            # The text shows rss:link= and the example just link=.
-            #
-            // non_empty (do {
-              my $child; ($child = $elt->first_child('rdf:Description'))
-                && ($child->att('link') // $child->att('rss:link'))
-              }));
+  # return ($from, $linkhash)
+  sub item_to_from {
+    my ($self, $item) = @_;
+    my $channel = item_to_channel($item);
+
+    # <author> is supposed to be an email address whereas <dc:creator> is
+    # looser.  The RSS recommendation is to use author when revealing an email
+    # and dc:creator when hiding it.
+    #
+    # <dc:contributor> appears in wiki: feeds as the item's author.
+    #
+    # <contributor> can appear multiple times in Atom item.  Could show them
+    # as multiple addresses in From:, but for now prefer just one primary
+    # author.
+    #
+    my $elt;
+    my $from =
+      ($self->elt_to_email    ($elt = $item->first_child('author'))
+       // $self->elt_to_email ($elt = $item->first_child('dc:creator'))
+       // $self->elt_to_email ($elt = $item->first_child('dc:contributor'))
+       // $self->elt_to_email ($elt = $item->first_child('wiki:username'))
+       // $self->elt_to_email ($elt = $item->first_child('itunes:author'))
+
+       // $self->elt_to_email ($elt = $channel->first_child('author'))
+       // $self->elt_to_email ($elt = $channel->first_child('dc:creator'))
+       // $self->elt_to_email ($elt = $channel->first_child('itunes:author'))
+       // $self->elt_to_email ($elt = $channel->first_child('managingEditor'))
+       // $self->elt_to_email ($elt = $channel->first_child('webMaster'))
+
+       // $self->elt_to_email ($elt = $item   ->first_child('dc:publisher'))
+       // $self->elt_to_email ($elt = $channel->first_child('dc:publisher'))
+       // $self->elt_to_email ($elt = $channel->first_child('itunes:owner'))
+       // do { undef $elt }
+
+       # Atom <title> can have type="html" etc in the usual way, so render.
+       # Hope the channel title is different from the item title.
+       // $self->email_format (elt_to_rendered_line
+                               ($channel->first_child('title')))
+
+       // ('nobody@'.$self->uri_to_host)
+      );
+    my $link;
+    if ($elt && (my $uri =
+                 (# Atom
+                  # <author>
+                  #   <name>Foo Bar</name>
+                  #   <uri>http://some.where</uri>
+                  # </author>
+                  #
+                  non_empty ($elt->first_child_text('uri'))
+
+                  # ModWiki dc:contributor example
+                  #     <rdf:Description link="http://openwiki.com/?FooBar">
+                  #       <rdf:value>Foo Bar</rdf:value>
+                  #     </rdf:Description>
+                  # The text shows rss:link= and the example just link=.
+                  #
+                  // non_empty (do {
+                    my $child; ($child = $elt->first_child('rdf:Description'))
+                      && ($child->att('link') // $child->att('rss:link'))
+                    })))) {
+      (my $tag = $elt->tag) =~ s/.*?://;
+      $link = { uri      => URI->new($uri),
+                name     => ($tag_to_link_name{$tag} // "\u$tag:"),
+                download => 0 };
+    }
+    return ($from, $link);
   }
-  return (From => $from,
-          'X-From-URL:' => $uri);
+  @known{qw(/channel/author
+            /channel/author/name   --atom
+            /channel/author/uri    --atom
+            /channel/author/url    --atom-typo-maybe
+            /channel/author/email  --atom
+            /channel/managingEditor
+            /channel/webMaster
+            /channel/dc:publisher
+            /channel/dc:creator
+            /channel/itunes:author
+
+            /channel/item/author
+            /channel/item/author/name   --atom
+            /channel/item/author/uri    --atom
+            /channel/item/author/url    --atom-typo-maybe
+            /channel/item/author/email  --atom
+            /channel/item/author/gd:extendedProperty  --good-dinner
+            /channel/item/dc:creator
+            /channel/item/dc:publisher
+            /channel/item/wiki:username
+            /channel/item/itunes:author
+            /channel/item/dc:contributor
+            /channel/item/dc:contributor/rdf:Description
+            /channel/item/dc:contributor/rdf:Description/rdf:value
+
+            /channel/item/contributor        --atom
+            /channel/item/contributor/name
+            /channel/item/contributor/uri
+            /channel/item/contributor/url    --atom-typo-maybe
+            /channel/item/contributor/email
+          )} = ();
 }
-@known{qw(/channel/author
-          /channel/author/name   --atom
-          /channel/author/uri    --atom
-          /channel/author/url    --atom-typo-maybe
-          /channel/author/email  --atom
-          /channel/managingEditor
-          /channel/webMaster
-          /channel/dc:publisher
-          /channel/dc:creator
-          /channel/itunes:author
-
-          /channel/item/author
-          /channel/item/author/name   --atom
-          /channel/item/author/uri    --atom
-          /channel/item/author/url    --atom-typo-maybe
-          /channel/item/author/email  --atom
-          /channel/item/author/gd:extendedProperty  --good-dinner
-          /channel/item/dc:creator
-          /channel/item/dc:publisher
-          /channel/item/wiki:username
-          /channel/item/itunes:author
-          /channel/item/dc:contributor
-          /channel/item/dc:contributor/rdf:Description
-          /channel/item/dc:contributor/rdf:Description/rdf:value
-
-          /channel/item/contributor        --atom
-          /channel/item/contributor/name
-          /channel/item/contributor/uri
-          /channel/item/contributor/url    --atom-typo-maybe
-          /channel/item/contributor/email
-        )} = ();
 
 # $elt is an XML::Twig::Elt
 # return an email address, either just the text part of $elt or Atom
@@ -2623,6 +2671,10 @@ my $map_xmlns
      # spec http://www.cbwiki.net/wiki/index.php/RSS-CBMain
      # eg. RBA http://www.rba.gov.au/rss/rss-cb-exchange-rates.xml
      'http://www.cbwiki.net/wiki/index.php/Specification_1.1' => 'cb',
+
+     # earthquakes
+     # eg. http://earthquake.usgs.gov/earthquakes/shakemap/rss.xml
+     'http://earthquake.usgs.gov/rss/1.0/' => 'eq',
 
      # don't need to distinguish dcterms from plain dc as yet
      'http://purl.org/dc/elements/1.1/'             => 'dc',
@@ -2880,8 +2932,8 @@ sub item_to_in_reply_to {
 }
 
 {
-  # return a string for the "Importance:" header of RFC 1911, RFC 2156
-  # possible values 'high', 'normal', 'low'
+  # Feturn a string for the "Importance:" header of RFC 1911, RFC 2156
+  # voice and X.400 messaging.  Possible values 'high', 'normal', 'low'.
   # 'normal' is the header default, return undef in that case in the
   # interests of not junking up headers with defaults
   #
@@ -2895,9 +2947,12 @@ sub item_to_in_reply_to {
 
     my $cap_severity = lc($item->first_child_trimmed_text('cap:severity')
                           // '');
+    my $wiki_importance = ($item->first_child_trimmed_text('wiki:importance')
+                           // '');
     if ($self->{'verbose'} >= 2) {
       if ($cap_severity) {
-        print "  CAP severity: $cap_severity\n";
+        print "  CAP severity:    $cap_severity\n";
+        print "  Wiki importance: $wiki_importance\n";
       }
     }
 
@@ -2907,25 +2962,29 @@ sub item_to_in_reply_to {
     if ($cap_severity_normal{$cap_severity}) {
       return undef; # default "normal"
     }
-    if ($cap_severity_low{$cap_severity}) {
+    if ($cap_severity_low{$cap_severity}
+        || $wiki_importance eq 'minor') {
       return 'low';
     }
     return undef; # unknown
   }
+  @known{qw(/channel/item/wiki:importance
+          )} = ();
 }
 {
-  # return a string for the "Priority:" header of RFC 1327, RFC 2156
-  # possible values 'urgent', 'normal', 'non-urgent'
+  # Return a string for the "Priority:" header of RFC 1327, RFC 2156.
+  # Possible values 'urgent', 'normal', 'non-urgent'.
   # 'normal' is the header default, return undef in that case in the
   # interests of not junking up headers with defaults
   #
-  # <cap:urgency> is "Immediate", "Expected", "Future", "Past", "Unknown"
+  # <cap:urgency> is "Immediate", "Expected", "Future", "Past", "Unknown",
   # for when response action should be taken.  Is the <cap:severity> the
   # better indicator of transmission priority?
   #
   my %cap_severity_urgent = (extreme => 1,
-                             severe => 1);
-  # my %cap_severity_normal = (moderate => 1);
+                             severe  => 1);
+  my %cap_severity_normal = (moderate => 1);
+
   sub item_to_priority {
     my ($self, $item) = @_;
 
@@ -2935,9 +2994,12 @@ sub item_to_in_reply_to {
     if ($cap_severity_urgent{$cap_severity}) {
       return 'urgent';
     }
-    #     if ($cap_severity_normal{$cap_severity}) {
-    #       return undef; # default "normal"
-    #     }
+    if ($cap_severity_normal{$cap_severity}) {
+      return undef; # default "normal"
+    }
+    if (0) { # nothing for this yet
+      return 'non-urgent';
+    }
     return undef; # unknown
   }
 }
@@ -3193,28 +3255,6 @@ sub item_common_alert_protocol {
   }
 }
 
-# RBA per http://www.rba.gov.au/rss/rss-cb-exchange-rates.xml
-# <cb:statistics> repeats in structured form the rate shown in the text
-#
-# Fed Reserve per http://www.federalreserve.gov/feeds/press_taf.xml
-# <cb:news> repeats plain text
-#
-# Fed eg. http://www.federalreserve.gov/feeds/speeches.xml
-# FIXME: <cb:speech> may have bit extra detail
-#
-# Fed eg. http://www.federalreserve.gov/feeds/ifdp.xml
-# <cb:paper> repeat in structured form
-# FIXME: except <cb:resource><cb:link> has extra pdf form link
-#
-# <cb:event> guess likewise
-#
-@known{qw(/channel/item/cb:statistics
-          /channel/item/cb:news
-          /channel/item/cb:speech
-          /channel/item/cb:paper
-          /channel/item/cb:event
-        )} = ();
-
 sub item_unknowns {
   my ($self, $item, $want_html) = @_;
 
@@ -3273,7 +3313,21 @@ sub fetch_rss_process_one_item {
   return 0 if $self->nntp_message_id_exists ($msgid);
 
   my $channel = item_to_channel($item);
+  my ($from, $from_link) = $self->item_to_from($item);
   my @links = $self->item_to_links ($item);
+  if ($from_link) {
+    push @links, $from_link;
+  }
+
+  my $list_post = googlegroups_link_email(@links);
+  my $precedence = (defined $list_post ? 'list' : undef);
+
+  # RSS <rating> PICS-Label
+  # http://www.w3.org/TR/REC-PICS-labels
+  # ENHANCE-ME: Maybe transform <itunes:explicit> "yes","no","clean" into
+  # PICS too maybe, unless it only applies to the enclosure as such.  Maybe
+  # <media:adult> likewise.
+  my $pics_label = collapse_whitespace ($channel->first_child_text('rating'));
 
   # Crib: an undef value for a header means omit that header, which is good
   # for say the merely optional "Content-Language"
@@ -3284,7 +3338,7 @@ sub fetch_rss_process_one_item {
   my %headers
     = ('Path:'        => scalar ($self->uri_to_host),
        'Newsgroups:'  => $self->{'nntp_group'},
-       $self->item_to_from($item),
+       From           => $from,
        Subject        => $subject,
        Keywords       => scalar ($self->item_to_keywords($item)),
        Date           => scalar ($self->item_to_date($item)),
@@ -3294,12 +3348,9 @@ sub fetch_rss_process_one_item {
        'Importance:'       => scalar ($self->item_to_importance($item)),
        'Priority:'         => scalar ($self->item_to_priority($item)),
        'Face:'             => scalar ($self->item_to_face($item)),
-       'List-Post:'        => scalar (googlegroups_link_email(@links)),
-       # ENHANCE-ME: Maybe transform <itunes:explicit> "yes","no","clean"
-       # into PICS too maybe, unless it only applies to the enclosure as
-       # such.  Maybe <media:adult> likewise.
-       'PICS-Label:'       => scalar (collapse_whitespace
-                                      ($channel->first_child_text('rating'))),
+       'List-Post:'        => $list_post,
+       'Precedence:'       => $list_post,
+       'PICS-Label:'       => $pics_label,
        'X-Copyright:'      => scalar ($self->item_to_copyright($item)),
        'X-RSS-URL:'        => scalar ($self->{'uri'}->as_string),
        'X-RSS-Feedburner:' => scalar ($self->item_to_feedburner($item)),

@@ -17,8 +17,14 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 40, September 2010
+    - author url in links rather than X-From-URL
+    - wiki:importance as Importance: low
+    - wiki:history in links
+    - Precedence: list for google groups mailing list feeds
+
 Version 39, September 2010
-    - pick out cb:category, though skip other cb bits for now
+    - pick out cb:category
 
 Version 38, September 2010
     - show any otherwise unknown item fields from the XML
