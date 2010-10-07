@@ -20,7 +20,7 @@ use 5.010;
 use strict;
 use warnings;
 
-our $VERSION = 40;
+our $VERSION = 41;
 
 {
   package App::RSS2Leafnode::Conf::Tie;
@@ -50,10 +50,11 @@ foreach my $field ('verbose',
                    'render',
                    'render_width',
                    'rss_get_links',
+                   'rss_get_comments',
                    'rss_newest_only',
                    'rss_charset_override',
-                   'html_charset_from_content',
                    'get_icon',
+                   'html_charset_from_content',
 
                    # secret variables
                    'msgidextra',

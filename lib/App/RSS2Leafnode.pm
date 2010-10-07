@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-   $VERSION = 40;
+   $VERSION = 41;
 }
 
 # Cribs:
@@ -75,6 +75,8 @@ BEGIN {
 #   RFC 5005 -- <link rel="next"> etc paging and archiving
 #   http://diveintomark.org/archives/2004/05/28/howto-atom-id
 #      Making an <id>
+#   http://www.iana.org/assignments/link-relations/link-relations.xhtml
+#      <link rel="xxx"> assigned values
 #
 # RSS Modules:
 #   http://www.meatballwiki.org/wiki/ModWiki -- wiki
@@ -226,15 +228,17 @@ sub new {
   my $class = shift;
   return bless {
                 # config variables
-                verbose         => 0,
-                render          => 0,
-                render_width    => 60,
-                rss_get_links   => 0,
-                rss_newest_only => 0,
+                verbose          => 0,
+                render           => 0,
+                render_width     => 60,
+                rss_get_links    => 0,
+                rss_get_comments => 0,
+                rss_newest_only  => 0,
+                get_icon         => 0,
                 html_charset_from_content => 0,
 
                 # secret extra
-                msgidextra      => '',
+                msgidextra => '',
 
                 @_
                }, $class;
@@ -490,6 +494,7 @@ $known{'/channel/item/dc:valid'} = undef;
            /channel/item
            /channel/item/source
 
+           /channel/item/twitter:source
         )} = ();
 
 # --weather
@@ -781,16 +786,10 @@ sub nntp_group_check {
   my $nntp = $self->nntp;
   if (! $nntp->group($group)) {
     print __x("rss2leafnode: no group \"{group}\" on host \"{host}\"
-You must create it as a local newsgroup.  For leafnode 2 this means
-adding a line to /etc/news/leafnode/local.groups like
-
-{group}\ty
-
-Note it must be a tab character between the name and the \"y\".
-See \"LOCAL NEWSGROUPS\" in the leafnode README file for more information.
+    (See the rss2leafnode man page for notes on creating groups.)
 ",
-  host => $nntp->host,
-  group => $group);
+              host => $nntp->host,
+              group => $group);
     return 0;
   }
 
@@ -1258,7 +1257,7 @@ sub timingfields_to_timing {
     }
   }
   if (my @complaints = $timing->complaints) {
-    say __x('XML::RSS::Timing complains on {url}',
+    say __x('XML::RSS::Timing complains about {url}',
             url => $self->{'uri'});
     foreach my $complaint (@complaints) {
       say "  $complaint";
@@ -1679,6 +1678,8 @@ sub http_resp_to_face {
 # $resp is a HTTP::Response
 # if it's a html with a favicon link return a URI object of that image
 #
+# http://www.w3.org/2005/10/howto-favicon
+#
 sub http_resp_favicon_uri {
   my ($resp) = @_;
   $resp->headers->content_is_html || return;
@@ -2090,6 +2091,7 @@ sub item_to_links {
                                  |wiki:history
                                  |comments
                                  |wfw:comment
+                                 |foaf:maker
                                  )$/ix);
   my @links;
   my %seen;
@@ -2112,14 +2114,18 @@ sub item_to_links {
     given (non_empty ($elt->att('atom:rel') // $elt->att('rel'))) {
       when (!defined) {
         given ($tag) {
-          when (/diff/)      { $l->{'name'} = __('Diff:'); }
-          when (/history/)   { $l->{'name'} = __('History:');
-                               $l->{'download'} = 0;
-                             }
+          when (/wiki:diff/)    { $l->{'name'} = __('Diff:'); }
+          when (/foaf:maker/)   { $l->{'name'} = __('Author:');
+                                  $l->{'download'} = 0;
+                                  $l->{'priority'} = -10; # low
+                                }
+          when (/wiki:history/) { $l->{'name'} = __('History:');
+                                  $l->{'download'} = 0;
+                                }
           when ('enclosure') { $l->{'name'} = __('Encl:'); }
           when (/comment/) {
             if (defined (my $count = non_empty
-                         ($item->first_child_text('slash:comments')))) {
+                         ($item->first_child_trimmed_text('slash:comments')))) {
               $l->{'name'} = __x('Comments({count}):', count => $count);
             } else {
               $l->{'name'} = __('Comments:');
@@ -2152,11 +2158,11 @@ sub item_to_links {
       when ('via')          { $l->{'name'} = __('Via:');
                               $l->{'download'} = 0 }
       when ('replies') {
-        # rel="replies" per RFC 4685 "thr:"
+        # Atom <link rel="replies" per RFC 4685 "thr:"
         my $count = ($elt->att('thr:count')
                      // $elt->att('count')
                      // $elt->att('atom:count')
-                     // non_empty ($item->first_child_text('thr:total')));
+                     // non_empty ($item->first_child_trimmed_text('thr:total')));
         $l->{'name'} = (defined $count
                         ? __x('Replies({count}):', count => $count)
                         : __('Replies:'));
@@ -2175,6 +2181,7 @@ sub item_to_links {
                // non_empty ($elt->att('atom:src')) # Atom <content>
                // non_empty ($elt->att('src'))      # Atom <content>
                // non_empty ($elt->att('url'))      # RSS <enclosure>
+               // non_empty ($elt->att('rdf:resource'))  # <foaf:maker>
                // non_empty ($elt->trimmed_text)    # RSS <link>
                // next);
     $uri = elt_xml_based_uri ($elt, $uri);
@@ -2216,15 +2223,18 @@ sub item_to_links {
     push @links, $l;
   }
 
-  # sort downloadables to the start, replies and comments to the end
-  use sort 'stable';
-  @links = sort {$b->{'download'}} @links;
-
-  # lat/long last
   if (defined (my $str = $self->item_to_lat_long_alt_str ($item))) {
     push @links, { name => $str,
-                   download => 0 };
+                   download => 0,
+                   priority => -100,  # lat/long last
+                 };
   }
+
+  # sort downloadables to the start, then by "priority"
+  use sort 'stable';
+  @links = sort {($b->{'download'}||0) <=> ($a->{'download'}||0)
+                   || ($b->{'priority'}||0) <=> ($a->{'priority'}||0)}
+    @links;
 
   return @links;
 }
@@ -2250,6 +2260,7 @@ sub item_to_links {
            /channel/item/wiki:version
            /channel/item/wiki:status
            /channel/item/wiki:history
+           /channel/item/foaf:maker
 
            --believed-to-be-duplicate-of-description
            /channel/item/media:content
@@ -2659,10 +2670,15 @@ my $map_xmlns
      'http://www.itunes.com/dtds/podcast-1.0.dtd'   => 'itunes',
      'http://rssnamespace.org/feedburner/ext/1.0'   => 'feedburner',
      'http://search.yahoo.com/mrss'                 => 'media',
-     'http://backend.userland.com/creativeCommonsRssModule'=>'creativeCommons',
      'http://www.w3.org/2003/01/geo/wgs84_pos#'     => 'geo',
      'http://www.georss.org/georss'                 => 'georss',
      'http://www.pheedo.com/namespace/pheedo'       => 'pheedo',
+     'http://api.twitter.com'                       => 'twitter',
+     'http://xmlns.com/foaf/0.1/'                   => 'foaf',
+
+     # these two are different, but treat the same for now
+     'http://backend.userland.com/creativeCommonsRssModule'=>'creativeCommons',
+     'http://creativecommons.org/ns#'                      =>'creativeCommons',
 
      # Common Alerts Protocol
      'urn:oasis:names:tc:emergency:cap:1.1'         => 'cap',
@@ -2852,20 +2868,34 @@ sub item_to_msgid {
           /channel/item/id
           /channel/item/wordzilla:id)} = ();
 
-# Return a Message-ID string (including angles <>) for $item, or empty list.
-# This matches up to an Atom <id> element, dunno if it's much used.
-# Supposedly there should be only one thr:in-reply-to, no equivalent to
-# the "References" header giving all parents.
+# Return an "In-Reply-To:" value for $item, being a space-separated list of
+# Message-ID strings including angles <>, or undef if nothing.  The message
+# ids match up to an Atom <id> element in a parent item.
+#
+# RFC 4685 has <thr:in-reply-to>.  There can be multiple such elements if a
+# reply to multiple originals.
+#
+# Eg. comment feeds under
+# http://wickedgooddinner.blogspot.com/feeds/posts/default
 #
 sub item_to_in_reply_to {
   my ($self, $item) = @_;
-  my $inrep = $item->first_child('thr:in-reply-to') // return undef;
-  my $ref = ($inrep->att('thr:ref')
-             // $inrep->att('ref')
-             // $inrep->att('atom:ref') # comes out atom: under map_xmlns ...
-             // return undef);
-  $ref = elt_xml_based_uri ($inrep, $ref); # probably shouldn't be relative ...
-  return $self->url_to_msgid ($ref);
+
+  my @ids;
+  foreach my $elt ($item->children('thr:in-reply-to')) {
+    my $ref = ($elt->att('thr:ref')
+               // $elt->att('ref')
+               // $elt->att('atom:ref') # comes out atom: under map_xmlns ...
+               // next);
+    # probably shouldn't be relative actually ...
+    $ref = elt_xml_based_uri ($elt, $ref);
+    push @ids, $self->url_to_msgid ($ref);
+  }
+  if (@ids) {
+    return join (' ', @ids);
+  } else {
+    return undef;
+  }
 }
 @known{qw(/channel/item/thr:in-reply-to
         )} = ();
@@ -3061,13 +3091,13 @@ sub item_to_language {
   if (my $elt = $item->first_child('content')) {
     $lang = non_empty ($elt->att('xml:lang'));
   }
-  # Either <language> / <dc:language> sub-element or xml:lang="" tag, in the
-  # item itself or in channel, and maybe xml:lang in toplevel <feed>.
-  # $elt->inherit_att() is close, but looks only at xml:lang, not a
-  # <language> subelement.
+  # Either <language>, <dc:language>, <twitter:lang> sub-element or
+  # xml:lang="" tag, in the item itself or in channel, and maybe xml:lang in
+  # toplevel <feed>.  $elt->inherit_att() is close, but looks only at
+  # xml:lang, not a <language> subelement.
   for ( ; $item; $item = $item->parent) {
     $lang //= (non_empty    ($item->first_child_trimmed_text
-                             (qr/^(dc:)?language$/))
+                             (qr/^((dc:)?language|twitter:lang)$/))
                // non_empty ($item->att('xml:lang'))
                // next);
   }
@@ -3075,8 +3105,10 @@ sub item_to_language {
 }
 @known{qw(/channel/language
           /channel/dc:language
+          /channel/twitter:lang
           /channel/item/language
           /channel/item/dc:language
+          /channel/item/twitter:lang
         )} = ();
 
 # return arrayref of copyright strings
@@ -3097,10 +3129,15 @@ sub item_to_copyright {
               |copyright   # RSS, don't think entity-encoded html allowed there
               |dc:license
               |dc:rights
-              |creativeCommons:license
+              |creativeCommons:licen[cs]e
               )$/x;
   return [ List::MoreUtils::uniq
-           (map { non_empty(elt_to_rendered_line($_)) }
+           (map {
+             join_non_empty(' ',
+                            # <cc:licence rdf:resource="http://..." />
+                            $_->att('rdf:resource'),
+                            elt_to_rendered_line($_))
+           }
             ($item->children ($re),
              # Atom sub-elem <source><rights>...</rights> when from another feed
              (map {$_->children($re)} $item->children('source')),
@@ -3110,10 +3147,13 @@ sub item_to_copyright {
           /channel/rights
           /channel/dc:rights
           /channel/dc:license
+          /channel/creativeCommons:licence
           /channel/creativeCommons:license
           /channel/item/dc:rights
           /channel/item/dc:license
-          /channel/item/creativeCommons:license)} = ();
+          /channel/item/creativeCommons:licence
+          /channel/item/creativeCommons:license
+        )} = ();
 # /channel/item/media:credit   --nothing-much-in-this-one
 
 
@@ -3261,6 +3301,7 @@ sub item_unknowns {
   my $xml = '';
   foreach my $elt ($item->children) {
     next if $elt->tag =~ /^#/;  # text
+    next if elt_is_empty($elt);
     my $path = $elt->path;
     $path =~ s{^/(rss|channel)/channel}{/channel};
     $path =~ s{^/(feed|rdf:RDF)}{/channel};
@@ -3285,11 +3326,18 @@ sub item_unknowns {
   ### $xml
 
   if ($want_html) {
-    return "\n<p>\n" . __('Further XML fields:') . "<br>\n"
+    return "\n<p>\n" . __('Further feed XML:') . "<br>\n"
         . "<pre>$Entitize{$xml}</pre>\n</p>\n";
   } else {
-    return "\n" . __('Further XML fields:') . "\n" . $xml;
+    return "\n" . __('Further feed XML:') . "\n" . $xml;
   }
+}
+
+sub elt_is_empty {
+  my ($elt) = @_;
+  return ($elt->has_no_atts
+          && ! $elt->has_child
+          && $elt->text_only =~ /^\s*$/);
 }
 
 # $body construction below
@@ -3319,6 +3367,24 @@ sub fetch_rss_process_one_item {
     push @links, $from_link;
   }
 
+  # For comments feeds show "Re: Foo" as the subject.  Haven't seen a
+  # comments feed with anything useful in the <title>.  Could think about
+  # including it at the start of the message body if it was any good.
+  #
+  #
+  # http://www.netzpolitik.org/feed/ has <wfw:commentRss> feeds with <title>
+  # just "Von: Foo" where Foo is the poster's name.
+  #
+  # my $dummy = $self->DUMMY_EMAIL_ADDRESS;
+  # if ($from =~ /(.*) <\Q$dummy\E>$/
+  #     && $subject eq "Von: $1") {
+  #   $subject = $self->{'getting_rss_comments'};
+  # }
+  #
+  if (defined $self->{'getting_rss_comments'}) {
+    $subject = $self->{'getting_rss_comments'};
+  }
+
   my $list_post = googlegroups_link_email(@links);
   my $precedence = (defined $list_post ? 'list' : undef);
 
@@ -3342,7 +3408,8 @@ sub fetch_rss_process_one_item {
        Subject        => $subject,
        Keywords       => scalar ($self->item_to_keywords($item)),
        Date           => scalar ($self->item_to_date($item)),
-       'In-Reply-To:'      => scalar ($self->item_to_in_reply_to($item)),
+       'In-Reply-To:' => scalar ($self->item_to_in_reply_to($item)),
+       References     => $self->{'References:'},
        'Message-ID'        => $msgid,
        'Content-Language:' => scalar ($self->item_to_language($item)),
        'Importance:'       => scalar ($self->item_to_importance($item)),
@@ -3540,7 +3607,41 @@ sub fetch_rss_process_one_item {
   mime_entity_lines($top);
   $self->nntp_post($top) || return 0;
   if ($self->{'verbose'} >= 1) { say __('   posted'); }
-  return 1;
+
+  my $new = 1;
+  if ($self->{'rss_get_comments'}
+      && (my $comments_rss_url = $self->item_to_comments_rss_url($item))) {
+    local $self->{'rss_get_links'} = 0;
+    local $self->{'rss_get_comments'} = 0;
+    # "Re:" not translated, it's very annoying seeing variants of that
+    local $self->{'getting_rss_comments'} = "Re: $subject";
+    local $self->{'References:'} = $msgid;
+    $new += fetch_rss ($self, $self->{'nntp_group'}, $comments_rss_url);
+  }
+  return $new;
+}
+
+sub item_to_comments_rss_url {
+  my ($self, $item) = @_;
+
+  # Atom <link rel='replies' type='application/atom+xml'
+  #            href='http:/...' />
+  foreach my $elt ($item->children('link')) {
+    my $rel = ($elt->att('rel')
+               // $elt->att('atom:rel')
+               // next);
+    $rel eq 'replies' or next;
+    my $type = ($elt->att('type') // $elt->att('atom:type') // next);
+    $type eq 'application/atom+xml' or next;
+    my $href = ($elt->att('href')
+                // $elt->att('atom:href'));
+    if (is_non_empty ($href)) {
+      return $href;
+    }
+  }
+
+  # <wfw:commentRss>http://...</wfw:commentRss>
+  return non_empty ($item->first_child_trimmed_text ('wfw:commentRss'));
 }
 
 # $group is a string, the name of a local newsgroup
@@ -3553,38 +3654,44 @@ sub fetch_rss {
   my $group_uri = URI->new($group,'news');
   local $self->{'nntp_host'} = uri_to_nntp_host ($group_uri);
   local $self->{'nntp_group'} = $group = $group_uri->group;
-  $self->nntp_group_check($group) or return;
-
+  $self->nntp_group_check($group) or return 0;
+  
   # an in-memory cookie jar, used only per-RSS feed and then discarded,
   # which means only kept for fetching for $self->{'rss_get_links'} from a
   # feed
   $self->ua->cookie_jar({});
-
-  if ($self->{'verbose'} >= 1) { say __x('feed: {url}', url => $url); }
+  
+  if ($self->{'verbose'} >= 1) {
+    if (defined $self->{'getting_rss_comments'}) {
+      say __x('RSS comments: {url}', url => $url);
+    } else {
+      say __x('feed: {url}', url => $url);
+    }
+  }
   require HTTP::Request;
   my $req = HTTP::Request->new (GET => $url);
-  $self->status_etagmod_req($req,1) || return;
-
+  $self->status_etagmod_req($req,1) || return 0;
+  
   # $req->uri can be a URI object or a string
   local $self->{'uri'} = URI->new ($req->uri);
-
+  
   my $resp = $self->ua->request($req);
   if ($resp->code == 304) {
     $self->status_unchanged ($url);
-    return;
+    return 0;
   }
   if (! $resp->is_success) {
     print __x("rss2leafnode: {url}\n {status}\n",
               url => $url,
               status => $resp->status_line);
-    return;
+    return 0;
   }
   local $self->{'resp'} = $resp;
-
+  
   $resp->decode;
   my $xml = $resp->content; # raw bytes
   $xml = $self->enforce_rss_charset_override ($xml);
-
+  
   my ($twig, $err) = $self->twig_parse($xml);
   if (defined $err) {
     my $message = __x("XML::Twig parse error on\n\n  {url}\n\n",
@@ -3599,17 +3706,17 @@ sub fetch_rss {
        $message, $xml);
     # after successful error message to news
     $self->status_etagmod_resp ($url, $resp);
-    return;
+    return 0;
   }
   if ($self->{'verbose'} >= 3) {
     require Data::Dumper;
     print Data::Dumper->new([$twig->root],['root'])
       ->Indent(1)->Sortkeys(1)->Dump;
   }
-
+  
   # "item" for RSS/RDF, "entry" for Atom
   my @items = $twig->descendants(qr/^(item|entry)$/);
-
+  
   if (my $n = $self->{'rss_newest_only'}) {
     # secret feature newest N many items ...
     require Scalar::Util;
@@ -3618,28 +3725,30 @@ sub fetch_rss {
     @items = Sort::Key::Top::rkeytop (sub { $self->item_to_timet($_) },
                                       $n, @items);
   }
-
+  
   my $new = 0;
   foreach my $item (@items) {
     $new += $self->fetch_rss_process_one_item ($item);
   }
-
+  
   if ($self->{'verbose'} >= 2) {
-    my $str = $self->ua->cookie_jar->as_string;
-    if ($str eq '') {
-      say 'no cookies from this feed';
-    } else {
+    my $jar = $self->ua->cookie_jar;
+    if ($jar && (my $str = $jar->as_string ne '')) {
       print "accumulated cookies from this feed:\n$str";
+    } else {
+      say 'no cookies from this feed';
     }
   }
   $self->ua->cookie_jar (undef);
-
+  
   $self->status_etagmod_resp ($url, $resp, $twig);
   say __xn('{group}: {count} new article',
            '{group}: {count} new articles',
            $new,
            group => $group,
            count => $new);
+
+  return $new;
 }
 
 1;

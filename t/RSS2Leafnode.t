@@ -20,7 +20,7 @@
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 205;
+use Test::More tests => 207;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
 # uncomment this to run the ### lines
@@ -43,7 +43,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 40;
+  my $want_version = 41;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -814,17 +814,38 @@ HERE
   my $r2l = App::RSS2Leafnode->new;
 
   foreach my $data
-    (['<rss2leafnode.tag:%2C2010-02-09:something@foo.com>', <<'HERE'],
+    ([undef, <<'HERE'],
 <feed xmlns="http://www.w3.org/2005/Atom"
       xmlns:thr="http://purl.org/syndication/thread/1.0">
   <entry>
     <title>Item One</title>
+  </entry>
+</feed>
+HERE
+
+     ['<rss2leafnode.tag:%2C2010-02-09:something@foo.com>', <<'HERE'],
+<feed xmlns="http://www.w3.org/2005/Atom"
+      xmlns:thr="http://purl.org/syndication/thread/1.0">
+  <entry>
+    <title>Item Two</title>
     <updated>2006-03-01T12:12:12Z</updated>
     <thr:in-reply-to ref="tag:foo.com,2010-02-09:something" />
   </entry>
 </feed>
 HERE
-                   ) {
+
+     ['<rss2leafnode.tag:%2C2010-02-09:something@foo.com> <rss2leafnode.tag:%2C2011-03-10:anotherthing@bar.com>', <<'HERE'],
+<feed xmlns="http://www.w3.org/2005/Atom"
+      xmlns:thr="http://purl.org/syndication/thread/1.0">
+  <entry>
+    <title>Item Three</title>
+    <updated>2006-03-01T12:12:12Z</updated>
+    <thr:in-reply-to ref="tag:foo.com,2010-02-09:something" />
+    <thr:in-reply-to ref="tag:bar.com,2011-03-10:anotherthing" />
+  </entry>
+</feed>
+HERE
+    ) {
     my ($want, $xml) = @$data;
 
     my ($twig, $err) = $r2l->twig_parse ($xml);

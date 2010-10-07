@@ -86,7 +86,7 @@ MyMakeMakerExtras::WriteMakefile
                     'Scope::Guard' => 0,
                     'Sort::Key::Top' => 0,
                     'File::HomeDir' => 0,
-                    'List::MoreUtils' => 0,
+                    'List::MoreUtils' => '0.24', # 0.24 for stack growing, maybe
                    },
 
    META_MERGE
