@@ -31,7 +31,15 @@ use Smart::Comments;
 {
   require Image::Magick;
   my $im = Image::Magick->new;
-  $im->Read('/usr/share/icons/hicolor/48x48/apps/emacs.png');
+  # $im->Read('/usr/share/icons/hicolor/48x48/apps/emacs.png');
+  # $im->Read('/tmp/favicon.ico');
+
+  open my $fh, '<', '/tmp/favicon.ico' or die;
+  my $bytes = do { local $/; <$fh> }; # slurp
+  close $fh or die;
+  my $ret = $im->BlobToImage ($bytes);
+  ### $ret
+
   $im->Set(magick => 'xbm');
   # $im->Set(-compress => 'none');
   $im->Write('/tmp/x.xbm');

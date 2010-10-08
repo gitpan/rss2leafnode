@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 41;
+our $VERSION = 42;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -354,14 +354,18 @@ it there's any non-ascii or very long lines.
 
 Links are shown for
 
-    <link>           RSS and Atom
-    <enclosure>      RSS
-    <comments>       RSS
-    <content>        Atom externals, except other XML feeds
-    <wfw:comment>    well-formed web
-    <wiki:diff>      various wikis
-    <wiki:history>   various wikis, not downloaded
-    Author home      Atom and wiki, not downloaded
+    <link>                 RSS and Atom
+    <enclosure>            RSS
+    <comments>             RSS
+    <content>              Atom externals, except other XML feeds
+    <wfw:comment>          well-formed web
+    <wiki:diff> 
+    <wiki:history>
+    <sioc:has_creator>
+    <sioc:has_discussion>
+    <sioc:links_to>
+    <sioc:reply_of>
+    Author <url>           Atom and wiki, not downloaded
 
 Comment or reply links include a count from C<< <thr:total> >>,
 C<< thr:count >> attribute, or C<< <slash:comments> >> (sub-element of
@@ -369,8 +373,12 @@ C<< <comments> >>).
 
 Common Alerts Protocol (CAP) fields for weather alerts etc are shown if
 present (eg. from the US NOAA).  This can have more detail than just the
-text.  A C<< <geo:> or <georss:> >> location is shown among the links
-(though with nowhere to go to).
+text.  A location pseudo-link is shown for the following,
+
+    <geo:lat>,<geo:long>
+    <geo:Point>
+    <georss:point>
+    <statusnet:origin>      possibly with a http target too
 
 Unrecognised item fields are shown in XML at the end of the message so as
 not to drop information, and to perhaps suggest extra things RSS2Leafnode
@@ -469,9 +477,13 @@ The sub-category system of <itunes:category> is not currently put through.
 
 =item In-Reply-To:
 
-<thr:in-reply-to> elements (per RFC 4685) turned into Message-IDs the same
-way as an Atom <id>.  This might help thread display in a news reader if the
-parent item was downloaded too.
+C<< <thr:in-reply-to> >> elements (per RFC 4685) turned into Message-IDs the
+same way as an Atom <id>.  This might help thread display in a news reader
+if the parent item was downloaded too.
+
+C<< <sioc:reply_of> >> is not used here.  It'd be a possibility, but would
+probably need a hard-coded mapping of URL to Message-ID.  For now it's just
+shown as a link (as noted above).
 
 =item Content-Location:
 
@@ -519,6 +531,8 @@ As per the C<$get_icons> option above, the first of item or channel
      <icon>            Atom
      <logo>            Atom
      <itunes:image>
+     <statusnet:postIcon>
+     <activity:actor><link rel="avatar">
      HTML favicon      for fetch_html()
 
 Gnus and perhaps other newsreaders can display C<Face:>, see

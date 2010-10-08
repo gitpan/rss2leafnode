@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-   $VERSION = 41;
+   $VERSION = 42;
 }
 
 # Cribs:
@@ -1565,6 +1565,29 @@ sub item_image_uwh {
   foreach my $where ($item, item_to_channel($item)) {
     ### image text: $where->first_child_text('image')
 
+    # identi.ca
+    if (my $actor = $where->first_child('activity:actor')) {
+      my ($url, $type, $width, $height);
+      foreach my $link_elt ($actor->children('link')) {
+        ($link_elt->att('rel')||$link_elt->att('atom:rel')||'')
+          eq 'avatar' or next;
+        $url = $link_elt->att('href') // $link_elt->att('atom:href') // next;
+        my $this_width = $link_elt->att('media:width');
+        next if (defined $width
+                 && defined $this_width
+                 && $width < $this_width); # prefer smallest
+        $url = elt_xml_based_uri ($link_elt, $url);
+        $width = ($this_width || 0);
+        $height = ($link_elt->att('media:height') || 0);
+        ### $url
+        ### $width
+        ### $height
+      }
+      if (defined $url) {
+        return ($url, $width, $height);
+      }
+    }
+
     # RSS
     # <image>
     #   <url>foo.png</url>
@@ -1643,6 +1666,15 @@ sub item_image_uwh {
                 $height);
       }
     }
+
+    # status.net for rss 1.0
+    # <statusnet:postIcon rdf:resource="http://avatar.identi.ca/..."></statusnet:postIcon>
+    if (my $elt = $where->first_child('statusnet:postIcon')) {
+      if (is_non_empty (my $url = $elt->att('rdf:resource'))) {
+        return (elt_xml_based_uri ($elt, $url),
+                0, 0);  # unknown size
+      }
+    }
   }
   return;
 }
@@ -1656,10 +1688,11 @@ sub item_image_uwh {
           /channel/image/link
           /channel/image/description
           /channel/itunes:image
+          /channel/statusnet:postIcon
 
           /channel/item/image
           /channel/item/media:thumbnail
-
+          /channel/item/statusnet:postIcon
         )} = ();
 
 # $resp is a HTTP::Response
@@ -1713,6 +1746,7 @@ sub download_face {
 sub download_face_uncached {
   my ($self, $url, $width, $height) = @_;
 
+  $self->{'download_face_uncached'} = $url;
   if ($self->{'verbose'}) {
     print "  image download: $url\n";
   }
@@ -1840,11 +1874,25 @@ sub imagemagick_from_data {
   my $ret = $image->BlobToImage ($data);
   ### ret: "$ret"
   ### ret: $ret+0
-  if ($ret != 1) {
-    print "  imagemagick doesn't like image data: $ret\n";
-    return;
+  if ($ret == 1) {
+    return $image;
   }
-  return $image;
+
+  # try again without the $type forced, in case bad Content-Type from http
+  $image = Image::Magick->new;
+  # $image->Set(debug=>'All');
+  $ret = $image->BlobToImage ($data);
+  ### ret: "$ret"
+  ### ret: $ret+0
+  if ($ret == 1) {
+    return $image;
+  }
+
+  print __x("  imagemagick doesn't like image data ({length} bytes) from {url}: {error}\n",
+            length => length($data),
+            url    => $self->{'download_face_uncached'},
+            error  => $ret);
+  return undef;
 }
 
 
@@ -2092,6 +2140,11 @@ sub item_to_links {
                                  |comments
                                  |wfw:comment
                                  |foaf:maker
+                                 |sioc:has_creator
+                                 |sioc:has_discussion
+                                 |sioc:links_to
+                                 |sioc:reply_of
+                                 |statusnet:origin
                                  )$/ix);
   my @links;
   my %seen;
@@ -2114,15 +2167,30 @@ sub item_to_links {
     given (non_empty ($elt->att('atom:rel') // $elt->att('rel'))) {
       when (!defined) {
         given ($tag) {
-          when (/wiki:diff/)    { $l->{'name'} = __('Diff:'); }
-          when (/foaf:maker/)   { $l->{'name'} = __('Author:');
-                                  $l->{'download'} = 0;
-                                  $l->{'priority'} = -10; # low
-                                }
-          when (/wiki:history/) { $l->{'name'} = __('History:');
-                                  $l->{'download'} = 0;
-                                }
-          when ('enclosure') { $l->{'name'} = __('Encl:'); }
+          when (/wiki:diff/) {
+            $l->{'name'} = __('Diff:');
+          }
+          when (/statusnet:origin/) {
+            $l->{'name'} = __('Geo location:');
+            $l->{'download'} = 0;
+            $l->{'priority'} = -101; # with Geo location
+          }
+          when (/foaf:maker|sioc:has_creator/) {
+            $l->{'name'} = __('Author:');
+            $l->{'download'} = 0;
+            $l->{'priority'} = -20; # low
+          }
+          when (/sioc:has_discussion/) {
+            $l->{'name'} = __('Discussion:');
+            $l->{'download'} = 0;
+          }
+          when (/wiki:history/) {
+            $l->{'name'} = __('History:');
+            $l->{'download'} = 0;
+          }
+          when ('enclosure') {
+            $l->{'name'} = __('Encl:');
+          }
           when (/comment/) {
             if (defined (my $count = non_empty
                          ($item->first_child_trimmed_text('slash:comments')))) {
@@ -2143,20 +2211,30 @@ sub item_to_links {
         if ($self->{'verbose'} >= 1) { say "skip link \"$_\""; }
         next;
       }
-
       when ('alternate') {
         # "alternate" is supposed to be the content as the entry, but in a
         # web page or something.  Not sure that's always quite true, so show
         # it as a plain link.  If no <content> then an "alternate" is
         # supposed to be mandatory.
       }
-
+      when ('enclosure') {
+        $l->{'name'} = __('Encl:');
+      }
       # when ('next') ... # not sure about "next" link
-
-      when ('service.post') { $l->{'name'} = __('Comments:');
-                              $l->{'download'} = 0 }
-      when ('via')          { $l->{'name'} = __('Via:');
-                              $l->{'download'} = 0 }
+      when ('ostatus:conversation') {
+        $l->{'name'} = __('Conversation:');
+      }
+      when ('ostatus:conversation') {
+        $l->{'name'} = __('Conversation:');
+        $l->{'download'} = 0;
+      }
+      when ('ostatus:attention') {
+        $l->{'name'} = __('Attention:');
+        $l->{'download'} = 0;
+      }
+      when ('related') {
+        $l->{'name'} = __('Related:');
+      }
       when ('replies') {
         # Atom <link rel="replies" per RFC 4685 "thr:"
         my $count = ($elt->att('thr:count')
@@ -2168,9 +2246,17 @@ sub item_to_links {
                         : __('Replies:'));
         $l->{'download'} = 0;
       }
-      when ('enclosure') { $l->{'name'} = __('Encl:') }
-      when ('related')   { $l->{'name'} = __('Related:') }
-      default { $l->{'name'} = __x('{linkrel}:', linkrel => $_) }
+      when ('service.post') {
+        $l->{'name'} = __('Comments:');
+        $l->{'download'} = 0;
+      }
+      when ('via') {
+        $l->{'name'} = __('Via:');
+        $l->{'download'} = 0;
+      }
+      default {
+        $l->{'name'} = __x('{linkrel}:', linkrel => $_);
+      }
     }
 
     # Atom <link href="http:.."/>
@@ -2181,7 +2267,8 @@ sub item_to_links {
                // non_empty ($elt->att('atom:src')) # Atom <content>
                // non_empty ($elt->att('src'))      # Atom <content>
                // non_empty ($elt->att('url'))      # RSS <enclosure>
-               // non_empty ($elt->att('rdf:resource'))  # <foaf:maker>
+               # <foaf:maker>, <statusnet:origin> rdf:resource=""
+               // non_empty ($elt->att('rdf:resource'))
                // non_empty ($elt->trimmed_text)    # RSS <link>
                // next);
     $uri = elt_xml_based_uri ($elt, $uri);
@@ -2261,6 +2348,10 @@ sub item_to_links {
            /channel/item/wiki:status
            /channel/item/wiki:history
            /channel/item/foaf:maker
+           /channel/item/sioc:has_creator
+           /channel/item/sioc:has_discussion
+           /channel/item/sioc:links_to
+           /channel/item/sioc:reply_of
 
            --believed-to-be-duplicate-of-description
            /channel/item/media:content
@@ -2334,6 +2425,17 @@ sub item_to_lat_long_alt_values {
     }
   }
 
+  # <item>
+  #   <statusnet:origin geo:lat="53.38297" geo:long="-1.4659"
+  #     rdf:resource="http://sws.geonames.org/2638077/">
+  #   </statusnet:origin>
+  if (my $elt = $item->first_child ('statusnet:origin')) {
+    if (defined (my $lat = $elt->att('geo:lat'))) {
+      my $long = $elt->att('geo:long');
+      return ($lat, $long);
+    }
+  }
+
   return; # not found
 }
 @known{qw(/channel/item/geo:lat
@@ -2343,6 +2445,7 @@ sub item_to_lat_long_alt_values {
           /channel/item/geo:Point/geo:lat
           /channel/item/geo:Point/geo:long
           /channel/item/georss:point
+          /channel/item/statusnet:origin
         )} = ();
 
 
@@ -2675,6 +2778,10 @@ my $map_xmlns
      'http://www.pheedo.com/namespace/pheedo'       => 'pheedo',
      'http://api.twitter.com'                       => 'twitter',
      'http://xmlns.com/foaf/0.1/'                   => 'foaf',
+     'http://status.net/ont/'                       => 'statusnet',
+     'http://rdfs.org/sioc/ns#'                     => 'sioc',
+     'http://activitystrea.ms/spec/1.0/'            => 'activity',
+     'http://ostatus.org/schema/1.0'                => 'ostatus',
 
      # these two are different, but treat the same for now
      'http://backend.userland.com/creativeCommonsRssModule'=>'creativeCommons',
