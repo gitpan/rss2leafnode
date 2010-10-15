@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 43, October 2010
+    - help imagemagick on ico format downloaded icons
+
 Version 42, October 2010
     - fix for unrecognised downloaded image type
     - various links from statusnet, sioc and foaf

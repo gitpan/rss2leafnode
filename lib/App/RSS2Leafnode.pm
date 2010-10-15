@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-   $VERSION = 42;
+   $VERSION = 43;
 }
 
 # Cribs:
@@ -1206,16 +1206,16 @@ sub twig_to_timingfields {
     $timingfields{'ttl'} = $ttl->trimmed_text;
   }
   if (my $skipHours = $root->first_descendant('skipHours')) {
-    $timingfields{'skipHours'} = [map {$_->text} $skipHours->children('hour')];
+    $timingfields{'skipHours'} = [map {$_->trimmed_text} $skipHours->children('hour')];
   }
   if (my $skipDays = $root->first_descendant('skipDays')) {
-    $timingfields{'skipDays'} = [map {$_->text} $skipDays->children('day')];
+    $timingfields{'skipDays'} = [map {$_->trimmed_text} $skipDays->children('day')];
   }
 
   # "syn:updatePeriod" etc
   foreach my $key (qw(updatePeriod updateFrequency updateBase)) {
     if (my $update = $root->first_descendant("syn:$key")) {
-      $timingfields{$key} = $update->text;
+      $timingfields{$key} = $update->trimmed_text;
     }
   }
   if ($self->{'verbose'} >= 2) {
@@ -1761,7 +1761,14 @@ sub download_face_uncached {
 
   my $type = $resp->content_type;
   ### $type
-  if ($type =~ m{^image/(.*)$}i) {
+  # FIXME: is mime=>$type the right way? could give it a look at the url
+  # basename or server's suggested filename too, for Read() to use the
+  # extension.
+  if ($type eq 'image/vnd.microsoft.icon' || $type eq 'image/x-icon') {
+    # mime.xml of imagemagick 6.6.0 only has "image/x-ico", and nothing for
+    # ico in magic.xml
+    $type = 'ico';
+  } elsif ($type =~ m{^image/(.*)$}i) {
     $type = $1;
   } else {
     if ($self->{'verbose'} >= 2) {
@@ -1867,10 +1874,11 @@ sub imagemagick_to_png {
 # return a Image::Magick object, or undef if Perl-Magick not available
 sub imagemagick_from_data {
   my ($self, $type, $data) = @_;
+  ### imagemagick_from_data(): $type
   eval { require Image::Magick } or return;
-  my $image = Image::Magick->new;
+
+  my $image = Image::Magick->new (magick=>$type);
   # $image->Set(debug=>'All');
-  $image->Set (magick=>$type);
   my $ret = $image->BlobToImage ($data);
   ### ret: "$ret"
   ### ret: $ret+0
@@ -1880,7 +1888,7 @@ sub imagemagick_from_data {
 
   # try again without the $type forced, in case bad Content-Type from http
   $image = Image::Magick->new;
-  # $image->Set(debug=>'All');
+  $image->Set(debug=>'All');
   $ret = $image->BlobToImage ($data);
   ### ret: "$ret"
   ### ret: $ret+0

@@ -30,20 +30,42 @@ use Smart::Comments;
 
 {
   require Image::Magick;
-  my $im = Image::Magick->new;
-  # $im->Read('/usr/share/icons/hicolor/48x48/apps/emacs.png');
-  # $im->Read('/tmp/favicon.ico');
-
   open my $fh, '<', '/tmp/favicon.ico' or die;
   my $bytes = do { local $/; <$fh> }; # slurp
   close $fh or die;
-  my $ret = $im->BlobToImage ($bytes);
+
+  my $im = Image::Magick->new (magick => 'ico');
+  my @info = $im->Ping(blob=>$bytes);
+  ### @info
+  @info = $im->Ping('/tmp/xx');
+  ### @info
+  @info = $im->Ping('/tmp/favicon.ico');
+  ### @info
+  exit 0;
+}
+
+{
+  require Image::Magick;
+  my $im = Image::Magick->new;
+  # $im->Read('/usr/share/icons/hicolor/48x48/apps/emacs.png');
+  my $ret = $im->Read('/tmp/favicon.icoxxy');
   ### $ret
 
-  $im->Set(magick => 'xbm');
-  # $im->Set(-compress => 'none');
-  $im->Write('/tmp/x.xbm');
-  system('cat /tmp/x.xbm');
+  # open my $fh, '<', '/tmp/favicon.ico' or die;
+  # my $bytes = do { local $/; <$fh> }; # slurp
+  # close $fh or die;
+
+  # my $im = Image::Magick->new (mime=>'image/x-icon');
+  # # $im->Set(mime=>'image/x-ico');
+  # # 'image/vnd.microsoft.icon'
+  # # my $im = Image::Magick->new (magick=>'ico');
+  # my $ret = $im->BlobToImage ($bytes);
+  # ### $ret
+
+  # $im->Set(magick => 'xbm');
+  # # $im->Set(-compress => 'none');
+  # $im->Write('/tmp/x.xbm');
+  # system('cat /tmp/x.xbm');
   exit 0;
 }
 
