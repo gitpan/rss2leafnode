@@ -17,6 +17,10 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 44, October 2010
+    - show media:credit as footnote, wfw:commentRss as link
+    - try some link name merging for duplicates
+
 Version 43, October 2010
     - help imagemagick on ico format downloaded icons
 

@@ -20,7 +20,7 @@
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 207;
+use Test::More tests => 209;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
 # uncomment this to run the ### lines
@@ -43,7 +43,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 43;
+  my $want_version = 44;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -1690,7 +1690,13 @@ is (App::RSS2Leafnode::msgid_chars('a<b>%c'), 'a%3Cb%3E%25c');
      ['<guid>http://foo.com/page.html</guid>',
       '<rss2leafnode.http:///page.html@foo.com>'],
 
-     # using some MD5
+     # bogus empty uses MD5 (of nothing in this case)
+     ["<guid isPermaLink=\"false\"></guid>",
+      '<rss2leafnode.http:///feed.rss.Yd8/ilmPOF2/2ZA%2BcNG16Q@foo.com>'],
+     ["<guid isPermaLink=\"true\"></guid>",
+      '<rss2leafnode.http:///feed.rss.Yd8/ilmPOF2/2ZA%2BcNG16Q@foo.com>'],
+
+     # using some MD5 (of nothing in this case)
      ['',
       '<rss2leafnode.http:///feed.rss.Yd8/ilmPOF2/2ZA%2BcNG16Q@foo.com>'],
 

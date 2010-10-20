@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 43;
+our $VERSION = 44;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -369,16 +369,20 @@ Links are shown for
 
 Comment or reply links include a count from C<< <thr:total> >>,
 C<< thr:count >> attribute, or C<< <slash:comments> >> (sub-element of
-C<< <comments> >>).
+C<< <comments> >>).  The RSS comment feeds for C<$rss_get_comments> are
+
+    <wfw:commentRss>
+    <link rel='replies' type='application/atom+xml' ...>
 
 Common Alerts Protocol (CAP) fields for weather alerts etc are shown if
 present (eg. from the US NOAA).  This can have more detail than just the
-text.  A location pseudo-link is shown for the following,
+text.  Pseudo-link footnotes are shown for,
 
     <geo:lat>,<geo:long>
     <geo:Point>
     <georss:point>
-    <statusnet:origin>      possibly with a http target too
+    <statusnet:origin>      possibly with URL target too
+    <media:credit>
 
 Unrecognised item fields are shown in XML at the end of the message so as
 not to drop information, and to perhaps suggest extra things RSS2Leafnode

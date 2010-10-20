@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-   $VERSION = 43;
+   $VERSION = 44;
 }
 
 # Cribs:
@@ -1888,7 +1888,7 @@ sub imagemagick_from_data {
 
   # try again without the $type forced, in case bad Content-Type from http
   $image = Image::Magick->new;
-  $image->Set(debug=>'All');
+  # $image->Set(debug=>'All');
   $ret = $image->BlobToImage ($data);
   ### ret: "$ret"
   ### ret: $ret+0
@@ -2147,6 +2147,7 @@ sub item_to_links {
                                  |wiki:history
                                  |comments
                                  |wfw:comment
+                                 |wfw:commentRss
                                  |foaf:maker
                                  |sioc:has_creator
                                  |sioc:has_discussion
@@ -2154,8 +2155,17 @@ sub item_to_links {
                                  |sioc:reply_of
                                  |statusnet:origin
                                  )$/ix);
+  ### link elts: "@elts"
+
+  # priority levels:
+  #     0     plain links
+  #     -10   comment RSS
+  #     -20   author home page
+  #     -100  geo location text-only
+  #     -101  statusnet geo location
+  #     -200  media:credit
+
   my @links;
-  my %seen;
   foreach my $elt (@elts) {
     if ($self->{'verbose'} >= 2) {
       say "link\n", Text::Trim::trim($elt->sprint);
@@ -2175,42 +2185,54 @@ sub item_to_links {
     given (non_empty ($elt->att('atom:rel') // $elt->att('rel'))) {
       when (!defined) {
         given ($tag) {
-          when (/wiki:diff/) {
-            $l->{'name'} = __('Diff:');
+          when ('enclosure') {
+            $l->{'name'} = __('Encl');
           }
-          when (/statusnet:origin/) {
-            $l->{'name'} = __('Geo location:');
+          when ('wiki:diff') {
+            $l->{'name'} = __('Diff');
+          }
+          when ('wiki:history') {
+            $l->{'name'} = __('History');
             $l->{'download'} = 0;
-            $l->{'priority'} = -101; # with Geo location
           }
           when (/foaf:maker|sioc:has_creator/) {
-            $l->{'name'} = __('Author:');
+            $l->{'name'} = __('Author');
             $l->{'download'} = 0;
             $l->{'priority'} = -20; # low
           }
-          when (/sioc:has_discussion/) {
-            $l->{'name'} = __('Discussion:');
+          when ('statusnet:origin') {
+            $l->{'name'} = __('Geo location');
+            $l->{'download'} = 0;
+            $l->{'priority'} = -101; # just after Geo location
+          }
+          when ('sioc:has_discussion') {
+            $l->{'name'} = __('Discussion');
             $l->{'download'} = 0;
           }
-          when (/wiki:history/) {
-            $l->{'name'} = __('History:');
-            $l->{'download'} = 0;
-          }
-          when ('enclosure') {
-            $l->{'name'} = __('Encl:');
-          }
-          when (/comment/) {
+          when ('wfw:commentrss') {
             if (defined (my $count = non_empty
                          ($item->first_child_trimmed_text('slash:comments')))) {
-              $l->{'name'} = __x('Comments({count}):', count => $count);
+              $l->{'name'} = __x('RSS Comments({count})', count => $count);
             } else {
-              $l->{'name'} = __('Comments:');
+              $l->{'name'} = __('RSS Comments');
+            }
+            $l->{'download'} = 0;
+            $l->{'priority'} = -10;
+          }
+          when (/comment/) {  # <comments> or <wfw:comment>
+            if (defined (my $count = non_empty
+                         ($item->first_child_trimmed_text('slash:comments')))) {
+              $l->{'name'} = __x('Comments({count})', count => $count);
+            } else {
+              $l->{'name'} = __('Comments');
             }
             $l->{'download'} = 0;
           }
         }
       }
 
+      # Atom rel="..."
+      #
       when (['self',         # the feed itself (in the channel normally)
              'edit',         # to edit the item, maybe
              'service.edit', # to edit the item
@@ -2226,44 +2248,58 @@ sub item_to_links {
         # supposed to be mandatory.
       }
       when ('enclosure') {
-        $l->{'name'} = __('Encl:');
+        $l->{'name'} = __('Encl');
       }
       # when ('next') ... # not sure about "next" link
       when ('ostatus:conversation') {
-        $l->{'name'} = __('Conversation:');
-      }
-      when ('ostatus:conversation') {
-        $l->{'name'} = __('Conversation:');
+        $l->{'name'} = __('Conversation');
         $l->{'download'} = 0;
       }
       when ('ostatus:attention') {
-        $l->{'name'} = __('Attention:');
+        $l->{'name'} = __('Attention');
         $l->{'download'} = 0;
       }
       when ('related') {
-        $l->{'name'} = __('Related:');
+        $l->{'name'} = __('Related');
       }
       when ('replies') {
         # Atom <link rel="replies" per RFC 4685 "thr:"
+
+        # is this a good idea?
+        # # suppress xml feed replies link if a plain replies is available
+        # if ((($elt->att('atom:type') // $elt->att('type') // '')
+        #      eq 'application/atom+xml')
+        #     && any_link_replies_nonfeed(@elts)) {
+        #   next;
+        # }
+
         my $count = ($elt->att('thr:count')
                      // $elt->att('count')
                      // $elt->att('atom:count')
                      // non_empty ($item->first_child_trimmed_text('thr:total')));
-        $l->{'name'} = (defined $count
-                        ? __x('Replies({count}):', count => $count)
-                        : __('Replies:'));
+        if (($elt->att('atom:type') // $elt->att('type') // '')
+            eq 'application/atom+xml') {
+          $l->{'name'} = (defined $count
+                          ? __x('RSS Replies({count})', count => $count)
+                          : __('RSS Replies'));
+          $l->{'priority'} = -10;
+        } else {
+          $l->{'name'} = (defined $count
+                          ? __x('Replies({count})', count => $count)
+                          : __('Replies'));
+        }
         $l->{'download'} = 0;
       }
       when ('service.post') {
-        $l->{'name'} = __('Comments:');
+        $l->{'name'} = __('Comments');
         $l->{'download'} = 0;
       }
       when ('via') {
-        $l->{'name'} = __('Via:');
+        $l->{'name'} = __('Via');
         $l->{'download'} = 0;
       }
       default {
-        $l->{'name'} = __x('{linkrel}:', linkrel => $_);
+        $l->{'name'} = __x('{linkrel}', linkrel => $_);
       }
     }
 
@@ -2281,16 +2317,8 @@ sub item_to_links {
                // next);
     $uri = elt_xml_based_uri ($elt, $uri);
 
-    # have seen same url under <link> and <comments> from sourceforge
-    # http://sourceforge.net/export/rss2_keepsake.php?group_id=203650
-    # so dedup
-    if ($seen{$uri->canonical}++) {
-      if ($self->{'verbose'} >= 1) { say "skip duplicate link \"$uri\""; }
-      next;
-    }
-
     $l->{'uri'} = $uri;
-    $l->{'name'} //= __('Link:');
+    $l->{'name'} //= __('Link');
 
     my @paren;
     # show length if biggish, often provided on enclosures but not plain
@@ -2312,16 +2340,65 @@ sub item_to_links {
       push @paren, $duration;
     }
     if (@paren) {
-      $l->{'name'} =~ s{:}{ '(' . join(', ', @paren) . '):'}e;
+      $l->{'name'} .= '('.join(', ',@paren). ')';
     }
 
     push @links, $l;
+  }
+
+  # Merge together duplicate urls, so as not to download two copies as
+  # attachments, and so as to make it clear when there's only one
+  # destination for two things.
+  #
+  # Have seen same url under <link> and <comments> from sourceforge
+  #   http://sourceforge.net/export/rss2_keepsake.php?group_id=203650
+  # or same url under <link> and <enclosure>
+  #   http://abc.net.au/rn/podcast/feeds/sci.xml
+  {
+    my %seen;
+    @links = grep {
+      my $l = $_;
+      my $want = 1;
+      if (my $uri = $l->{'uri'}) {
+        my $canonical = $uri->canonical;
+        if (my $prev_l = $seen{$canonical}) {
+          $want = 0;
+          $prev_l->{'download'} ||= $l->{'download'};
+          $l->{'priority'} = max ($l->{'priority'}||0,
+                                  $prev_l->{'priority'}||0);
+
+          # "Link" doesn't say much, prefer the other over "Link".
+          if ($prev_l->{'name'} eq __('Link')) {
+            $prev_l->{'name'} = $l->{'name'};
+          } elsif ($l->{'name'} eq __('Link')) {
+            # drop this
+          } else {
+            $prev_l->{'name'} .= ", $l->{'name'}";
+          }
+        }
+        $seen{$canonical} = $l;
+      }
+      $want
+    } @links;
+  }
+  foreach my $l (@links) {
+    $l->{'name'} .= ':';
   }
 
   if (defined (my $str = $self->item_to_lat_long_alt_str ($item))) {
     push @links, { name => $str,
                    download => 0,
                    priority => -100,  # lat/long last
+                 };
+  }
+
+  # eg. <media:credit role="publishing company">AFP</media:credit>
+  # is there any value in the role="" part?
+  foreach my $elt ($item->children('media:credit')) {
+    push @links, { name => __x('Credit: {who}',
+                               who => scalar(elt_to_rendered_line($elt))),
+                   download => 0,
+                   priority => -200,
                  };
   }
 
@@ -2360,11 +2437,30 @@ sub item_to_links {
            /channel/item/sioc:has_discussion
            /channel/item/sioc:links_to
            /channel/item/sioc:reply_of
+           /channel/item/media:credit
 
            --believed-to-be-duplicate-of-description
            /channel/item/media:content
            /channel/item/media:text
         )} = ();
+
+sub any_link_replies_nonfeed {
+  foreach my $elt (@_) {
+    # ### any_link_replies_nonfeed(): ref $elt, "$elt", $elt->tag
+    # my $rel = ($elt->att('atom:rel') // $elt->att('rel') // '');
+    # my $type = ($elt->att('atom:type') // $elt->att('type') // '');
+    # ### $rel
+    # ### $type
+    if ($elt->tag eq 'link'
+        && (($elt->att('atom:rel') // $elt->att('rel') // '')
+            eq 'replies')
+        && (($elt->att('atom:type') // $elt->att('type') // '')
+            ne 'application/atom+xml')) {
+      return 1;
+    }
+  }
+  return 0;
+}
 
 sub item_to_lat_long_alt_str {
   my ($self, $item) = @_;
@@ -2943,11 +3039,15 @@ sub item_to_msgid {
     return $self->url_to_msgid ($id, $item->first_child_text('updated'));
   }
 
-  my $guid = $item->first_child('guid');
+  my $guid;
   my $isPermaLink = 0;
-  if (defined $guid) {
-    $isPermaLink = (lc($guid->att('isPermaLink') // 'true') eq 'true');
-    $guid = collapse_whitespace ($guid->text);
+  if (my $elt = $item->first_child('guid')) {
+    # ignore empty <guid isPermaLink="false"/> seen once from
+    # http://abc.net.au/rn/podcast/feeds/sci.xml
+    if (is_non_empty (my $str = collapse_whitespace ($elt->text))) {
+      $guid = $str;
+      $isPermaLink = (lc($elt->att('isPermaLink') // 'true') eq 'true');
+    }
   }
 
   if ($isPermaLink) {   # <guid isPermaLink="true">
@@ -2969,13 +3069,13 @@ sub item_to_msgid {
                                   map {$item->first_child_text($_)}
                                   qw(title
                                      author
-                                     dc:creator
-                                     description
-                                     content
-                                     link
-                                     pubDate
-                                     published
-                                     updated
+                                   dc:creator
+                                   description
+                                   content
+                                   link
+                                   pubDate
+                                   published
+                                   updated
                                    ))));
 }
 # FIXME: is <wordzilla:id> anything that can be used ?
