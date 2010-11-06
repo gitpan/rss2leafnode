@@ -15,12 +15,12 @@ not run its Makefile.PL or Build.PL.
 Hash: SHA1
 
 SHA1 842745cb706f8f2126506f544492f7a80dbe29b3 COPYING
-SHA1 be9240c07a497bdf9fac30ea4100ebdf7355a8bc Changes
+SHA1 8bfad4a030118f32f6d7a96e29815ad174032796 Changes
 SHA1 e157286e08779a5840a40e8a399c3fea6df864fd MANIFEST
 SHA1 e6e7c2904ea5d300c0ddf70fc5a80f5005229aa9 MANIFEST.SKIP
-SHA1 dc6ff186b983efb80675d193f407cedf42986b4f META.yml
+SHA1 4081c09d7ac5e8f09aceee4ec821198010dccaa9 META.yml
 SHA1 5c5b09f18f98d6661d44a96d1aea174e525af57e Makefile.PL
-SHA1 21e448a1a0da5a15381169dc855de07e5a6b746b debian/changelog
+SHA1 63f782c2e8b86593bbf87767ea8bba9f58b5702c debian/changelog
 SHA1 ac3478d69a3c81fa62e60f5c3696165a4e5e6ac4 debian/compat
 SHA1 455ec193f7412b4465fa009eaf41676e1320fc5d debian/control
 SHA1 9da591a1564e204cf062ddd55529b7b43d2d80a7 debian/copyright
@@ -43,12 +43,12 @@ SHA1 1566cf99477ea36f89ccc23fcb2b4eed11e7dda0 devel/icons.pl
 SHA1 279b5b752dd1dd76d84a3db580e8082374762104 devel/ihave.pl
 SHA1 7e73e3ae333250d13c06f3c78a28d2bf6353c886 devel/lib/Localize/GetSetMethod.pm
 SHA1 b0635c4018b34b6ae40fa32ce2f6789f50dfc762 devel/lib/Localize/ScalarRef.pm
-SHA1 1d2e7375759e2cda7c5376541449de4b58b1f190 devel/lib/News/Rnews.pm
-SHA1 7825b5f0d5772498c68015796189207da43580f1 devel/lib/News/Rnews.t
-SHA1 1243b09ad9f4aade3b23c92e04f959782aa3a932 devel/lib/Plagger/Plugin/Filter/FormatText.pm
-SHA1 7ad17611370cb4ce97ed05cbaa84a4e1033ddb6b devel/lib/Plagger/Plugin/Filter/GoogleListPost.pm
-SHA1 389526210155cf774f0163015f3f7409a52e8bb9 devel/lib/Plagger/Plugin/Filter/YahooLinks.pm
-SHA1 9234a44f8a890de815498a283b2a9a84e3476adb devel/lib/Plagger/Plugin/Publish/Rnews.pm
+SHA1 6d07471d63af7650788e430a1a81527f897f7a04 devel/lib/News/Rnews.pm
+SHA1 a49e46ddf84b95991bf712c1fc5508be4ae81659 devel/lib/News/Rnews.t
+SHA1 7becfda31f541b7196b43e211c96ee4b1af4f117 devel/lib/Plagger/Plugin/Filter/FormatText.pm
+SHA1 7aa79c82bea3cfa2594f5711535df38d24dc1495 devel/lib/Plagger/Plugin/Filter/GoogleListPost.pm
+SHA1 795940ae89591b06b5009f5c6e4547ff4876fd74 devel/lib/Plagger/Plugin/Filter/YahooLinks.pm
+SHA1 e3971172f1c46d7f1b3f7a3cb563de7ca1538a53 devel/lib/Plagger/Plugin/Publish/Rnews.pm
 SHA1 fefb260be5e6e43e409797c31be6858a955b004b devel/libxml.pl
 SHA1 8a9456be5453312a39cc67fca6498be7351e51fe devel/lwp-title.html
 SHA1 d3900a13240619524a0d342d79d5476892b9f4d7 devel/lwp-title.pl
@@ -77,14 +77,14 @@ SHA1 19ee17f294bff8d7716725401cb0c85d01f9e3d9 examples/rss2leafnode.conf
 SHA1 3cf3345a9177dbe362dfc8fbf192272f4a611ca8 inc/MyMakeMakerExtras.pm
 SHA1 a2fa0855f3a1ea6140956ec567bea259e0099893 inc/MyMakeMakerGettext.pm
 SHA1 692a1ddc2ca6b98cac7b48ea40bc1ac1509e8ed9 inc/my_pod2html
-SHA1 4fc2de615a5048c425daab7081068081718d0594 lib/App/RSS2Leafnode.pm
-SHA1 f41879ffb1d6671a4156cbaf3cd90dd32b5b0e82 lib/App/RSS2Leafnode/Conf.pm
-SHA1 c1e8d6ea1e771be5f7a7174cbbce836d9d9d8e00 po/App-RSS2Leafnode.pot
+SHA1 edd0fedda685ccb53e4cc06925221c8c7189bd8f lib/App/RSS2Leafnode.pm
+SHA1 0ef3ac0c321a43d77be7e0573ccf875fceaf301c lib/App/RSS2Leafnode/Conf.pm
+SHA1 9bcb128d091d3cf5cb8b65026354064ed6796b16 po/App-RSS2Leafnode.pot
 SHA1 1cba170b869f05138b4e0f9c9ae281d6518af9fb po/README
 SHA1 d109ae9f2cd8ee29a632181eb0ac9a54591b4bb2 po/header.pot
-SHA1 48b3a8053fbea26f75439260e99c7d3174112ac2 rss2leafnode
+SHA1 a27fd2b734277211e414c3ef79b7361248ada7b6 rss2leafnode
 SHA1 5e5680b471811244fe93571efc23e7b6089cac3b t/MyTestHelpers.pm
-SHA1 804f6753e1eeeea17fc20ec13eb2e1f09d078535 t/RSS2Leafnode.t
+SHA1 8d926c0e75792d51a46e001862b8a5e557e51221 t/RSS2Leafnode.t
 SHA1 06b321c36977d841dedc60d0e4afb7d59ce1bd6f t/Test/Weaken/ExtraBits.pm
 SHA1 0df3084d2622eefb3a32fdefd685bc21f12a62b1 t/test-weaken.t
 SHA1 9127f78a0dfa04976acbb979dd7862ef59a74c58 xt/0-META-read.t
@@ -96,7 +96,7 @@ SHA1 c84fa2f39a57885c647ebb69a456f3129de706c1 xt/0-exe-shebang.t
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.10 (GNU/Linux)
 
-iD8DBQFMviC4LFMCIV9q3ToRAsNJAJ9OLEQX8JwEMMxlKHmmg6Xpg9zdYgCfX/4L
-6WNW4HXBs1vI4o0HDuTcq6M=
-=UI1p
+iD8DBQFM1IvzLFMCIV9q3ToRAgkqAJsEKegodO9t9BFoD3b3gANcSJMmAQCfRlzu
+HIO/wSSOy2fU94AoKC2uJc0=
+=zd+q
 -----END PGP SIGNATURE-----

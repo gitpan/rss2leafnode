@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 45, November 2010
+    - fix Precedence: header value for google groups lists
+
 Version 44, October 2010
     - show media:credit as footnote, wfw:commentRss as link
     - try some link name merging for duplicates

@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-   $VERSION = 44;
+   $VERSION = 45;
 }
 
 # Cribs:
@@ -1274,7 +1274,7 @@ sub timingfields_to_timing {
 # $self->{'global_status'} is a hashref containing entries URL => STATUS,
 # where URL is a string and STATUS is a sub-hashref of information
 
-use constant STATUS_EXPIRE_DAYS => 21;
+use constant STATUS_EXPIRE_DAYS => 45;
 
 # read $status_filename into $self->{'global_status'}
 sub status_read {
@@ -2163,7 +2163,7 @@ sub item_to_links {
   #     -20   author home page
   #     -100  geo location text-only
   #     -101  statusnet geo location
-  #     -200  media:credit
+  #     -200  media:credit, itunes:explicit
 
   my @links;
   foreach my $elt (@elts) {
@@ -2401,6 +2401,14 @@ sub item_to_links {
                    priority => -200,
                  };
   }
+  # eg. <itunes:explicit>no</itunes:explicit>
+  foreach my $elt ($item->children('itunes:explicit')) {
+    push @links, { name => __x('Explicit: {value}',
+                               value => scalar(elt_to_rendered_line($elt))),
+                   download => 0,
+                   priority => -200,
+                 };
+  }
 
   # sort downloadables to the start, then by "priority"
   use sort 'stable';
@@ -2438,6 +2446,7 @@ sub item_to_links {
            /channel/item/sioc:links_to
            /channel/item/sioc:reply_of
            /channel/item/media:credit
+           /channel/item/itunes:explicit
 
            --believed-to-be-duplicate-of-description
            /channel/item/media:content
@@ -3631,7 +3640,7 @@ sub fetch_rss_process_one_item {
        'Priority:'         => scalar ($self->item_to_priority($item)),
        'Face:'             => scalar ($self->item_to_face($item)),
        'List-Post:'        => $list_post,
-       'Precedence:'       => $list_post,
+       'Precedence:'       => $precedence,
        'PICS-Label:'       => $pics_label,
        'X-Copyright:'      => scalar ($self->item_to_copyright($item)),
        'X-RSS-URL:'        => scalar ($self->{'uri'}->as_string),
