@@ -1,4 +1,4 @@
-# Copyright 2007, 2008, 2009, 2010 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-   $VERSION = 45;
+  $VERSION = 46;
 }
 
 # Cribs:
@@ -208,6 +208,11 @@ sub is_ascii {
   return ($str !~ /[^[:ascii:]]/);
 }
 
+sub str_count_lines {
+  my ($str) = @_;
+  return scalar($str =~ tr/\n//) + (length($str) && substr($str,-1) ne "\n");
+}
+
 use constant::defer NUMBER_FORMAT => sub {
   require Number::Format;
   Number::Format->VERSION(1.5); # for format_bytes() options params
@@ -216,11 +221,6 @@ use constant::defer NUMBER_FORMAT => sub {
      -mega_suffix => __p('number-format-megabytes','M'),
      -giga_suffix => __p('number-format-gigabytes','G'));
 };
-
-sub str_count_lines {
-  my ($str) = @_;
-  return scalar($str =~ tr/\n//) + (length($str) && substr($str,-1) ne "\n");
-}
 
 #------------------------------------------------------------------------------
 
@@ -775,7 +775,7 @@ sub nntp_close {
   my ($self) = @_;
   if (my $nntp = delete $self->{'nntp'}) {
     if (! $nntp->quit) {
-      say "Error closing nntp: ",$self->{'nntp'}->message;
+      say "Error closing nntp: ",$nntp->message;
     }
   }
 }
@@ -3125,29 +3125,35 @@ sub item_to_in_reply_to {
         )} = ();
 
 # Return a string of comma separated keywords per RFC1036 and RFC2822.
-  # <category> is often present with no other keywords, work that in as a
-  # bit of a fallback, being better than nothing for classification.
-  #
-  # <itunes:category> might be covered by <itunes:keywords> anyway, but work
-  # it in for more classification for now.  Can have child <itunes:category>
-  # elements as sub-categories, but don't worry about them, haven't seen any
-  # real ones, only the sample at
-  # http://www.apple.com/itunes/podcasts/specs.html#example
-  #
-  # <slash:section> might in theory be turned into keyword, but it's
-  # normally just "news" or something not particularly informative.
-  #
-  # <cap:category> is "Geo", "Met", "Safety", "Fire" etc.  Not sure if it
-  # should be in the keywords if it's also in the body text, but at least
-  # offers a bit of classification in the headers.
-  #
-  # <dc:subject> is supposed to be from a "restricted vocabulary" so might
-  # want a bit of decoding.  Not much used, but for instance
-  # http://www.gdacs.org/xml/RSSTC.xml
-  # http://earthquake.usgs.gov/eqcenter/recenteqsww/catalogs/eqs7day-M5.xml
-  #
-  # How much value is there in the channel keywords?
-  #
+#
+# RSS <category>Foo</category> is often present with no other keywords, work
+# that in as a bit of a fallback, being better than nothing for
+# classification.
+#
+# Atom <category term="key" label="human readable"/> with the "label"
+# attribute being the displayable part.  Have seen only the "term" attribute
+# though.
+#
+# <itunes:category> might be covered by <itunes:keywords> anyway, but work
+# it in for more classification for now.  Can have child <itunes:category>
+# elements as sub-categories, but don't worry about them, haven't seen any
+# real ones, only the sample at
+# http://www.apple.com/itunes/podcasts/specs.html#example
+#
+# <slash:section> might in theory be turned into keyword, but it's
+# normally just "news" or something not particularly informative.
+#
+# <cap:category> is "Geo", "Met", "Safety", "Fire" etc.  Not sure if it
+# should be in the keywords if it's also in the body text, but at least
+# offers a bit of classification in the headers.
+#
+# <dc:subject> is supposed to be from a "restricted vocabulary" so might
+# want a bit of decoding.  Not much used, but for instance
+# http://www.gdacs.org/xml/RSSTC.xml
+# http://earthquake.usgs.gov/eqcenter/recenteqsww/catalogs/eqs7day-M5.xml
+#
+# How much value is there in the channel keywords?
+#
 {
   my $re = qr/^(category
               |itunes:category
@@ -3167,8 +3173,13 @@ sub item_to_in_reply_to {
        List::MoreUtils::uniq
        (map { collapse_whitespace($_) }
         map { split /,/ }
-        map { $_->att('text')   # itunes:category
-                // $_->text }   # other
+        map { ($_->att('text')           # itunes:category
+               // $_->att('itunes:text') # itunes:category
+               // $_->att('atom:label')  # atom <category>
+               // $_->att('label')       # atom <category>
+               // $_->att('atom:term')   # atom <category>, if no "label"
+               // $_->att('term')        # atom <category>, if no "label"
+               // $_->text) }   # other
         ($item->children($re),
          $channel->children($re),
          # <cb:news> etc sub-element <cb:category>
@@ -4044,7 +4055,7 @@ L<http://user42.tuxfamily.org/rss2leafnode/index.html>
 
 =head1 LICENSE
 
-Copyright 2007, 2008, 2009, 2010 Kevin Ryde
+Copyright 2007, 2008, 2009, 2010, 2011 Kevin Ryde
 
 RSS2Leafnode is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free

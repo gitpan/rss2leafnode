@@ -2,7 +2,7 @@
 
 # RSS2Leafnode -- copy RSS feeds to a local news spool
 
-# Copyright 2007, 2008, 2009, 2010 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 45;
+our $VERSION = 46;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -664,7 +664,7 @@ L<http://user42.tuxfamily.org/rss2leafnode/index.html>
 
 =head1 LICENSE
 
-Copyright 2007, 2008, 2009, 2010 Kevin Ryde
+Copyright 2007, 2008, 2009, 2010, 2011 Kevin Ryde
 
 RSS2Leafnode is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free

@@ -36,16 +36,9 @@ my $atom = 'http://www.w3.org/2005/Atom';
 #my $filename = '/tmp/tv_epg.xml';
 #my $filename = "$FindBin::Bin/" . "../samp/andrew-weil.rss";
 # my $filename = "$FindBin::Bin/" . "../samp/cooperhewitt.rss";
-my $filename = "$FindBin::Bin/" . "../samp/abc-podcast-sci.xml";
+#my $filename = "$FindBin::Bin/" . "../samp/abc-podcast-sci.xml";
+my $filename = '/tmp/atom.xml';
 
-{
-  require XML::TreePP;
-  my $tpp = XML::TreePP->new();
-  my $tree = $tpp->parsefile($filename);
-  print "Title: ", $tree->{"rdf:RDF"}->{item}->[0]->{title}, "\n";
-  print "URL:   ", $tree->{"rdf:RDF"}->{item}->[0]->{link}, "\n";
-  exit 0;
-}
 {
   require XML::FeedPP;
   my $feed = XML::FeedPP->new($filename);
@@ -55,6 +48,14 @@ my $filename = "$FindBin::Bin/" . "../samp/abc-podcast-sci.xml";
     print "URL: ", $item->link(), "\n";
     print "Title: ", $item->title(), "\n";
   }
+  exit 0;
+}
+{
+  require XML::TreePP;
+  my $tpp = XML::TreePP->new();
+  my $tree = $tpp->parsefile($filename);
+  print "Title: ", $tree->{"rdf:RDF"}->{item}->[0]->{title}, "\n";
+  print "URL:   ", $tree->{"rdf:RDF"}->{item}->[0]->{link}, "\n";
   exit 0;
 }
 

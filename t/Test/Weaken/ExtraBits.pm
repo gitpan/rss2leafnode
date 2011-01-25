@@ -1,6 +1,6 @@
 # Test::Weaken::ExtraBits -- some helpers for Test::Weaken
 
-# Copyright 2008, 2009, 2010 Kevin Ryde
+# Copyright 2008, 2009, 2010, 2011 Kevin Ryde
 
 # Test::Weaken::ExtraBits is shared by several distributions.
 #
@@ -29,9 +29,7 @@ our @EXPORT_OK = qw(ignore_Class_Singleton
                     ignore_DBI_dr
                     ignore_global_function
                     ignore_function
-                    ignore_module_functions
-                    findrefs);
-our %EXPORT_TAGS = (all => \@EXPORT_OK);
+                    ignore_module_functions);
 
 use constant DEBUG => 0;
 

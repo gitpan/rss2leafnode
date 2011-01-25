@@ -1,4 +1,4 @@
-# Copyright 2007, 2008, 2009, 2010 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -30,17 +30,17 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: lib/App/RSS2Leafnode.pm:215
+#: lib/App/RSS2Leafnode.pm:220
 msgctxt "number-format-kilobytes"
 msgid "K"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:216
+#: lib/App/RSS2Leafnode.pm:221
 msgctxt "number-format-megabytes"
 msgid "M"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:217
+#: lib/App/RSS2Leafnode.pm:222
 msgctxt "number-format-gigabytes"
 msgid "G"
 msgstr ""
@@ -156,8 +156,8 @@ msgstr ""
 msgid "{group} 1 new article"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1999 lib/App/RSS2Leafnode.pm:3734
-#: lib/App/RSS2Leafnode.pm:3908
+#: lib/App/RSS2Leafnode.pm:1999 lib/App/RSS2Leafnode.pm:3745
+#: lib/App/RSS2Leafnode.pm:3919
 #, perl-brace-format
 msgid ""
 "rss2leafnode: {url}\n"
@@ -358,46 +358,46 @@ msgid ""
 "{error}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3289
+#: lib/App/RSS2Leafnode.pm:3300
 msgid "no subject"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3553 lib/App/RSS2Leafnode.pm:3556
+#: lib/App/RSS2Leafnode.pm:3564 lib/App/RSS2Leafnode.pm:3567
 msgid "Further feed XML:"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3581
+#: lib/App/RSS2Leafnode.pm:3592
 #, perl-brace-format
 msgid " item: {subject}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3725
+#: lib/App/RSS2Leafnode.pm:3736
 #, perl-brace-format
 msgid "  link: \"{name}\" {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3737
+#: lib/App/RSS2Leafnode.pm:3748
 #, perl-brace-format
 msgid ""
 "Cannot download link {url}\n"
 " {status}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3833
+#: lib/App/RSS2Leafnode.pm:3844
 msgid "   posted"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3890
+#: lib/App/RSS2Leafnode.pm:3901
 #, perl-brace-format
 msgid "RSS comments: {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3892
+#: lib/App/RSS2Leafnode.pm:3903
 #, perl-brace-format
 msgid "feed: {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3921
+#: lib/App/RSS2Leafnode.pm:3932
 #, perl-brace-format
 msgid ""
 "XML::Twig parse error on\n"
@@ -406,7 +406,7 @@ msgid ""
 "\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3924
+#: lib/App/RSS2Leafnode.pm:3935
 #, perl-brace-format
 msgid ""
 "which redirected to\n"
@@ -415,11 +415,11 @@ msgid ""
 "\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3927
+#: lib/App/RSS2Leafnode.pm:3938
 msgid "Raw XML below.\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3929
+#: lib/App/RSS2Leafnode.pm:3940
 #, perl-brace-format
 msgid "Error parsing {url}"
 msgstr ""

@@ -1,4 +1,4 @@
-# Copyright 2010 Kevin Ryde
+# Copyright 2010, 2011 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -20,7 +20,7 @@ use 5.010;
 use strict;
 use warnings;
 
-our $VERSION = 45;
+our $VERSION = 46;
 
 {
   package App::RSS2Leafnode::Conf::Tie;
@@ -98,7 +98,7 @@ L<http://user42.tuxfamily.org/rss2leafnode/index.html>
 
 =head1 LICENSE
 
-Copyright 2010 Kevin Ryde
+Copyright 2010, 2011 Kevin Ryde
 
 RSS2Leafnode is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free
