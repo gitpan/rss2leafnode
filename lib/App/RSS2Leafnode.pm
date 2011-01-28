@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 46;
+  $VERSION = 47;
 }
 
 # Cribs:
@@ -2238,7 +2238,8 @@ sub item_to_links {
              'service.edit', # to edit the item
              'license',      # probably only in the channel part normally
             ]) {
-        if ($self->{'verbose'} >= 1) { say "skip link \"$_\""; }
+        if ($self->{'verbose'} >= 1) { say __x('  skip link "{type}"',
+                                               type => $_); }
         next;
       }
       when ('alternate') {
@@ -2401,10 +2402,14 @@ sub item_to_links {
                    priority => -200,
                  };
   }
-  # eg. <itunes:explicit>no</itunes:explicit>
+
+  # <itunes:explicit>no</itunes:explicit>
+  # but empty <itunes:explicit/> at http://abc.net.au/rn/podcast/feeds/sci.xml
+  #
   foreach my $elt ($item->children('itunes:explicit')) {
-    push @links, { name => __x('Explicit: {value}',
-                               value => scalar(elt_to_rendered_line($elt))),
+    my $line = elt_to_rendered_line($elt)
+      // next; # skip empty <itunes:explicit/>
+    push @links, { name => __x('Explicit: {value}', value => $line),
                    download => 0,
                    priority => -200,
                  };
@@ -3593,257 +3598,260 @@ sub fetch_rss_process_one_item {
             subject => $subject);
   }
   my $msgid = $self->item_to_msgid ($item);
-  return 0 if $self->nntp_message_id_exists ($msgid);
+  my $new = 0;
 
-  my $channel = item_to_channel($item);
-  my ($from, $from_link) = $self->item_to_from($item);
-  my @links = $self->item_to_links ($item);
-  if ($from_link) {
-    push @links, $from_link;
-  }
+  if (! $self->nntp_message_id_exists ($msgid)) {
+    my $channel = item_to_channel($item);
+    my ($from, $from_link) = $self->item_to_from($item);
+    my @links = $self->item_to_links ($item);
+    if ($from_link) {
+      push @links, $from_link;
+    }
 
-  # For comments feeds show "Re: Foo" as the subject.  Haven't seen a
-  # comments feed with anything useful in the <title>.  Could think about
-  # including it at the start of the message body if it was any good.
-  #
-  #
-  # http://www.netzpolitik.org/feed/ has <wfw:commentRss> feeds with <title>
-  # just "Von: Foo" where Foo is the poster's name.
-  #
-  # my $dummy = $self->DUMMY_EMAIL_ADDRESS;
-  # if ($from =~ /(.*) <\Q$dummy\E>$/
-  #     && $subject eq "Von: $1") {
-  #   $subject = $self->{'getting_rss_comments'};
-  # }
-  #
-  if (defined $self->{'getting_rss_comments'}) {
-    $subject = $self->{'getting_rss_comments'};
-  }
+    # For comments feeds show "Re: Foo" as the subject.  Haven't seen a
+    # comments feed with anything useful in the <title>.  Could think about
+    # including it at the start of the message body if it was any good.
+    #
+    #
+    # http://www.netzpolitik.org/feed/ has <wfw:commentRss> feeds with <title>
+    # just "Von: Foo" where Foo is the poster's name.
+    #
+    # my $dummy = $self->DUMMY_EMAIL_ADDRESS;
+    # if ($from =~ /(.*) <\Q$dummy\E>$/
+    #     && $subject eq "Von: $1") {
+    #   $subject = $self->{'getting_rss_comments'};
+    # }
+    #
+    if (defined $self->{'getting_rss_comments'}) {
+      $subject = $self->{'getting_rss_comments'};
+    }
 
-  my $list_post = googlegroups_link_email(@links);
-  my $precedence = (defined $list_post ? 'list' : undef);
+    my $list_post = googlegroups_link_email(@links);
+    my $precedence = (defined $list_post ? 'list' : undef);
 
-  # RSS <rating> PICS-Label
-  # http://www.w3.org/TR/REC-PICS-labels
-  # ENHANCE-ME: Maybe transform <itunes:explicit> "yes","no","clean" into
-  # PICS too maybe, unless it only applies to the enclosure as such.  Maybe
-  # <media:adult> likewise.
-  my $pics_label = collapse_whitespace ($channel->first_child_text('rating'));
+    # RSS <rating> PICS-Label
+    # http://www.w3.org/TR/REC-PICS-labels
+    # ENHANCE-ME: Maybe transform <itunes:explicit> "yes","no","clean" into
+    # PICS too maybe, unless it only applies to the enclosure as such.  Maybe
+    # <media:adult> likewise.
+    my $pics_label = collapse_whitespace ($channel->first_child_text('rating'));
 
-  # Crib: an undef value for a header means omit that header, which is good
-  # for say the merely optional "Content-Language"
-  #
-  # there can be multiple "feed" links from Atom ...
-  # 'X-RSS-Feed-Link:'  => $channel->{'link'},
-  #
-  my %headers
-    = ('Path:'        => scalar ($self->uri_to_host),
-       'Newsgroups:'  => $self->{'nntp_group'},
-       From           => $from,
-       Subject        => $subject,
-       Keywords       => scalar ($self->item_to_keywords($item)),
-       Date           => scalar ($self->item_to_date($item)),
-       'In-Reply-To:' => scalar ($self->item_to_in_reply_to($item)),
-       References     => $self->{'References:'},
-       'Message-ID'        => $msgid,
-       'Content-Language:' => scalar ($self->item_to_language($item)),
-       'Importance:'       => scalar ($self->item_to_importance($item)),
-       'Priority:'         => scalar ($self->item_to_priority($item)),
-       'Face:'             => scalar ($self->item_to_face($item)),
-       'List-Post:'        => $list_post,
-       'Precedence:'       => $precedence,
-       'PICS-Label:'       => $pics_label,
-       'X-Copyright:'      => scalar ($self->item_to_copyright($item)),
-       'X-RSS-URL:'        => scalar ($self->{'uri'}->as_string),
-       'X-RSS-Feedburner:' => scalar ($self->item_to_feedburner($item)),
-       'X-RSS-Generator:'  => scalar ($self->item_to_generator($item)),
-      );
+    # Crib: an undef value for a header means omit that header, which is good
+    # for say the merely optional "Content-Language"
+    #
+    # there can be multiple "feed" links from Atom ...
+    # 'X-RSS-Feed-Link:'  => $channel->{'link'},
+    #
+    my %headers
+      = ('Path:'        => scalar ($self->uri_to_host),
+         'Newsgroups:'  => $self->{'nntp_group'},
+         From           => $from,
+         Subject        => $subject,
+         Keywords       => scalar ($self->item_to_keywords($item)),
+         Date           => scalar ($self->item_to_date($item)),
+         'In-Reply-To:' => scalar ($self->item_to_in_reply_to($item)),
+         References     => $self->{'References:'},
+         'Message-ID'        => $msgid,
+         'Content-Language:' => scalar ($self->item_to_language($item)),
+         'Importance:'       => scalar ($self->item_to_importance($item)),
+         'Priority:'         => scalar ($self->item_to_priority($item)),
+         'Face:'             => scalar ($self->item_to_face($item)),
+         'List-Post:'        => $list_post,
+         'Precedence:'       => $precedence,
+         'PICS-Label:'       => $pics_label,
+         'X-Copyright:'      => scalar ($self->item_to_copyright($item)),
+         'X-RSS-URL:'        => scalar ($self->{'uri'}->as_string),
+         'X-RSS-Feedburner:' => scalar ($self->item_to_feedburner($item)),
+         'X-RSS-Generator:'  => scalar ($self->item_to_generator($item)),
+        );
 
-  my $attach_elt;
+    my $attach_elt;
 
-  # <media:text> is another possibility, but have seen it from Yahoo as just
-  # a copy of <description>, with type="html" to make the format clear.
-  #
-  # ENHANCE-ME: <itunes:subtitle> might be worthwhile showing at the start
-  # as well as <itunes:summary>.
-  #
-  my $body = (           # <content:encoded> generally bigger or better than
-              # <description>, so prefer that
-              $item->first_child('content:encoded')
-              || $item->first_child('description')
-              || $item->first_child('dc:description')
-              || $item->first_child('itunes:summary')
-              || do {
-                # Atom spec is for no more than one <content>.
-                my $elt = $item->first_child('content');
-                given (atom_content_flavour($elt)) {
-                  when ('link')   { undef $elt }
-                  when ('attach') { $attach_elt = $elt; undef $elt; }
+    # <media:text> is another possibility, but have seen it from Yahoo as just
+    # a copy of <description>, with type="html" to make the format clear.
+    #
+    # ENHANCE-ME: <itunes:subtitle> might be worthwhile showing at the start
+    # as well as <itunes:summary>.
+    #
+    my $body = (           # <content:encoded> generally bigger or better than
+                # <description>, so prefer that
+                $item->first_child('content:encoded')
+                || $item->first_child('description')
+                || $item->first_child('dc:description')
+                || $item->first_child('itunes:summary')
+                || do {
+                  # Atom spec is for no more than one <content>.
+                  my $elt = $item->first_child('content');
+                  given (atom_content_flavour($elt)) {
+                    when ('link')   { undef $elt }
+                    when ('attach') { $attach_elt = $elt; undef $elt; }
+                  }
+                  $elt
                 }
-                $elt
-              }
-              || $item->first_child('summary')); # Atom
+                || $item->first_child('summary')); # Atom
 
-  my $body_type = elt_content_type ($body);
-  if ($self->{'verbose'} >= 3) { print " body_type from elt: $body_type\n"; }
-  my $body_charset = 'utf-8';
-  my $body_base_url = elt_xml_base ($body);
-  given ($body_type) {
-    when (! defined) {          # no $body element at all
-      $body = '';
-      $body_type = 'text/plain';
+    my $body_type = elt_content_type ($body);
+    if ($self->{'verbose'} >= 3) { print " body_type from elt: $body_type\n"; }
+    my $body_charset = 'utf-8';
+    my $body_base_url = elt_xml_base ($body);
+    given ($body_type) {
+      when (! defined) {          # no $body element at all
+        $body = '';
+        $body_type = 'text/plain';
+      }
+      when ('xhtml') {            # Atom
+        $body = elt_xhtml_to_html ($body);
+        $body_type = 'html';
+      }
+      when ('html') {             # RSS or Atom
+        $body = elt_subtext($body);
+      }
+      when ('text') {             # Atom 'text' to be flowed
+        # should be text-only, no sub-elements, but extract sub-elements to
+        # cope with dodgy feeds with improperly escaped html etc
+        $body = $self->text_wrap (elt_subtext ($body));
+        $body_type = 'text/plain';
+      }
+      when (m{^text/}) {          # Atom mime text type
+        $body = elt_subtext ($body);
+      }
+      default {                   # Atom base64 something
+        $body = MIME::Base64::decode ($body->text);
+        $body_charset = undef;
+      }
     }
-    when ('xhtml') {            # Atom
-      $body = elt_xhtml_to_html ($body);
-      $body_type = 'html';
-    }
-    when ('html') {             # RSS or Atom
-      $body = elt_subtext($body);
-    }
-    when ('text') {             # Atom 'text' to be flowed
-      # should be text-only, no sub-elements, but extract sub-elements to
-      # cope with dodgy feeds with improperly escaped html etc
-      $body = $self->text_wrap (elt_subtext ($body));
-      $body_type = 'text/plain';
-    }
-    when (m{^text/}) {          # Atom mime text type
-      $body = elt_subtext ($body);
-    }
-    default {                   # Atom base64 something
-      $body = MIME::Base64::decode ($body->text);
-      $body_charset = undef;
-    }
-  }
-  if ($self->{'verbose'} >= 3) { print " body: $body_type charset=",
-                                   $body_charset//'undef',"\n",
-                                     "$body\n"; }
+    if ($self->{'verbose'} >= 3) { print " body: $body_type charset=",
+                                     $body_charset//'undef',"\n",
+                                       "$body\n"; }
 
-  my $body_is_html = ($body_type ~~ ['html','text/html']);
-  my $links_want_html = ($body_is_html && ! $self->{'render'});
-  if ($self->{'verbose'} >= 3) { print " links_want_html: ",
-                                   ($links_want_html ? "yes\n" : "no\n"); }
-  my $links_str = ($links_want_html
-                   ? links_to_html(@links)
-                   : links_to_text(@links));
-  $links_str .= $self->item_common_alert_protocol($item, $links_want_html);
-  $links_str .= $self->item_unknowns($item, $links_want_html);
-  my @parts;
+    my $body_is_html = ($body_type ~~ ['html','text/html']);
+    my $links_want_html = ($body_is_html && ! $self->{'render'});
+    if ($self->{'verbose'} >= 3) { print " links_want_html: ",
+                                     ($links_want_html ? "yes\n" : "no\n"); }
+    my $links_str = ($links_want_html
+                     ? links_to_html(@links)
+                     : links_to_text(@links));
+    $links_str .= $self->item_common_alert_protocol($item, $links_want_html);
+    $links_str .= $self->item_unknowns($item, $links_want_html);
+    my @parts;
 
-  if ($self->{'rss_get_links'}) {
-    foreach my $l (@links) {
-      next if ! $l->{'download'};
-      my $url = $l->{'uri'};
-      if ($self->{'verbose'}) { say __x('  link: "{name}" {url}',
-                                        name => $l->{'name'},
-                                        url => $url); }
-      require HTTP::Request;
-      my $req = HTTP::Request->new (GET => $url);
-      my $resp = $self->ua->request($req);
-      $resp = $self->aireview_follow ($url, $resp);
+    if ($self->{'rss_get_links'}) {
+      foreach my $l (@links) {
+        next if ! $l->{'download'};
+        my $url = $l->{'uri'};
+        if ($self->{'verbose'}) { say __x('  link: "{name}" {url}',
+                                          name => $l->{'name'},
+                                          url => $url); }
+        require HTTP::Request;
+        my $req = HTTP::Request->new (GET => $url);
+        my $resp = $self->ua->request($req);
+        $resp = $self->aireview_follow ($url, $resp);
 
-      if (! $resp->is_success) {
-        print __x("rss2leafnode: {url}\n {status}\n",
-                  url => $l->{'uri'},
-                  status => $resp->status_line);
-        my $msg = __x("Cannot download link {url}\n {status}",
-                      url => $l->{'uri'},
-                      status => $resp->status_line);
-        if ($links_want_html) {
-          $msg = $Entitize{$msg};
-          $msg =~ s/\n/<br>/;
-          $links_str .= "<p>&nbsp;$msg\n</p>\n";
-        } else {
-          $links_str .= "\n$msg\n";
+        if (! $resp->is_success) {
+          print __x("rss2leafnode: {url}\n {status}\n",
+                    url => $l->{'uri'},
+                    status => $resp->status_line);
+          my $msg = __x("Cannot download link {url}\n {status}",
+                        url => $l->{'uri'},
+                        status => $resp->status_line);
+          if ($links_want_html) {
+            $msg = $Entitize{$msg};
+            $msg =~ s/\n/<br>/;
+            $links_str .= "<p>&nbsp;$msg\n</p>\n";
+          } else {
+            $links_str .= "\n$msg\n";
+          }
+          next;
         }
-        next;
-      }
 
-      # suspect little value in a description when inlined
-      # 'Content-Description:' => mimewords_non_ascii($l->{'title'})
-      # favicon used for Face if nothing in the item
-      #
-      $self->enforce_html_charset_from_content ($resp);
-      $headers{'Face:'} ||= $self->http_resp_to_face($resp);
-      push @parts, $self->mime_part_from_response ($resp);
+        # suspect little value in a description when inlined
+        # 'Content-Description:' => mimewords_non_ascii($l->{'title'})
+        # favicon used for Face if nothing in the item
+        #
+        $self->enforce_html_charset_from_content ($resp);
+        $headers{'Face:'} ||= $self->http_resp_to_face($resp);
+        push @parts, $self->mime_part_from_response ($resp);
+      }
     }
-  }
-  if ($links_want_html && $body_type eq 'html') {
-    # append to html fragment
-    $body .= $links_str;
-    undef $links_str;
-  }
-
-  if ($body_type eq 'html') {
-    ($body, $body_charset) = html_wrap_fragment ($item, $body);
-    $body_type = 'text/html';
-  }
-  if (defined $body_charset) {
-    $body = Encode::encode ($body_charset, $body);
-  }
-
-  ($body, $body_type, $body_charset)
-    = $self->render_maybe ($body, $body_type, $body_charset, $body_base_url);
-
-  if ($body_type eq 'text/plain') {
-    # remove trailing whitespace from any text
-    $body =~ s/\s+$//;
-    $body .= "\n";
-
-    if (! $links_want_html) {
-      # append to text/plain, either atom type=text or rendered html
-      unless (is_empty ($links_str)) {
-        $links_str = Encode::encode ($body_charset, $links_str);
-        $body .= "\n$links_str\n";
-      }
+    if ($links_want_html && $body_type eq 'html') {
+      # append to html fragment
+      $body .= $links_str;
       undef $links_str;
     }
-  }
 
-  unless (is_empty ($links_str)) {
-    my $links_type;
-    my $links_charset;
-    if ($links_want_html) {
-      $links_type = 'text/html';
-      ($links_str, $links_charset) = html_wrap_fragment ($item, $links_str);
-    } else {
-      $links_type = 'text/plain';
-      $links_charset = (is_ascii($links_str) ? 'us-ascii' : 'utf-8');
+    if ($body_type eq 'html') {
+      ($body, $body_charset) = html_wrap_fragment ($item, $body);
+      $body_type = 'text/html';
     }
-    $links_str = Encode::encode ($links_charset, $links_str);
-    unshift @parts, $self->mime_build ({},
-                                       Type        => $links_type,
-                                       Encoding    => $links_charset,
-                                       Data        => $links_str);
+    if (defined $body_charset) {
+      $body = Encode::encode ($body_charset, $body);
+    }
+
+    ($body, $body_type, $body_charset)
+      = $self->render_maybe ($body, $body_type, $body_charset, $body_base_url);
+
+    if ($body_type eq 'text/plain') {
+      # remove trailing whitespace from any text
+      $body =~ s/\s+$//;
+      $body .= "\n";
+
+      if (! $links_want_html) {
+        # append to text/plain, either atom type=text or rendered html
+        unless (is_empty ($links_str)) {
+          $links_str = Encode::encode ($body_charset, $links_str);
+          $body .= "\n$links_str\n";
+        }
+        undef $links_str;
+      }
+    }
+
+    unless (is_empty ($links_str)) {
+      my $links_type;
+      my $links_charset;
+      if ($links_want_html) {
+        $links_type = 'text/html';
+        ($links_str, $links_charset) = html_wrap_fragment ($item, $links_str);
+      } else {
+        $links_type = 'text/plain';
+        $links_charset = (is_ascii($links_str) ? 'us-ascii' : 'utf-8');
+      }
+      $links_str = Encode::encode ($links_charset, $links_str);
+      unshift @parts, $self->mime_build ({},
+                                         Type        => $links_type,
+                                         Encoding    => $links_charset,
+                                         Data        => $links_str);
+    }
+
+
+    my $top = $self->mime_build (\%headers,
+                                 Top     => 1,
+                                 Type    => $body_type,
+                                 Charset => $body_charset,
+                                 Data    => $body);
+
+    # Atom <content> of a non-text type
+    if ($attach_elt) {
+      # ENHANCE-ME: this decodes base64 from the xml and then re-encodes for
+      # the mime, is it possible to pass straight in?
+      unshift @parts, $self->mime_build
+        ({ 'Content-Location:' => $self->{'uri'}->as_string },
+         Type     => scalar ($attach_elt->att('atom:type')
+                             // $attach_elt->att('type')),
+         Encoding => 'base64',
+         Data     => MIME::Base64::decode($attach_elt->text));
+    }
+    foreach my $part (@parts) {
+      $top->make_multipart;
+      $top->add_part ($part);
+    }
+
+    mime_entity_lines($top);
+    $self->nntp_post($top) || return 0;
+    if ($self->{'verbose'} >= 1) { say __('  posted'); }
+    $new++;
   }
 
-
-  my $top = $self->mime_build (\%headers,
-                               Top     => 1,
-                               Type    => $body_type,
-                               Charset => $body_charset,
-                               Data    => $body);
-
-  # Atom <content> of a non-text type
-  if ($attach_elt) {
-    # ENHANCE-ME: this decodes base64 from the xml and then re-encodes for
-    # the mime, is it possible to pass straight in?
-    unshift @parts, $self->mime_build
-      ({ 'Content-Location:' => $self->{'uri'}->as_string },
-       Type     => scalar ($attach_elt->att('atom:type')
-                           // $attach_elt->att('type')),
-       Encoding => 'base64',
-       Data     => MIME::Base64::decode($attach_elt->text));
-  }
-  foreach my $part (@parts) {
-    $top->make_multipart;
-    $top->add_part ($part);
-  }
-
-  mime_entity_lines($top);
-  $self->nntp_post($top) || return 0;
-  if ($self->{'verbose'} >= 1) { say __('   posted'); }
-
-  my $new = 1;
+  # ENHANCE-ME: check the replies count to see if more to fetch
   if ($self->{'rss_get_comments'}
       && (my $comments_rss_url = $self->item_to_comments_rss_url($item))) {
     local $self->{'rss_get_links'} = 0;

@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 47, January 2010
+    - look for followup comments after initial article post
+
 Version 46, January 2010
     - atom style <category> for Keywords
 

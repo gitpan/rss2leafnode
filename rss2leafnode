@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 46;
+our $VERSION = 47;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -213,19 +213,19 @@ trouble if the link uses frames (a set of HTML pages instead of just one).
 
 =item $rss_get_comments (default 0)
 
-If true then download the comments feed for items and post it as followup
-news articles.  This is slightly experimental yet.  For example,
+If true then download the comments feeds for items and post as followup news
+articles.  This is slightly experimental yet.  For example,
 
     $rss_get_comments = 1;
     fetch_rss ('r2l.food',
       'http://wickedgooddinner.blogspot.com/feeds/posts/default');
 
-When a feed is available in both Atom and RSS formats it's possible only the
-Atom one includes a comments feed URL.
+To send a followup comment you generally must go to the links in the
+original article (or in the followups) and use some sort of web form.
+Posting a message to the newsgroup goes nowhere.
 
-To post a followup comment you generally must go to the links in the
-original article (or in the followups) to some sort of web form.  Posting a
-news message goes nowhere.
+When a feed is available in both Atom and RSS formats sometimes possible
+only the Atom one includes a comments feed URL.
 
 =item $render (default 0)
 
