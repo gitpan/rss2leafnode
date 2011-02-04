@@ -44,8 +44,11 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 47;
+  $VERSION = 48;
 }
+
+## no critic (ProhibitFixedStringMatches)
+
 
 # Cribs:
 #
@@ -278,6 +281,14 @@ sub command_line {
   return 0;
 }
 
+sub verbose {
+  my $self = shift;
+  my $count = shift;
+  if ($self->{'verbose'} >= $count) {
+    say @_;
+  }
+}
+
 sub homedir {
   # my ($self) = @_;
   require File::HomeDir;
@@ -324,7 +335,7 @@ sub do_config_file {
   }
 
   my $config_filename = $self->config_filename;
-  if ($self->{'verbose'}) { say "config: $config_filename"; }
+  $self->verbose (1, "config: ", $config_filename);
 
   require App::RSS2Leafnode::Conf;
   local $App::RSS2Leafnode::Conf::r2l = $self;
@@ -366,7 +377,7 @@ sub ua {
     #
     require HTTP::Message;
     my $decodable = HTTP::Message::decodable();
-    if ($self->{'verbose'} >= 2) { say "HTTP decodable: $decodable"; }
+    $self->verbose (2, "HTTP decodable: ", $decodable);
     $ua->default_header ('Accept-Encoding' => $decodable);
 
     $ua
@@ -376,11 +387,7 @@ sub ua {
 sub lwp_request_send__verbose {
   my ($req, $ua, $h) = @_;
   my $self = $ua->{(__PACKAGE__)};
-  if ($self->{'verbose'} >= 2) {
-    say 'request_send:';
-    $req->dump;
-    say '';
-  }
+  $self->verbose (2, "request_send:", $req->dump, "\n"); # extra newline
   return;  # continue processing
 }
 
@@ -388,9 +395,7 @@ sub lwp_response_done__check_md5 {
   my ($self, $resp, $ua, $h) = @_;
   $self || return;
   my $want = $resp->header('Content-MD5') // do {
-    if ($self->{'verbose'} >= 2) {
-      print "no Content-MD5 header\n";
-    }
+    $self->verbose (2, 'no Content-MD5 header');
     return;
   };
   $resp->decode;
@@ -401,9 +406,7 @@ sub lwp_response_done__check_md5 {
     print __x("Warning, MD5 checksum mismatch on download {url}\n",
               url => $resp->request->uri);
   } else {
-    if ($self->{'verbose'} >= 2) {
-      print "Content-MD5 ok\n";
-    }
+    $self->verbose(2, 'Content-MD5 ok');
   }
 }
 
@@ -423,12 +426,10 @@ sub enforce_html_charset_from_content {
     my $old = $resp->header('Content-Type');
     $resp->header('Content-Type' => $resp->headers->content_type);
 
-    if ($self->{'verbose'} >= 2) {
-      say 'html_charset_from_content mangled Content-Type from';
-      say "   from $old";
-      say "   to   ", $resp->header('Content-Type');
-      say "   giving charset ", $resp->content_charset;
-    }
+    $self->verbose (2, 'html_charset_from_content mangled Content-Type from');
+    $self->verbose (2, "   from ", $old);
+    $self->verbose (2, "   to   ", $resp->header('Content-Type'));
+    $self->verbose (2, "   giving charset ", $resp->content_charset);
   }
 }
 
@@ -634,7 +635,7 @@ sub item_to_timet {
             say __x('Unrecognised date "{date}" from {url}',
                     date => $str,
                     url  => $self->{'uri'});
-            -POSIX::DBL_MAX();
+            - POSIX::DBL_MAX();
           });
 }
 
@@ -753,7 +754,7 @@ sub nntp {
   if (! $self->{'nntp'}
       || $self->{'nntp'}->host ne $self->{'nntp_host'}) {
     my $host = $self->{'nntp_host'};
-    if ($self->{'verbose'} >= 1) { say __x("nntp: {host}", host => $host); }
+    $self->verbose (1, __x("nntp: {host}", host => $host));
     require Net::NNTP;
     my $nntp = $self->{'nntp'}
       = Net::NNTP->new ($host, ($self->{'verbose'} >= 2
@@ -762,10 +763,8 @@ sub nntp {
     if (! $nntp) {
       croak __x("Cannot connect to NNTP on \"{host}\"\n", host => $host);
     }
-    if ($self->{'verbose'} >= 1) {
-      if (! $nntp->postok) {
-        say "Hmm, ", $nntp->host, " doesn't say \"posting ok\" ...";
-      }
+    if (! $nntp->postok) {
+      $self->verbose (1, "Hmm, ", $nntp->host, " doesn't say \"posting ok\" ...");
     }
   }
   return $self->{'nntp'};
@@ -800,9 +799,11 @@ sub nntp_message_id_exists {
   my ($self, $msgid) = @_;
   my $ret = $self->nntp->nntpstat($msgid);
   if ($self->{'verbose'} >= 2) {
-    say "'$msgid' ", ($ret ? 'exists already' : 'new');
+    $self->verbose (2, "'$msgid' ", ($ret ? 'exists already' : 'new'));
   } elsif ($self->{'verbose'} >= 1) {
-    if ($ret) { say __('  exists already'); }
+    if ($ret) {
+      $self->verbose (1, '  ', __('exists already'));
+    }
   }
   return $ret;
 }
@@ -970,7 +971,7 @@ sub mime_build {
   @args = map {$_,$headers->{$_}} sort keys %$headers;
   if ($self->{'verbose'} >= 4) {
     require Data::Dumper;
-    print Data::Dumper->new([\@args],['mime headers'])->Dump;
+    $self->verbose (4, Data::Dumper->new([\@args],['mime headers'])->Dump);
   }
 
   require MIME::Entity;
@@ -990,7 +991,7 @@ sub mime_part_from_response {
   my ($self, $resp, @headers) = @_;
 
   my $content_type = $resp->content_type;
-  if ($self->{'verbose'} >= 2) { say " content-type: $content_type"; }
+  $self->verbose (2, ' content-type: ',$content_type);
   $resp->decode;
   my $content      = $resp->content;         # the bytes
   my $charset      = $resp->content_charset; # and their charset
@@ -1007,7 +1008,7 @@ sub mime_part_from_response {
     ({ 'Content-Language:' => scalar ($resp->header('Content-Language')),
        'Content-Location:' => $url,
        'Content-MD5:'      => $content_md5,
-       @headers
+       @headers,
      },
      Type        => $content_type,
      Charset     => $charset,
@@ -1121,15 +1122,23 @@ sub elt_xhtml_to_html {
   # lose xmlns:xhtml="http://www.w3.org/1999/xhtml"
   $elt->strip_att('xmlns:xhtml');
 
-  # something fishy turns "href" to "xhtml:href", drop back to "href"
+  # something fishy turns "href" to "xhtml:href", drop any "xhtml:"
+  # bare "href" also gets turned into atom:href as the default namespace,
+  # drop any "atom:"
   foreach my $child ($elt->descendants) {
     foreach my $attname ($child->att_names) {
-      if ($attname =~ /^xhtml:(.*)/) {
-        $child->change_att_name($attname, $1);
+      if ($attname =~ /^(xhtml|atom):(.*)/) {
+        $child->change_att_name($attname, $2);
       }
     }
   }
-  return $elt->xml_string;
+
+  my $old_pretty = $elt->set_pretty_print ('none');
+  ### $old_pretty
+  my $ret = $elt->xml_string;
+  $elt->set_pretty_print ($old_pretty);
+  return $ret;
+
 }
 
 # elt_content_type() returns 'text', 'html', 'xhtml' or a mime type.
@@ -1220,8 +1229,9 @@ sub twig_to_timingfields {
   }
   if ($self->{'verbose'} >= 2) {
     require Data::Dumper;
-    print Data::Dumper->new([\%timingfields],['timingfields'])
-      ->Indent(1)->Sortkeys(1)->Dump;
+    $self->verbose (2,
+                    Data::Dumper->new([\%timingfields],['timingfields'])
+                    ->Indent(1)->Sortkeys(1)->Dump);
   }
   if (! %timingfields) {
     return; # no info
@@ -1281,13 +1291,13 @@ sub status_read {
   my ($self) = @_;
   $self->{'global_status'} = {};
   my $status_filename = $self->status_filename;
-  if ($self->{'verbose'} >= 2) { say "read status: $status_filename"; }
+  $self->verbose (2, 'read status: ', $status_filename);
 
   $! = 0;
   my $global_status = do $status_filename;
   if (! defined $global_status) {
     if ($! == POSIX::ENOENT()) {
-      if ($self->{'verbose'} >= 2) { say "status file doesn't exist"; }
+      $self->verbose (2, "status file doesn't exist");
     } else {
       say "rss2leafnode: error in $status_filename\n$@";
       say "ignoring that file";
@@ -1305,18 +1315,16 @@ sub status_prune {
   my $old_time = time() - STATUS_EXPIRE_DAYS * 86400;
   foreach my $key (keys %$global_status) {
     if ($global_status->{$key}->{'status-time'} < $old_time) {
-      if ($self->{'verbose'} >= 2) {
-        print __x("discard old status {url}\n", url => $key);
-      }
+      $self->verbose (2, __x("discard old status {url}\n", url => $key));
       delete $global_status->{$key};
       $pruned++;
     }
   }
-  if ($pruned && $self->{'verbose'}) {
-    print __xn("discard {count} old status entry\n",
-               "discard {count} old status entries\n",
-               $pruned,
-               count => $pruned);
+  if ($pruned) {
+    $self->verbose (1, __xn("discard {count} old status entry\n",
+                            "discard {count} old status entries\n",
+                            $pruned,
+                            count => $pruned));
   }
 }
 
@@ -1377,6 +1385,9 @@ sub status_etagmod_resp {
     $status->{'Last-Modified'} = $resp->header('Last-Modified');
     $status->{'ETag'}          = $resp->header('ETag');
     $status->{'timingfields'}  = $self->twig_to_timingfields ($twig);
+    if (defined (my $comments_count = $self->{'comments_count'})) {
+      $status->{'comments_count'} = $comments_count;
+    }
 
     if ($twig) {
       if (rss_newest_cmp($self,$status) > 0) {
@@ -1394,7 +1405,7 @@ sub status_etagmod_resp {
 # update recorded status for a $url with unchanged contents
 sub status_unchanged {
   my ($self, $url) = @_;
-  if ($self->{'verbose'} >= 1) { say __('  unchanged'); }
+  $self->verbose (1, '  ', __('unchanged'));
   $self->status_save ($self->status_geturl ($url));
 }
 
@@ -1410,9 +1421,7 @@ sub status_etagmod_req {
   my $url = $req->uri->as_string;
   my $status = $self->{'global_status'}->{$url}
     // do {
-      if ($self->{'verbose'} >= 2) {
-        print __x("no status info for {url}\n", url => $url);
-      }
+      $self->verbose (2, __x("no status info for {url}\n", url => $url));
       return 1; # download
     };
 
@@ -1428,15 +1437,14 @@ sub status_etagmod_req {
     my $next = $timing->nextUpdate;
     my $now = time();
     if ($next > $now) {
-      if ($self->{'verbose'} >= 1) {
-        say __x(' timing: next update {time} (local time)',
-                time => POSIX::strftime ("%H:%M:%S %a %d %b %Y",
-                                         localtime($next)));
-        if (eval 'use Time::Duration::Locale; 1'
-            || eval 'use Time::Duration; 1') {
-          say __x('         which is {duration} from now',
-                  duration => duration($next-$now));
-        }
+      $self->verbose (1, ' ',
+                      __x('timing: next update {time} (local time)',
+                          time => POSIX::strftime ("%H:%M:%S %a %d %b %Y",
+                                                   localtime($next))));
+      if (eval 'use Time::Duration::Locale; 1'
+          || eval 'use Time::Duration; 1') {
+        $self->verbose (1, '         ', __x('which is {duration} from now',
+                                            duration => duration($next-$now)));
       }
       return 0; # no update yet
     }
@@ -1702,9 +1710,7 @@ sub http_resp_to_face {
   $self->{'get_icon'} || return;
 
   my $uri = http_resp_favicon_uri($resp) || return;
-  if ($self->{'verbose'} >= 2) {
-    say " response favicon URI: $uri";
-  }
+  $self->verbose (2, ' response favicon URI: ', $uri);
   return $self->download_face ($uri, 0, 0);
 }
 
@@ -1747,9 +1753,8 @@ sub download_face_uncached {
   my ($self, $url, $width, $height) = @_;
 
   $self->{'download_face_uncached'} = $url;
-  if ($self->{'verbose'}) {
-    print "  image download: $url\n";
-  }
+  $self->verbose (1, '  image download: ', $url);
+
   require HTTP::Request;
   my $req = HTTP::Request->new (GET => $url);
   my $resp = $self->ua->request($req);
@@ -1771,9 +1776,7 @@ sub download_face_uncached {
   } elsif ($type =~ m{^image/(.*)$}i) {
     $type = $1;
   } else {
-    if ($self->{'verbose'} >= 2) {
-      print "ignore non-image icon type: $type\n";
-    }
+    $self->verbose (2, 'ignore non-image icon type: ',$type);
     return;
   }
 
@@ -1784,9 +1787,7 @@ sub download_face_uncached {
       || $width > 48 || $height > 48) {
     $data = $self->imagemagick_to_png($type,$data) // return;
   }
-  if ($self->{'verbose'} >= 2) {
-    print "  image for Face ",length($data)," bytes\n";
-  }
+  $self->verbose (2, "  image for Face ",length($data)," bytes");
 
   # use a space as a separator since MIME::Entity will collapse out a
   # newline and make an enormous long word which then can't be split across
@@ -1803,9 +1804,9 @@ sub face_wh_ok {
 
   if ($width > 0 && $width > 2*$height) {
     # some obnoxious banner
-    if ($self->{'verbose'} >= 1) {
-      print "   image is a banner (${width}x${height}), ignore\n";
-    }
+    $self->verbose (1, '   ',
+                    __x('image is a banner ({width}x{height}), ignore',
+                        width => $width, height => $height));
     return 0;
   }
   return 1;
@@ -1824,9 +1825,7 @@ sub imagemagick_to_png {
   my $width = $image->Get('width');
   my $height = $image->Get('height');
   ### compress: $image->Get('compression')
-  if ($self->{'verbose'} >= 2) {
-    print "   image ${width}x${height}\n";
-  }
+  $self->verbose (2, "   image ${width}x${height}");
   if ($width == 0 || $height == 0) {
     return;
   }
@@ -1848,9 +1847,7 @@ sub imagemagick_to_png {
     }
     $width = POSIX::ceil ($width * $factor);
     $height = POSIX::ceil ($height * $factor);
-    if ($self->{'verbose'} >= 2) {
-      print "  image shrink by $factor to ${width}x${height}\n";
-    }
+    $self->verbose (2, "  image shrink by $factor to ${width}x${height}");
     # cf LiquidResize() or plain Resize()
     $image->AdaptiveResize (width => $width, height => $height);
   }
@@ -1980,7 +1977,7 @@ sub http_resp_to_copyright {
 sub fetch_html {
   my ($self, $group, $url) = @_;
   ### fetch_html()
-  if ($self->{'verbose'} >= 1) { say "page: $url"; }
+  $self->verbose (1, __x('page: {url}', url => $url));
 
   my $group_uri = URI->new($group,'news');
   local $self->{'nntp_host'} = uri_to_nntp_host ($group_uri);
@@ -2001,9 +1998,7 @@ sub fetch_html {
               status => $resp->status_line);
     return;
   }
-  if ($self->{'verbose'} >= 2) {
-    print $resp->headers->as_string;
-  }
+  $self->verbose (2, $resp->headers->as_string);
   $self->enforce_html_charset_from_content ($resp);
 
   # message id is either the etag if present, or an md5 of the content if not
@@ -2109,9 +2104,7 @@ sub aireview_follow {
     $resp->decode;
     my $content = $resp->content;
     if ($content =~ /<META[^>]*Refresh[^>]*checkForCookies/i) {
-      if ($self->{'verbose'}) {
-        say '  following aireview META Refresh with cookies';
-      }
+      $self->verbose (1, '  following aireview META Refresh with cookies');
       require HTTP::Request;
       my $req = HTTP::Request->new (GET => $url);
       $resp = $self->ua->request($req);
@@ -2140,6 +2133,9 @@ sub item_to_links {
   # formats etc.  Have seen this from archive.org just duplicating
   # <enclosure>.
   #
+  # <wfw:commentRss> appeared in the spec page as wfw:commentRSS, so ignore
+  # case.
+  #
   my @elts = $item->children (qr/^(link
                                  |enclosure
                                  |content
@@ -2167,9 +2163,7 @@ sub item_to_links {
 
   my @links;
   foreach my $elt (@elts) {
-    if ($self->{'verbose'} >= 2) {
-      say "link\n", Text::Trim::trim($elt->sprint);
-    }
+    $self->verbose (2, "link\n", Text::Trim::trim($elt->sprint));
 
     my $tag = lc($elt->tag);
     ### $tag
@@ -2238,8 +2232,7 @@ sub item_to_links {
              'service.edit', # to edit the item
              'license',      # probably only in the channel part normally
             ]) {
-        if ($self->{'verbose'} >= 1) { say __x('  skip link "{type}"',
-                                               type => $_); }
+        $self->verbose (1, '  ', __x('skip link "{type}"', type => $_));
         next;
       }
       when ('alternate') {
@@ -2274,10 +2267,7 @@ sub item_to_links {
         #   next;
         # }
 
-        my $count = ($elt->att('thr:count')
-                     // $elt->att('count')
-                     // $elt->att('atom:count')
-                     // non_empty ($item->first_child_trimmed_text('thr:total')));
+        my $count = $self->item_elt_comments_count($item,$elt);
         if (($elt->att('atom:type') // $elt->att('type') // '')
             eq 'application/atom+xml') {
           $l->{'name'} = (defined $count
@@ -2857,7 +2847,7 @@ sub email_phrase_quote_maybe {
   return if ! defined $str;
 
   # RFC2822 "atext" characters, with "-" last
-  if ($str =~ q<[^[:alnum:][:space:]!#\$%&'*+/=?^_`{|}~-]>) {
+  if ($str =~ m<[^[:alnum:][:space:]!#\$%&'*+/=?^_`{|}~-]>) {
     # strange chars, need to quote
     return email_phrase_quote($str);
   } else {
@@ -2955,10 +2945,7 @@ sub twig_parse {
     my $byte = ord(substr($xml,$2,1));
     if ($byte >= 128) {
       my $charset = $twig->encoding // 'utf-8';
-      if ($self->{'verbose'}) {
-        printf "parse error, attempt re-code $charset for byte 0x%02X\n",
-          $byte;
-      }
+      $self->verbose (1, sprintf ("parse error, attempt re-code $charset for byte 0x%02X\n", $byte));
       require Encode;
       my $recoded_xml = $xml;
       Encode::from_to($recoded_xml, $charset, $charset, Encode::FB_DEFAULT());
@@ -3001,11 +2988,9 @@ sub twig_parse {
     # XML::Parser seems to stick some spurious leading whitespace on the error
     $err = Text::Trim::trim($err);
 
-    if ($self->{'verbose'} >= 1) {
-      say __x("Parse error on URL {url}\n{error}",
-              url   => $self->{'uri'},
-              error => $err);
-    }
+    $self->verbose (1, __x("Parse error on URL {url}\n{error}",
+                           url   => $self->{'uri'},
+                           error => $err));
     return (undef, $err);
   }
 
@@ -3076,7 +3061,7 @@ sub item_to_msgid {
 
   # nothing in the item, use the feed url and MD5 of some fields which
   # will hopefully distinguish it from other items at this url
-  if ($self->{'verbose'} >= 2) { say '  msgid from MD5'; }
+  $self->verbose (2, '  msgid from MD5');
   return $self->url_to_msgid
     ($self->{'uri'},
      md5_of_utf8 (join_non_empty ('',
@@ -3219,11 +3204,9 @@ sub item_to_in_reply_to {
                           // '');
     my $wiki_importance = ($item->first_child_trimmed_text('wiki:importance')
                            // '');
-    if ($self->{'verbose'} >= 2) {
-      if ($cap_severity) {
-        print "  CAP severity:    $cap_severity\n";
-        print "  Wiki importance: $wiki_importance\n";
-      }
+    if ($cap_severity) {
+      $self->verbose (2, "  CAP severity:    ",$cap_severity);
+      $self->verbose (2, "  Wiki importance: ",$wiki_importance);
     }
 
     if ($cap_severity_high{$cap_severity}) {
@@ -3298,9 +3281,10 @@ sub item_to_subject {
 
   # Atom <title> can have type="html" etc in the usual way.
   return
-    (elt_to_rendered_line    ($item->first_child('title'))
+    (elt_to_rendered_line ($item->first_child('title'))
      # dc:subject is supposed to be a keyword type thing, but might be
-     # better than nothing
+     # better than nothing.  Not sure have ever actually seen <dc:subject>
+     # without <title>, so perhaps this is pointless ...
      // elt_to_rendered_line ($item->first_child('dc:subject'))
      // __('no subject'));
 }
@@ -3471,23 +3455,15 @@ sub enforce_rss_charset_override {
   if (my $charset = $self->{'rss_charset_override'}) {
     $xml = Encode::decode ($charset, $xml);
     if ($xml =~ s/(<\?xml[^>]*encoding="?)([^">]+)/$1$charset/i) {
-      if ($self->{'verbose'} >= 2) {
-        say "replace encoding=$2 tag with encoding=$charset";
-      }
+      $self->verbose (2, "replace encoding=$2 tag with encoding=$charset");
     } elsif ($xml =~ s/(<\?xml[^?>]*)/$1 encoding="$charset"/i) {
-      if ($self->{'verbose'} >= 2) {
-        say "insert encoding=\"$charset\"";
-      }
+      $self->verbose (2, "insert encoding=\"$charset\"");
     } else {
       my $str = "<?xml version=\"1.0\" encoding=\"$charset\"?>\n";
-      if ($self->{'verbose'} >= 2) {
-        print "insert $str";
-      }
+      $self->verbose (2, "insert $str");
       $xml = $str . $xml;
     }
-    if ($self->{'verbose'} >= 3) {
-      print "xml now:\n$xml\n";
-    }
+    $self->verbose (3, "xml now:\n$xml\n");
     $xml = Encode::encode ($charset, $xml);
   }
   return $xml;
@@ -3593,10 +3569,8 @@ sub elt_is_empty {
 sub fetch_rss_process_one_item {
   my ($self, $item) = @_;
   my $subject = $self->item_to_subject ($item);
-  if ($self->{'verbose'} >= 1) {
-    say __x(' item: {subject}',
-            subject => $subject);
-  }
+  $self->verbose (1, ' ', __x('item: {subject}', subject => $subject));
+
   my $msgid = $self->item_to_msgid ($item);
   my $new = 0;
 
@@ -3691,7 +3665,7 @@ sub fetch_rss_process_one_item {
                 || $item->first_child('summary')); # Atom
 
     my $body_type = elt_content_type ($body);
-    if ($self->{'verbose'} >= 3) { print " body_type from elt: $body_type\n"; }
+    $self->verbose (3, ' body_type from elt: ', $body_type);
     my $body_charset = 'utf-8';
     my $body_base_url = elt_xml_base ($body);
     given ($body_type) {
@@ -3720,14 +3694,14 @@ sub fetch_rss_process_one_item {
         $body_charset = undef;
       }
     }
-    if ($self->{'verbose'} >= 3) { print " body: $body_type charset=",
-                                     $body_charset//'undef',"\n",
-                                       "$body\n"; }
+    $self->verbose (3, " body: $body_type charset=",
+                    $body_charset//'undef',"\n",
+                    "$body\n");
 
     my $body_is_html = ($body_type ~~ ['html','text/html']);
     my $links_want_html = ($body_is_html && ! $self->{'render'});
-    if ($self->{'verbose'} >= 3) { print " links_want_html: ",
-                                     ($links_want_html ? "yes\n" : "no\n"); }
+    $self->verbose (3, " links_want_html: ",
+                    ($links_want_html ? "yes" : "no"));
     my $links_str = ($links_want_html
                      ? links_to_html(@links)
                      : links_to_text(@links));
@@ -3739,9 +3713,9 @@ sub fetch_rss_process_one_item {
       foreach my $l (@links) {
         next if ! $l->{'download'};
         my $url = $l->{'uri'};
-        if ($self->{'verbose'}) { say __x('  link: "{name}" {url}',
-                                          name => $l->{'name'},
-                                          url => $url); }
+        $self->verbose (1, '  ', __x('link: "{name}" {url}',
+                                     name => $l->{'name'},
+                                     url => $url));
         require HTTP::Request;
         my $req = HTTP::Request->new (GET => $url);
         my $resp = $self->ua->request($req);
@@ -3847,25 +3821,41 @@ sub fetch_rss_process_one_item {
 
     mime_entity_lines($top);
     $self->nntp_post($top) || return 0;
-    if ($self->{'verbose'} >= 1) { say __('  posted'); }
+    $self->verbose (1, '  ', __('posted'));
     $new++;
   }
 
   # ENHANCE-ME: check the replies count to see if more to fetch
-  if ($self->{'rss_get_comments'}
-      && (my $comments_rss_url = $self->item_to_comments_rss_url($item))) {
-    local $self->{'rss_get_links'} = 0;
-    local $self->{'rss_get_comments'} = 0;
-    # "Re:" not translated, it's very annoying seeing variants of that
-    local $self->{'getting_rss_comments'} = "Re: $subject";
-    local $self->{'References:'} = $msgid;
-    $new += fetch_rss ($self, $self->{'nntp_group'}, $comments_rss_url);
+  if ($self->{'rss_get_comments'}) {
+    my ($comments_rss_url, $comments_count)
+      = $self->item_to_comments_rss($item);
+    if (defined $comments_rss_url) {
+
+      my $status = $self->status_geturl ($comments_rss_url);
+      if (defined $status->{'comments_count'}
+          && defined $comments_count
+          && $status->{'comments_count'} == $comments_count) {
+        $self->verbose (1, '  ', __x('comments count unchanged: {count}',
+                                     count => $comments_count));
+
+      } else {
+        local $self->{'rss_get_links'} = 0;
+        local $self->{'rss_get_comments'} = 0;
+        local $self->{'comments_count'} = $comments_count;
+        # Note "Re:" is not translated, it's very annoying seeing variants
+        # of that
+        local $self->{'getting_rss_comments'} = "Re: $subject";
+        local $self->{'References:'} = $msgid;
+        $new += fetch_rss ($self, $self->{'nntp_group'}, $comments_rss_url);
+      }
+    }
   }
   return $new;
 }
 
-sub item_to_comments_rss_url {
+sub item_to_comments_rss {
   my ($self, $item) = @_;
+  my ($url, $url_elt);
 
   # Atom <link rel='replies' type='application/atom+xml'
   #            href='http:/...' />
@@ -3879,12 +3869,30 @@ sub item_to_comments_rss_url {
     my $href = ($elt->att('href')
                 // $elt->att('atom:href'));
     if (is_non_empty ($href)) {
-      return $href;
+      $url = $href;
+      $elt = $url_elt;
     }
   }
 
   # <wfw:commentRss>http://...</wfw:commentRss>
-  return non_empty ($item->first_child_trimmed_text ('wfw:commentRss'));
+  # it appeared in the spec page as wfw:commentRSS, so ignore case
+  if (! defined $url) {
+    my $u = $item->first_child_trimmed_text (qr/^wfw:commentRss$/i);
+    if (is_non_empty ($u)) {
+      $url = $u;
+    }
+  }
+
+  return ($url,
+          (defined($url) && $self->item_elt_comments_count($item,$url_elt)));
+}
+
+sub item_elt_comments_count {
+  my ($self, $item, $elt) = @_;
+  return (($elt && $elt->att('thr:count'))
+          // ($elt && $elt->att('count'))
+          // ($elt && $elt->att('atom:count'))
+          // non_empty ($item->first_child_trimmed_text('thr:total')));
 }
 
 # $group is a string, the name of a local newsgroup
@@ -3892,32 +3900,30 @@ sub item_to_comments_rss_url {
 #
 sub fetch_rss {
   my ($self, $group, $url) = @_;
-  if ($self->{'verbose'} >= 2) { say "fetch_rss: $group $url"; }
+  $self->verbose (2, "fetch_rss: $group $url");
 
   my $group_uri = URI->new($group,'news');
   local $self->{'nntp_host'} = uri_to_nntp_host ($group_uri);
   local $self->{'nntp_group'} = $group = $group_uri->group;
   $self->nntp_group_check($group) or return 0;
-  
+
   # an in-memory cookie jar, used only per-RSS feed and then discarded,
   # which means only kept for fetching for $self->{'rss_get_links'} from a
   # feed
   $self->ua->cookie_jar({});
-  
-  if ($self->{'verbose'} >= 1) {
-    if (defined $self->{'getting_rss_comments'}) {
-      say __x('RSS comments: {url}', url => $url);
-    } else {
-      say __x('feed: {url}', url => $url);
-    }
+
+  if (defined $self->{'getting_rss_comments'}) {
+    $self->verbose (1, ' ', __x('rss comments: {url}', url => $url));
+  } else {
+    $self->verbose (1, __x('feed: {url}', url => $url));
   }
   require HTTP::Request;
   my $req = HTTP::Request->new (GET => $url);
   $self->status_etagmod_req($req,1) || return 0;
-  
+
   # $req->uri can be a URI object or a string
   local $self->{'uri'} = URI->new ($req->uri);
-  
+
   my $resp = $self->ua->request($req);
   if ($resp->code == 304) {
     $self->status_unchanged ($url);
@@ -3930,11 +3936,11 @@ sub fetch_rss {
     return 0;
   }
   local $self->{'resp'} = $resp;
-  
+
   $resp->decode;
   my $xml = $resp->content; # raw bytes
   $xml = $self->enforce_rss_charset_override ($xml);
-  
+
   my ($twig, $err) = $self->twig_parse($xml);
   if (defined $err) {
     my $message = __x("XML::Twig parse error on\n\n  {url}\n\n",
@@ -3953,13 +3959,14 @@ sub fetch_rss {
   }
   if ($self->{'verbose'} >= 3) {
     require Data::Dumper;
-    print Data::Dumper->new([$twig->root],['root'])
-      ->Indent(1)->Sortkeys(1)->Dump;
+    $self->verbose (3,
+                    Data::Dumper->new([$twig->root],['root'])
+                    ->Indent(1)->Sortkeys(1)->Dump);
   }
-  
+
   # "item" for RSS/RDF, "entry" for Atom
   my @items = $twig->descendants(qr/^(item|entry)$/);
-  
+
   if (my $n = $self->{'rss_newest_only'}) {
     # secret feature newest N many items ...
     require Scalar::Util;
@@ -3968,22 +3975,22 @@ sub fetch_rss {
     @items = Sort::Key::Top::rkeytop (sub { $self->item_to_timet($_) },
                                       $n, @items);
   }
-  
+
   my $new = 0;
   foreach my $item (@items) {
     $new += $self->fetch_rss_process_one_item ($item);
   }
-  
+
   if ($self->{'verbose'} >= 2) {
     my $jar = $self->ua->cookie_jar;
     if ($jar && (my $str = $jar->as_string ne '')) {
-      print "accumulated cookies from this feed:\n$str";
+      $self->verbose (2, "accumulated cookies from this feed:\n", $str);
     } else {
-      say 'no cookies from this feed';
+      $self->verbose (2, 'no cookies from this feed');
     }
   }
   $self->ua->cookie_jar (undef);
-  
+
   $self->status_etagmod_resp ($url, $resp, $twig);
   say __xn('{group}: {count} new article',
            '{group}: {count} new articles',

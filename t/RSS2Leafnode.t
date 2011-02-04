@@ -38,12 +38,14 @@ require App::RSS2Leafnode;
 require POSIX;
 POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 
+## no critic (ProhibitFixedStringMatches)
+
 
 #------------------------------------------------------------------------------
 # VERSION
 
 {
-  my $want_version = 47;
+  my $want_version = 48;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -1360,7 +1362,7 @@ HERE
   foreach my $data
     (['<dc:contributor>
          <rdf:Description link="http://some.where/home.html">
-	   <rdf:value>Some Body</rdf:value>
+           <rdf:value>Some Body</rdf:value>
          </rdf:Description>
        </dc:contributor>',
       [ 'Some Body <'.$r2l->DUMMY_EMAIL_ADDRESS.'>',
@@ -1371,7 +1373,7 @@ HERE
 
      ['<dc:contributor>
          <rdf:Description rss:link="http://some.where/home.html">
-	   <rdf:value>Some Body</rdf:value>
+           <rdf:value>Some Body</rdf:value>
          </rdf:Description>
        </dc:contributor>',
       [ 'Some Body <'.$r2l->DUMMY_EMAIL_ADDRESS.'>',

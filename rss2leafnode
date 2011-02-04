@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 47;
+our $VERSION = 48;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -45,7 +45,7 @@ exit $r2l->command_line;
 
 __END__
 
-=for stopwords rss2leafnode rss leafnode NNTP config leafnode undef charset utf-8 non-ascii charsets builtins misconfigured Eg Unrendered Google pre-releases Ryde PNG libxml multibyte codings feed's NOAA XHTML unescaping X-From-Url X-RSS-Url X-RSS-Generator eg sn codepage unescape 
+=for stopwords rss2leafnode rss leafnode NNTP config leafnode undef charset utf-8 non-ascii charsets builtins misconfigured Eg Unrendered Google pre-releases Ryde PNG libxml multibyte codings feed's NOAA XHTML unescaping X-From-Url X-RSS-Url X-RSS-Generator eg sn codepage unescape favicon kbytes repost r2l.perl
 
 =head1 NAME
 
@@ -224,8 +224,8 @@ To send a followup comment you generally must go to the links in the
 original article (or in the followups) and use some sort of web form.
 Posting a message to the newsgroup goes nowhere.
 
-When a feed is available in both Atom and RSS formats sometimes possible
-only the Atom one includes a comments feed URL.
+When a feed is available in both Atom and RSS formats sometimes only the
+Atom one includes a comments feed URL.
 
 =item $render (default 0)
 
@@ -367,9 +367,9 @@ Links are shown for
     <sioc:reply_of>
     Author <url>           Atom and wiki, not downloaded
 
-Comment or reply links include a count from C<< <thr:total> >>,
-C<< thr:count >> attribute, or C<< <slash:comments> >> (sub-element of
-C<< <comments> >>).  The RSS comment feeds for C<$rss_get_comments> are
+Comment or reply links include a count from C<< <thr:total> >>, or C<count>
+or C<thr:count> attributes, or C<< <slash:comments> >> sub-element of
+C<< <comments> >>.  The RSS comment feeds for C<$rss_get_comments> are
 
     <wfw:commentRss>
     <link rel='replies' type='application/atom+xml' ...>
