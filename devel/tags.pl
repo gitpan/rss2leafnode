@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2010 Kevin Ryde
+# Copyright 2010, 2011 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -39,7 +39,7 @@ my $r2l = App::RSS2Leafnode->new
 
 my @uris = map {URI->new($_,'file')} @ARGV;
 if (! @uris) {
-  @uris = map {URI::file->new($_)} glob('samp/*');
+  @uris = map {URI::file->new($_)} grep {!/~$/} glob('samp/*');
 }
 
 my %known =
@@ -223,6 +223,7 @@ my %known =
       /channel/item/content  --atom
       /channel/item/wiki:diff
       /channel/item/itunes:duration
+      /channel/item/thr:in-reply-to
 
       /channel/category
       /channel/itunes:category

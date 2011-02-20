@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 48;
+our $VERSION = 49;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -112,8 +112,9 @@ image title.
 
 HTTP C<ETag> and C<Last-Modified> headers are used, if provided by the
 server, to avoid re-downloading unchanged content (feeds or web pages).
-Values seen from the last run are saved in a F<.rss2leafnode.status> file in
-your home directory.
+C<< <thr:count> >> is used if provided to check for unchanged comments
+feeds.  Values seen from the last run are saved in a F<.rss2leafnode.status>
+file in your home directory.
 
 If you've got C<XML::RSS::Timing> then it's used for RSS C<ttl>,
 C<updateFrequency>, etc from a feed.  This means the feed is not
@@ -203,9 +204,10 @@ message.  For example,
     fetch_rss ('r2l.finance',
       'http://au.biz.yahoo.com/financenews/htt/financenews.xml');
 
-Not all feeds have interesting things at their link, but for those which do
-this can make the full article ready to read immediately, instead of having
-to click through from the message.
+Not all feeds have interesting things at their link.  Sometimes the RSS has
+the full item text already.  But if the RSS is a summary then
+C<$rss_get_links> can make the full article ready to read immediately,
+instead of having to click through from the message.
 
 Only the immediate link target URL is retrieved.  No images within the page
 are downloaded (which is often a good thing), and you'll probably have
@@ -214,18 +216,22 @@ trouble if the link uses frames (a set of HTML pages instead of just one).
 =item $rss_get_comments (default 0)
 
 If true then download the comments feeds for items and post as followup news
-articles.  This is slightly experimental yet.  For example,
+articles.  For example,
 
     $rss_get_comments = 1;
     fetch_rss ('r2l.food',
       'http://wickedgooddinner.blogspot.com/feeds/posts/default');
 
 To send a followup comment you generally must go to the links in the
-original article (or in the followups) and use some sort of web form.
-Posting a message to the newsgroup goes nowhere.
+original article (or the followups) and use some sort of web form.  Posting
+a message to the newsgroup goes nowhere.
 
 When a feed is available in both Atom and RSS formats sometimes only the
 Atom one includes a comments feed URL.
+
+Comments feeds are followed for as long as an article appears in the feed,
+though in the current implementation might be checked for new comments only
+when the originating feed changes.
 
 =item $render (default 0)
 
@@ -367,12 +373,20 @@ Links are shown for
     <sioc:reply_of>
     Author <url>           Atom and wiki, not downloaded
 
-Comment or reply links include a count from C<< <thr:total> >>, or C<count>
-or C<thr:count> attributes, or C<< <slash:comments> >> sub-element of
-C<< <comments> >>.  The RSS comment feeds for C<$rss_get_comments> are
+Comment or reply links show a count from any of
+
+    <thr:total>
+    count="123"         \ attribute of <link>
+    thr:count="123"     /
+    <slash:comments>    sub-element of <comments>
+
+The RSS format comment feeds used by C<$rss_get_comments> are as follows.
+"appication" is a typo from WordPress pre 2.5 and still sometimes found in
+use as of Feb 2011.
 
     <wfw:commentRss>
     <link rel='replies' type='application/atom+xml' ...>
+    <link rel='replies' type='appication/atom+xml' ...>
 
 Common Alerts Protocol (CAP) fields for weather alerts etc are shown if
 present (eg. from the US NOAA).  This can have more detail than just the
@@ -612,6 +626,17 @@ further repost protection.
 Some pre-releases of leafnode 2 have trouble with posts to local newsgroups
 while a C<fetchnews> run is in progress.  The local articles don't show up
 until after a subsequent further C<fetchnews>.
+
+No attention is paid to C<< <atom:updated> >> for changes in an item.
+Should an updated item be re-posted?  If the C<< <atom:id> >> changes then
+that will happen (or if there's no C<id> and the content is different enough
+to make the MD5 hash change).  But C<id> is supposed to stay the same for an
+update is it?
+
+The way C<$rss_get_links> only gets the immediate link target could perhaps
+be extended to fetch images, frame parts, etc of a HTML page there and
+include them in the message as RFC 2557 style "MHTML".  Not sure that
+there's any news readers which would actually display that though.
 
 =head1 ENVIRONMENT VARIABLES
 

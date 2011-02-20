@@ -22,7 +22,7 @@ use strict;
 use warnings;
 use base 'Plagger::Plugin';
 
-our $VERSION = 48;
+our $VERSION = 49;
 
 sub register {
   my ($self, $context) = @_;

@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 48;
+  $VERSION = 49;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -166,7 +166,7 @@ BEGIN {
 #
 
 #------------------------------------------------------------------------------
-# generic
+# mostly generic
 
 # return $str with a newline at the end, if it doesn't already have one
 sub str_ensure_newline {
@@ -206,11 +206,16 @@ sub collapse_whitespace {
   return Text::Trim::trim($str);
 }
 
+# return true if $str is entirely ascii chars 0 to 127
 sub is_ascii {
   my ($str) = @_;
   return ($str !~ /[^[:ascii:]]/);
 }
 
+# Return the number of lines in $str.
+# If $str ends with a newline then that counts as the last line, so "xyz\n"
+# is one line.  If $str doesn't end with a newline then the final chars are
+# a line, so "abc\ndef" is two lines.
 sub str_count_lines {
   my ($str) = @_;
   return scalar($str =~ tr/\n//) + (length($str) && substr($str,-1) ne "\n");
@@ -224,6 +229,33 @@ use constant::defer NUMBER_FORMAT => sub {
      -mega_suffix => __p('number-format-megabytes','M'),
      -giga_suffix => __p('number-format-gigabytes','G'));
 };
+
+sub File_Temp_DEBUG_saver {
+  my ($self, $newval) = @_;
+  require Scope::Guard;
+  require File::Temp;
+  my $oldval = $File::Temp::DEBUG;
+  my $ret = Scope::Guard->new (sub { $File::Temp::DEBUG = $oldval });
+  $File::Temp::DEBUG = $newval;
+  return $ret;
+}
+sub MIME_Tools_debugging {
+  my ($self, $newval) = @_;
+  require Scope::Guard;
+  require MIME::Tools;
+  my $oldval = MIME::Tools->debugging;
+  my $ret = Scope::Guard->new (sub { MIME::Tools->debugging($oldval) });
+  MIME::Tools->debugging ($newval);
+  return $ret;
+}
+
+sub homedir {
+  # my ($self) = @_;
+  require File::HomeDir;
+  # call each time just in case playing tricks with $ENV{HOME} in conf file
+  return File::HomeDir->my_home
+    // croak 'File::HomeDir says you have no home directory';
+}
 
 #------------------------------------------------------------------------------
 
@@ -289,13 +321,6 @@ sub verbose {
   }
 }
 
-sub homedir {
-  # my ($self) = @_;
-  require File::HomeDir;
-  # call each time just in case playing tricks with $ENV{HOME} in conf file
-  return File::HomeDir->my_home
-    // croak 'File::HomeDir says you have no home directory';
-}
 sub config_filename {
   my ($self) = @_;
   return $self->{'config_filename'} // do {
@@ -317,21 +342,12 @@ sub do_config_file {
 
   open STDERR, '>&STDOUT' or die "Oops, can't join STDERR to STDOUT";
 
+  # File::Temp::DEBUG for possible temp files used by HTML::FormatExternal
+  # these debugs turned on only for the duration of running the config file
+  # and the downloading etc in it
   if ($self->{'verbose'} >= 2) {
-    require Scope::Guard;
-    {
-      # File::Temp::DEBUG for possible temp files used by HTML::FormatExternal
-      require File::Temp;
-      my $old = $File::Temp::DEBUG;
-      push @guards, Scope::Guard->new (sub { $File::Temp::DEBUG = $old });
-      $File::Temp::DEBUG = 1;
-    }
-    {
-      require MIME::Tools;
-      my $old = MIME::Tools->debugging;
-      push @guards, Scope::Guard->new (sub { MIME::Tools->debugging($old) });
-      MIME::Tools->debugging(1);
-    }
+    push @guards, $self->File_Temp_DEBUG_saver(1);
+    push @guards, $self->MIME_Tools_debugging(1);
   }
 
   my $config_filename = $self->config_filename;
@@ -1405,7 +1421,7 @@ sub status_etagmod_resp {
 # update recorded status for a $url with unchanged contents
 sub status_unchanged {
   my ($self, $url) = @_;
-  $self->verbose (1, '  ', __('unchanged'));
+  $self->verbose (1, ' ', __('unchanged'));
   $self->status_save ($self->status_geturl ($url));
 }
 
@@ -2266,10 +2282,18 @@ sub item_to_links {
         #     && any_link_replies_nonfeed(@elts)) {
         #   next;
         # }
-
         my $count = $self->item_elt_comments_count($item,$elt);
-        if (($elt->att('atom:type') // $elt->att('type') // '')
-            eq 'application/atom+xml') {
+
+        # WordPress (http://wordpress.org/) pre 2.5 had a bug
+        # http://core.trac.wordpress.org/ticket/6579 where it gave
+        # type="appication/atom+xml" missing the "l" in "application/".
+        # Don't want to work around every bad generator, but this one is GPL
+        # free and the past versions still found for instance in the
+        # language log http://languagelog.ldc.upenn.edu/nll/ in Feb 2011
+        #
+        my $type = $elt->att('atom:type') // $elt->att('type') // '';
+        ### $type
+        if ($type =~ m{^appl?ication/atom\+xml$}) {
           $l->{'name'} = (defined $count
                           ? __x('RSS Replies({count})', count => $count)
                           : __('RSS Replies'));
@@ -2334,6 +2358,7 @@ sub item_to_links {
       $l->{'name'} .= '('.join(', ',@paren). ')';
     }
 
+    ### push link: $l
     push @links, $l;
   }
 
@@ -3831,6 +3856,8 @@ sub fetch_rss_process_one_item {
       = $self->item_to_comments_rss($item);
     if (defined $comments_rss_url) {
 
+      # ENHANCE-ME: There's also a thr:updated in RFC 4685, but haven't seen
+      # that ever actually used.
       my $status = $self->status_geturl ($comments_rss_url);
       if (defined $status->{'comments_count'}
           && defined $comments_count
@@ -3842,8 +3869,7 @@ sub fetch_rss_process_one_item {
         local $self->{'rss_get_links'} = 0;
         local $self->{'rss_get_comments'} = 0;
         local $self->{'comments_count'} = $comments_count;
-        # Note "Re:" is not translated, it's very annoying seeing variants
-        # of that
+        # "Re:" is not translated, variants of that are very annoying
         local $self->{'getting_rss_comments'} = "Re: $subject";
         local $self->{'References:'} = $msgid;
         $new += fetch_rss ($self, $self->{'nntp_group'}, $comments_rss_url);

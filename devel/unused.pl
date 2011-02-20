@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2007, 2008, 2009, 2010 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -147,8 +147,8 @@ HERE
   is ($str, 'A Page', 'html_title_treebuilder()');
 }
 
-             fetch_html_title_builder
-             => { description => 'A slightly better Subject for fetch_html() messages using HTML::TreeBuilder.',
+             fetch_html_title_builder =>
+             { description => 'A slightly better Subject for fetch_html() messages using HTML::TreeBuilder.',
                   requires => { 'HTML::TreeBuilder' => 0 },
                 },
 

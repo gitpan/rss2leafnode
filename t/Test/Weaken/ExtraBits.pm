@@ -19,17 +19,16 @@
 
 
 package Test::Weaken::ExtraBits;
-use 5.006;
 use strict;
-use warnings;
+use vars '@ISA', '@EXPORT_OK';
 
 use Exporter;
-our @ISA = ('Exporter');
-our @EXPORT_OK = qw(ignore_Class_Singleton
-                    ignore_DBI_dr
-                    ignore_global_function
-                    ignore_function
-                    ignore_module_functions);
+@ISA = ('Exporter');
+@EXPORT_OK = qw(ignore_Class_Singleton
+                ignore_DBI_dr
+                ignore_global_function
+                ignore_function
+                ignore_module_functions);
 
 use constant DEBUG => 0;
 
