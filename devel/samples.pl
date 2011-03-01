@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2008, 2009, 2010 Kevin Ryde
+# Copyright 2008, 2009, 2010, 2011 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -56,7 +56,7 @@ my $r2l = App::RSS2Leafnode->new
    # render => 'lynx',
    rss_newest_only => 1,
    # rss_get_links => 1,
-   # rss_get_comments => 1,
+   rss_get_comments => 1,
    # get_icon => 1,
   );
 

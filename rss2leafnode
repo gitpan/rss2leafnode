@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 49;
+our $VERSION = 50;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -387,6 +387,11 @@ use as of Feb 2011.
     <wfw:commentRss>
     <link rel='replies' type='application/atom+xml' ...>
     <link rel='replies' type='appication/atom+xml' ...>
+
+Comments links in the resulting news messages are shown as "Replies" or "RSS
+Replies".  If an RSS comment feed hasn't been detected as RSS it may show up
+as a plain "Replies" instead of "RSS Replies" (and won't be downloaded by
+<$rss_get_comments>).
 
 Common Alerts Protocol (CAP) fields for weather alerts etc are shown if
 present (eg. from the US NOAA).  This can have more detail than just the

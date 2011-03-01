@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 49;
+  $VERSION = 50;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -2133,6 +2133,26 @@ sub aireview_follow {
 #------------------------------------------------------------------------------
 # RSS links
 
+
+# WordPress (http://wordpress.org/) pre 2.5 had a bug
+# http://core.trac.wordpress.org/ticket/6579 where it gave
+# type="appication/atom+xml" missing the "l" in "application/".
+# Don't want to workaround every bad generator, but this one is GPL
+# free and the past versions still found for instance in the
+# language log http://languagelog.ldc.upenn.edu/nll/ in Feb 2011
+#
+sub mime_type_is_rss {
+  my ($self, $type) = @_;
+  return ($type =~ m{^appl?ication/atom\+xml$});
+}
+sub atom_link_is_rss {
+  my ($self, $elt) = @_;
+  my $type = $elt->att('atom:type') // $elt->att('type') // return 0;
+  return $self->mime_type_is_rss($type);
+}
+
+
+
 # return list of hashrefs
 #
 sub item_to_links {
@@ -2220,8 +2240,8 @@ sub item_to_links {
             $l->{'download'} = 0;
           }
           when ('wfw:commentrss') {
-            if (defined (my $count = non_empty
-                         ($item->first_child_trimmed_text('slash:comments')))) {
+            if (defined (my $count
+                         = $self->item_elt_comments_count($item,$elt))) {
               $l->{'name'} = __x('RSS Comments({count})', count => $count);
             } else {
               $l->{'name'} = __('RSS Comments');
@@ -2230,8 +2250,8 @@ sub item_to_links {
             $l->{'priority'} = -10;
           }
           when (/comment/) {  # <comments> or <wfw:comment>
-            if (defined (my $count = non_empty
-                         ($item->first_child_trimmed_text('slash:comments')))) {
+            if (defined (my $count
+                         = $self->item_elt_comments_count($item,$elt))) {
               $l->{'name'} = __x('Comments({count})', count => $count);
             } else {
               $l->{'name'} = __('Comments');
@@ -2273,27 +2293,9 @@ sub item_to_links {
         $l->{'name'} = __('Related');
       }
       when ('replies') {
-        # Atom <link rel="replies" per RFC 4685 "thr:"
-
-        # is this a good idea?
-        # # suppress xml feed replies link if a plain replies is available
-        # if ((($elt->att('atom:type') // $elt->att('type') // '')
-        #      eq 'application/atom+xml')
-        #     && any_link_replies_nonfeed(@elts)) {
-        #   next;
-        # }
+        # Atom <link rel="replies" per RFC 4685 "thr:" spec
         my $count = $self->item_elt_comments_count($item,$elt);
-
-        # WordPress (http://wordpress.org/) pre 2.5 had a bug
-        # http://core.trac.wordpress.org/ticket/6579 where it gave
-        # type="appication/atom+xml" missing the "l" in "application/".
-        # Don't want to work around every bad generator, but this one is GPL
-        # free and the past versions still found for instance in the
-        # language log http://languagelog.ldc.upenn.edu/nll/ in Feb 2011
-        #
-        my $type = $elt->att('atom:type') // $elt->att('type') // '';
-        ### $type
-        if ($type =~ m{^appl?ication/atom\+xml$}) {
+        if ($self->atom_link_is_rss($elt)) {
           $l->{'name'} = (defined $count
                           ? __x('RSS Replies({count})', count => $count)
                           : __('RSS Replies'));
@@ -2473,23 +2475,22 @@ sub item_to_links {
            /channel/item/media:text
         )} = ();
 
-sub any_link_replies_nonfeed {
-  foreach my $elt (@_) {
-    # ### any_link_replies_nonfeed(): ref $elt, "$elt", $elt->tag
-    # my $rel = ($elt->att('atom:rel') // $elt->att('rel') // '');
-    # my $type = ($elt->att('atom:type') // $elt->att('type') // '');
-    # ### $rel
-    # ### $type
-    if ($elt->tag eq 'link'
-        && (($elt->att('atom:rel') // $elt->att('rel') // '')
-            eq 'replies')
-        && (($elt->att('atom:type') // $elt->att('type') // '')
-            ne 'application/atom+xml')) {
-      return 1;
-    }
-  }
-  return 0;
-}
+# sub any_link_replies_nonfeed {
+#   foreach my $elt (@_) {
+#     # ### any_link_replies_nonfeed(): ref $elt, "$elt", $elt->tag
+#     # my $rel = ($elt->att('atom:rel') // $elt->att('rel') // '');
+#     # my $type = ($elt->att('atom:type') // $elt->att('type') // '');
+#     # ### $rel
+#     # ### $type
+#     if ($elt->tag eq 'link'
+#         && (($elt->att('atom:rel') // $elt->att('rel') // '')
+#             eq 'replies')
+#         && (($elt->atom_link_is_rss($elt))) {
+#       return 1;
+#     }
+#   }
+#   return 0;
+# }
 
 sub item_to_lat_long_alt_str {
   my ($self, $item) = @_;
@@ -3854,6 +3855,7 @@ sub fetch_rss_process_one_item {
   if ($self->{'rss_get_comments'}) {
     my ($comments_rss_url, $comments_count)
       = $self->item_to_comments_rss($item);
+    ### rss_get_comments: $comments_rss_url, $comments_count
     if (defined $comments_rss_url) {
 
       # ENHANCE-ME: There's also a thr:updated in RFC 4685, but haven't seen
@@ -3890,8 +3892,7 @@ sub item_to_comments_rss {
                // $elt->att('atom:rel')
                // next);
     $rel eq 'replies' or next;
-    my $type = ($elt->att('type') // $elt->att('atom:type') // next);
-    $type eq 'application/atom+xml' or next;
+    $self->atom_link_is_rss($elt) or next;
     my $href = ($elt->att('href')
                 // $elt->att('atom:href'));
     if (is_non_empty ($href)) {
@@ -3918,7 +3919,8 @@ sub item_elt_comments_count {
   return (($elt && $elt->att('thr:count'))
           // ($elt && $elt->att('count'))
           // ($elt && $elt->att('atom:count'))
-          // non_empty ($item->first_child_trimmed_text('thr:total')));
+          // non_empty ($item->first_child_trimmed_text('thr:total'))
+          // non_empty ($item->first_child_trimmed_text('slash:comments')));
 }
 
 # $group is a string, the name of a local newsgroup
