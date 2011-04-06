@@ -284,8 +284,8 @@ sub X11_server_info {
   MyTestHelpers::diag("  green_mask: ",sprintf('%#X',$visual_info->{'green_mask'}));
   MyTestHelpers::diag("  blue_mask:  ",sprintf('%#X',$visual_info->{'blue_mask'}));
 
-  MyTestHelpers::diag("image_byte_order: ",$X->{'image_byte_order'},
-                      ' ', $X->interp('Significance', $X->{'image_byte_order'}));
+  MyTestHelpers::diag("ima"."ge_byte_order: ",$X->{'ima'.'ge_byte_order'},
+                      ' ', $X->interp('Significance', $X->{'ima'.'ge_byte_order'}));
   MyTestHelpers::diag("black_pixel: ",sprintf('%#X',$X->{'black_pixel'}));
   MyTestHelpers::diag("white_pixel: ",sprintf('%#X',$X->{'white_pixel'}));
   foreach  (0 .. $#{$X->{'screens'}}) {

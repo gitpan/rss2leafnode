@@ -171,7 +171,7 @@ Test::Weaken::ExtraBits -- various helpers for Test::Weaken
 =head1 EXPORTS
 
 Nothing is exported by default, but the functions can be requested
-individually or with C<:all> in the usual way (see L<Exporter>).
+individually in the usual C<Exporter> style (see L<Exporter>).
 
     use Test::Weaken::ExtraBits qw(ignore_Class_Singleton);
 

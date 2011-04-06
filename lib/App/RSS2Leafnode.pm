@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 50;
+  $VERSION = 51;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -2195,7 +2195,7 @@ sub item_to_links {
   #     -20   author home page
   #     -100  geo location text-only
   #     -101  statusnet geo location
-  #     -200  media:credit, itunes:explicit
+  #     -200  <source>, <media:credit>, <itunes:explicit>
 
   my @links;
   foreach my $elt (@elts) {
@@ -2212,6 +2212,8 @@ sub item_to_links {
       $l->{$name} = ($elt->att("atom:$name") // $elt->att($name));
     }
 
+    # tags without rel="" attribute
+    #
     given (non_empty ($elt->att('atom:rel') // $elt->att('rel'))) {
       when (!defined) {
         given ($tag) {
@@ -2364,6 +2366,40 @@ sub item_to_links {
     push @links, $l;
   }
 
+  # eg. RSS <source url="http://foo.org/feed.rss">other feed name</source>
+  #     Atom <source>
+  #            <id>...url...</id>
+  #            <title>Feed Name</title>
+  #            <link rel="self" type="application/atom+xml" href="...feed-url..."/>
+  #            <icon>...image-url...</icon>
+  #            <link rel="license" href="http://creativecommons.org/licenses/by/3.0/"/>
+  #          </source>
+  #
+  foreach my $elt ($item->children('source')) {
+    my $str = non_empty (elt_to_rendered_line($elt->first_child('title')))
+      // non_empty ($elt->trimmed_text);
+    if (defined $str) {
+      push @links, { name => __('Source').': '.$str,
+                     download => 0,
+                     priority => -200,
+                   };
+    }
+    foreach my $subelt ($elt,
+                        grep {$self->atom_link_is_rss($_)}
+                        $elt->children('link')) {
+      if (defined $subelt
+          && defined (my $url = non_empty ($subelt->att('url'))
+                      // non_empty ($subelt->att('href'))
+                      // non_empty ($subelt->att('atom:href')))) {
+        push @links, { name => __('Source RSS'),
+                       uri  => elt_xml_based_uri($subelt,$url),
+                       download => 0,
+                       priority => -200,
+                     };
+      }
+    }
+  }
+
   # Merge together duplicate urls, so as not to download two copies as
   # attachments, and so as to make it clear when there's only one
   # destination for two things.
@@ -2400,7 +2436,9 @@ sub item_to_links {
     } @links;
   }
   foreach my $l (@links) {
-    $l->{'name'} .= ':';
+    if ($l->{'uri'}) {
+      $l->{'name'} .= ':';
+    }
   }
 
   if (defined (my $str = $self->item_to_lat_long_alt_str ($item))) {
@@ -2431,12 +2469,6 @@ sub item_to_links {
                    priority => -200,
                  };
   }
-
-  # sort downloadables to the start, then by "priority"
-  use sort 'stable';
-  @links = sort {($b->{'download'}||0) <=> ($a->{'download'}||0)
-                   || ($b->{'priority'}||0) <=> ($a->{'priority'}||0)}
-    @links;
 
   return @links;
 }
@@ -2701,7 +2733,8 @@ use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
       (my $tag = $elt->tag) =~ s/.*?://;
       $link = { uri      => URI->new($uri),
                 name     => ($tag_to_link_name{$tag} // "\u$tag:"),
-                download => 0 };
+                download => 0,
+                priority => -20 };
     }
     return ($from, $link);
   }
@@ -2949,6 +2982,7 @@ my $map_xmlns
 
 sub twig_parse {
   my ($self, $xml) = @_;
+  ### twig_parse()
 
   # default "discard_spaces" chucks leading and trailing space on content,
   # which is usually a good thing
@@ -2959,6 +2993,7 @@ sub twig_parse {
                              pretty_print => 'wrapped');
   $twig->safe_parse ($xml);
   my $err = $@;
+  ### $err
 
   # Try to fix bad non-ascii chars by putting it through Encode::from_to().
   # Encode::FB_DEFAULT substitutes U+FFFD when going to unicode, or question
@@ -2992,10 +3027,12 @@ sub twig_parse {
   # Or attempt to put it through XML::Liberal, if available.
   #
   if ($err && eval { require XML::Liberal; 1 }) {
+    ### try XML-Liberal
     my $liberal = XML::Liberal->new('LibXML');
     if (my $doc = eval { $liberal->parse_string($xml) }) {
       my $liberal_xml = $doc->toString;
 
+      ### reparse with twig
       $twig = XML::Twig->new (map_xmlns => $map_xmlns);
       if ($twig->safe_parse ($liberal_xml)) {
         $err = Text::Trim::trim($err);
@@ -3008,6 +3045,7 @@ sub twig_parse {
         undef $err;
       }
     }
+    ### now err: $err
   }
 
   if ($err) {
@@ -3039,10 +3077,12 @@ sub twig_parse {
   #     }
   #   }
 
+  ### add xml base
   if (defined $self->{'uri'} && ! $root->att_exists('xml:base')) {
     $root->set_att ('xml:base', $self->{'uri'});
   }
 
+  ### success
   return ($twig, undef);
 }
 
@@ -3728,6 +3768,12 @@ sub fetch_rss_process_one_item {
     my $links_want_html = ($body_is_html && ! $self->{'render'});
     $self->verbose (3, " links_want_html: ",
                     ($links_want_html ? "yes" : "no"));
+
+    # sort downloadables to the start, then by "priority"
+    use sort 'stable';
+    @links = sort {($b->{'download'}||0) <=> ($a->{'download'}||0)
+                     || ($b->{'priority'}||0) <=> ($a->{'priority'}||0)}
+      @links;
     my $links_str = ($links_want_html
                      ? links_to_html(@links)
                      : links_to_text(@links));

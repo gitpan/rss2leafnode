@@ -103,7 +103,7 @@
 ^up$
 ^c$
 
-# special case pulp test build stuff
+# special case p..ulp test build stuff
 devel/h2xs/TestConstFoo/
 
 # special case mall executables

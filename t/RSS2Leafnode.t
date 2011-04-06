@@ -45,7 +45,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 50;
+  my $want_version = 51;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -1369,6 +1369,7 @@ HERE
         { uri      => URI->new('http://some.where/home.html'),
           name     => __('Contributor:'),
           download => 0,
+          priority => -20,
         }] ],
 
      ['<dc:contributor>
@@ -1380,6 +1381,7 @@ HERE
         { uri      => URI->new('http://some.where/home.html'),
           name     => __('Contributor:'),
           download => 0,
+          priority => -20,
         } ] ],
 
      ['<author>
@@ -1391,6 +1393,7 @@ HERE
         { uri      => URI->new('http://foo.com/home.html'),
           name     => __('Author:'),
           download => 0,
+          priority => -20,
         } ] ],
 
      ['<author><name>Foo Bar</name><email>foo@bar.com</email></author>',

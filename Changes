@@ -17,7 +17,10 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
-Version 50, February 2011
+Version 51, April 2011
+    - show <source> attribution
+
+Version 50, March 2011
     - more of "appication/atom+xml"
 
 Version 49, February 2010
