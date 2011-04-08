@@ -262,29 +262,50 @@ HERE
     }
   }
 
-  my $podcoverage = '';
-  foreach (@{$my_options{'MyMakeMakerExtras_Pod_Coverage'}}) {
-      my $class = $_;
-    # the "." obscures it from MyExtractUse.pm
-    $podcoverage .= "\t-\$(PERLRUNINST) -e 'use "."Pod::Coverage package=>$class'\n";
-  }
-
   $post .= "LINT_FILES = $lint_files\n"
     . <<'HERE';
 lint:
 	perl -MO=Lint $(LINT_FILES)
+HERE
+
+  # ------ pc: ------
+  $post .= <<'HERE';
 pc:
 HERE
-  # "podchecker -warnings -warnings" too much reporting every < and >
-  $post .= $podcoverage . <<'HERE';
+
+  # ------ pc: podcoverage ------
+  foreach (@{$my_options{'MyMakeMakerExtras_Pod_Coverage'}}) {
+      my $class = $_;
+    # the "." obscures it from MyExtractUse.pm
+    $post .= "\t-\$(PERLRUNINST) -e 'use "."Pod::Coverage package=>$class'\n";
+  }
+
+  # ------ pc: podlinkcheck ------
+  $post .= <<'HERE';
 	-podlinkcheck -I lib `ls $(LINT_FILES) | grep -v '\.bash$$|\.desktop$$\.png$$|\.xpm$$'`
+HERE
+
+  # ------ pc: podchecker ------
+  # "podchecker -warnings -warnings" too much reporting every < and >
+  $post .= <<'HERE';
 	-podchecker `ls $(LINT_FILES) | grep -v '\.bash$$|\.desktop$$\.png$$|\.xpm$$'`
 	perlcritic $(LINT_FILES)
+
+
+  # ------ cpants_lint ------
+  $post .= <<'HERE';
+kw: $(DISTVNAME).tar.gz
+	-cpants_lint $(DISTVNAME).tar.gz
+HERE
+
+  # ------ unused ------
+  $post .= <<'HERE';
 unused:
 	for i in $(LINT_FILES); do perl -Mwarnings::unused -I lib -c $$i; done
 
 HERE
 
+  # ------ myman ------
   $post .= <<'HERE';
 myman:
 	-mv MANIFEST MANIFEST.old

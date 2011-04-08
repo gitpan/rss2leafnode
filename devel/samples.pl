@@ -59,7 +59,7 @@ my $r2l = App::RSS2Leafnode->new
    rss_newest_only => 3,
    # rss_get_links => 1,
    # rss_get_comments => 1,
-   # get_icon => 1,
+   get_icon => 1,
   );
 
 my @uris;

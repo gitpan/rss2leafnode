@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 51;
+  $VERSION = 52;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -113,7 +113,8 @@ BEGIN {
 #   RFC 3023 text/xml etc media types
 #
 # Mail Messages
-#   RFC 850, RFC 1036 -- News message format, inc headers and rnews format
+#   RFC 850, RFC 1036, RFC 5536
+#       -- News message format, inc headers and rnews format
 #   RFC 2076, RFC 4021 -- headers summary.
 #   RFC 2557 -- MHTML Content-Location
 #   RFC 1864 -- Content-MD5 header
@@ -124,6 +125,7 @@ BEGIN {
 #   RFC 1327 -- X.400 to RFC822 introducing Language header
 #   RFC 3282 -- Content-Language header
 #   RFC 1766, RFC 3066, RFC 4646 -- language tag form
+#   
 #
 # NNTP
 #     RFC 977 -- NNTP
@@ -2470,6 +2472,16 @@ sub item_to_links {
                  };
   }
 
+  # eg. <slash:department>blasting-it-into-the-sun-is-not-a-viable-option</slash:department>
+  # a fun kind of commentary thing
+  foreach my $elt ($item->children('slash:department')) {
+    push @links, { name => __x('Department: {department}',
+                               department => scalar(elt_to_rendered_line($elt))),
+                   download => 0,
+                   priority => -200,
+                 };
+  }
+
   return @links;
 }
 @known{qw(
@@ -2483,6 +2495,7 @@ sub item_to_links {
            /channel/item/wfw:commentRss
            /channel/item/slash:comments
            /channel/item/slash:hit_parade
+           /channel/item/slash:department
            /channel/item/thr:total
            /channel/item/content  --atom
            /channel/item/wiki:diff
@@ -3196,8 +3209,9 @@ sub item_to_in_reply_to {
 # real ones, only the sample at
 # http://www.apple.com/itunes/podcasts/specs.html#example
 #
-# <slash:section> might in theory be turned into keyword, but it's
-# normally just "news" or something not particularly informative.
+# <slash:section> is slightly borderline.  Sometimes it's a repeat of
+# <dc:subject>, which is fine.  Sometimes it's just "news" which is not
+# particularly informative.
 #
 # <cap:category> is "Geo", "Met", "Safety", "Fire" etc.  Not sure if it
 # should be in the keywords if it's also in the body text, but at least
@@ -3217,6 +3231,7 @@ sub item_to_in_reply_to {
               |itunes:keywords
               |media:keywords
               |dc:subject
+              |slash:section
               )$/x;
   sub item_to_keywords {
     my ($self, $item) = @_;

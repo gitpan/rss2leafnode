@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 51;
+our $VERSION = 52;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -58,7 +58,7 @@ rss2leafnode -- post RSS or Atom feeds and web pages to newsgroups
 =head1 DESCRIPTION
 
 RSS2Leafnode downloads RSS or Atom feeds and posts items as messages to an
-NNTP news server.  It's designed to make simple text entries available in
+NNTP news server.  It's designed to make simple text items available in
 local newsgroups, not propagating anywhere (though that's not enforced).
 
 Desired feeds are given in a configuration file F<.rss2leafnode.conf> in
@@ -94,7 +94,7 @@ high port.
 
 Plain web pages can be downloaded too.  Each time the page changes a new
 article is injected.  This is good for a latest news or status page which
-don't have an RSS feed.  For example
+doesn't have an RSS feed.  For example
 
     fetch_html ('r2l.finance,
                 'http://www.baresearch.com/free/index.php?category=1');
@@ -112,15 +112,15 @@ image title.
 
 HTTP C<ETag> and C<Last-Modified> headers are used, if provided by the
 server, to avoid re-downloading unchanged content (feeds or web pages).
-C<< <thr:count> >> is used if provided to check for unchanged comments
-feeds.  Values seen from the last run are saved in a F<.rss2leafnode.status>
-file in your home directory.
+C<< <thr:count> >> is used to check for unchanged comments feeds.  Values
+seen from the last run are saved in a F<.rss2leafnode.status> file in your
+home directory.
 
 If you've got C<XML::RSS::Timing> then it's used for RSS C<ttl>,
 C<updateFrequency>, etc from a feed.  This means the feed is not
-re-downloaded until its specified update times.  Only a few feeds have
-useful timing info, most merely give a C<ttl> advising for instance 5
-minutes between rechecks.
+re-downloaded until its specified update times.  Only a few feeds have good
+timing info, most merely give a C<ttl> advising for instance 5 minutes
+between rechecks.
 
 With C<--verbose> the next calculated update time is printed in case you're
 wondering why nothing is happening.  The easiest way to force a re-download
@@ -135,8 +135,8 @@ but can be used with any server accepting posts.  It's your responsibility
 to be careful where a target newsgroup propagates.  Don't make automated
 postings to the world!
 
-For leafnode see its F<README> file section "LOCAL NEWSGROUPS" on creating
-local-only groups.  Basically you add a line to the
+For leafnode version 2 see its F<README> file section "LOCAL NEWSGROUPS" on
+creating local-only groups.  Basically add a line to the
 F</etc/news/leafnode/local.groups> file like
 
     r2l.stuff	y	My various feeds
@@ -150,8 +150,8 @@ any description.  "y" means posting is allowed.
 The Small News "sn" program is a possible local server too.  Create groups
 in it with C<snnewgroup r2l.something>.  When running C<snntpd> from
 C<inetd> or similar don't forget a logger program argument on the command
-line as shown in its F<INSTALL.run>, otherwise log messages from C<snntpd>
-will confuse client programs, including C<Net::NNTP> as used by
+line as shown in its F<INSTALL.run>, otherwise log messages go to the client
+connection and will upset most programs, including C<Net::NNTP> as used by
 C<rss2leafnode>.
 
 =head2 Copyright
@@ -160,9 +160,13 @@ It's your responsibility to check the terms of use for any feeds or web
 pages you download with C<rss2leafnode>.  Pay particular attention if
 propagating or re-transmitting resulting messages.
 
-Copyright or license statements in a feed are included in the messages under
+Copyright or license statements in a feed are included in the messages as
 C<X-Copyright> headers.  Unless the content is in the public domain such
 copyright notices must be retained.
+
+The transformations RSS2Leafnode makes to turn feed items into messages are
+purely mechanical and the author believes they don't cause the program's
+terms (ie. GPL, per L</"LICENSE"> below) to be imposed on the results.
 
 =head1 COMMAND LINE OPTIONS
 
@@ -297,7 +301,7 @@ is used if present.
 
 If set then force RSS content to be interpreted in this charset,
 irrespective of what the document says.  See L<XML::Parser/ENCODINGS> for
-the charsets supported by the parser (the F<.enc> files under
+the charsets supported (F<.enc> files under
 F</usr/lib/perl5/XML/Parser/Encodings/> plus some builtins).
 
 Use this option if the document is wrong or has no charset specified and
@@ -319,9 +323,9 @@ warning is given like
       (line 214, column 75, byte 13196)
 
 Bad single-byte codings generally aren't detected and will just go through
-to display something incorrect (eg. MS-DOS codepage 1252 used where Latin-1
-is claimed).  Nose around the raw feed as necessary to see where it goes
-wrong.
+to display something incorrect (eg. if MS-DOS codepage 1252 is used where
+Latin-1 is claimed).  Nose around the raw feed as necessary to see where it
+goes wrong.
 
 =item $html_charset_from_content (default 0)
 
@@ -411,15 +415,15 @@ might present or interpret.
 An attempt is made to repair bad XML from a feed with C<XML::Liberal> if you
 have that module.  It uses C<XML::LibXML> and the C<libxml> library and is
 often successful on annoying things like bad entities, at least enough to
-process something.
+process something.  On hopelessly wrong data it might be a bit slow.
 
-Too much or too little entity escaping tends to be the most common XML
-problem.  Too little can turn HTML markup into nested XML elements.
-RSS2Leafnode treats that as if it was XHTML elements, though the result is
-likely to be imperfect.  Too much escaping currently ends up displaying raw
-or semi-raw HTML.  An option for extra unescaping might improve the display
-of some bad feeds, but in practice each bad feed is bad in its own special
-way.
+The most common XML problem is too much or too little entity escaping.  Too
+little can turn HTML markup into nested XML elements.  RSS2Leafnode treats
+that as if it was XHTML elements, though the result is likely to be
+imperfect.  Too much escaping currently ends up displaying raw or semi-raw
+HTML C<< <p> >> or C<&foo;> etc.  An option for extra unescaping might
+improve the display of some bad feeds, but in practice that's unlikely to be
+successful since each bad feed tends to be bad in its own special way.
 
 =head2 Message Headers
 
@@ -465,8 +469,9 @@ First present of
     <lastBuildDate>
     <published>
 
-These are all supposed to be ISO format "2000-01-01T12:00:00Z" etc and are
-converted to RFC822 style.  An unrecognised form is put through unmodified.
+C<dc:date> is ISO format "2000-01-01T12:00:00Z" etc and anything in that
+form is converted to RFC822 style for the messages.  An unrecognised form is
+put through unmodified.
 
 =item Date-Received:
 
@@ -476,11 +481,11 @@ The date/time when C<rss2leafnode> made the message.
 
 First of
 
-    <id>    (Atom)
+    <id>                         (Atom)
     <guid isPermaLink="true">
-    <link> from Yahoo Finance
-    <guid isPermaLink="false"> plus feed URL
-    MD5 hash of various fields and feed URL
+    <link>                       Yahoo Finance special case
+    <guid isPermaLink="false">   and feed URL
+    MD5 hash                     of various fields and feed URL
 
 Yahoo Finance items repeated in different feeds are noticed using a special
 match of the C<< <link> >> so that just one copy is posted.  (As of March
@@ -496,6 +501,7 @@ All of
     <itunes:keywords>
     <media:keywords>
     <dc:subject>
+    <slash:section>
 
 The sub-category system of <itunes:category> is not currently put through.
 
@@ -505,7 +511,7 @@ C<< <thr:in-reply-to> >> elements (per RFC 4685) turned into Message-IDs the
 same way as an Atom <id>.  This might help thread display in a news reader
 if the parent item was downloaded too.
 
-C<< <sioc:reply_of> >> is not used here.  It'd be a possibility, but would
+C<< <sioc:reply_of> >> is not used.  It'd be a possibility, but would
 probably need a hard-coded mapping of URL to Message-ID.  For now it's just
 shown as a link (as noted above).
 
@@ -538,18 +544,18 @@ download part, though in practice this is almost never used.
 
 Common Alerts Protocol C<< <cap:severity> >> levels Extreme and Severe are
 treated as "Importance: high" and "Priority: urgent".
-C<< <wiki:importance>minor >> is "Importance: low".  These headers are only
-supposed to be for X.400 inter-operation though.
+C<< <wiki:importance> >> "minor" is "Importance: low".  These headers are
+only supposed to be for X.400 inter-operation though.
 
 =item Precedence:
 
 "list" for certain Google Groups lists, identified by their link URLs per
 C<List-Post> below.  Perhaps other feeds which come from mailing lists could
-be identified in the future.
+be identified.
 
 =item Face:
 
-As per the C<$get_icons> option above, the first of item or channel
+As per the C<$get_icons> option above, the first item or channel element
 
      <image>           RSS
      <icon>            Atom
@@ -575,7 +581,7 @@ to an C<rss2leafnode> newsgroup will normally go nowhere.)
 
 =item PICS-Label:
 
-Channel C<< <rating> >>.  Perhaps in the future C<< <itunes:explicit> >> or
+Channel C<< <rating> >>.  Perhaps C<< <itunes:explicit> >> or
 C<< <media:adult> >> could be turned into a rating too.
 
 =item X-Mailer:
@@ -609,13 +615,13 @@ help assign blame for bad feed content etc.
 
 Of course all this mapping wouldn't be necessary if RSS had been news to
 start with.  A news server already serves short messages, either read-only
-or with followups, and if news servers hadn't got a (well deserved)
-reputation for being a pain to administer, and transferring gigabytes of
-"full feed" instead of on-demand, then RSS might never have been needed.  Of
-course the other side is that if you're accustomed to HTTP for web pages
-then everything starts looking like a web page, and if you're used to HTML
-then an edifice like XML to encapsulate a half dozen bits of text seems like
-a good idea.  :-)
+or with followups, and if news servers hadn't got a fairly well deserved
+reputation for being a pain to administer, and if it hadn't been based on
+transferring gigabytes of "full feed" instead of on-demand, then RSS might
+never have been needed.  Of course the other side is that if you're
+accustomed to HTTP for web pages then everything looks like a web resource,
+and if you're used to HTML then an edifice like XML to encapsulate a half
+dozen bits of text seems like a good idea.
 
 =head1 BUGS
 
@@ -633,16 +639,18 @@ Some pre-releases of leafnode 2 have trouble with posts to local newsgroups
 while a C<fetchnews> run is in progress.  The local articles don't show up
 until after a subsequent further C<fetchnews>.
 
-No attention is paid to C<< <atom:updated> >> for changes in an item.
-Should an updated item be re-posted?  If the C<< <atom:id> >> changes then
-that will happen (or if there's no C<id> and the content is different enough
-to make the MD5 hash change).  But C<id> is supposed to stay the same for an
-update is it?
+No attention is paid to C<< <atom:updated> >> or other changes in an item.
+Should an updated item be re-posted?  Is the C<Supersedes:> header better,
+replacing the article?  Something allowing readers to see or not see updates
+according to user preference would be good.  Currently if C<< <atom:id> >>
+changes then the item is reposted, or if there's no C<id> and the content is
+different enough to make the MD5 hash change.  But C<id> is supposed to stay
+the same for an update is it?
 
 The way C<$rss_get_links> only gets the immediate link target could perhaps
-be extended to fetch images, frame parts, etc of a HTML page there and
-include them in the message as RFC 2557 style "MHTML".  Not sure that
-there's any news readers which would actually display that though.
+be extended to fetch images, frame parts, etc of a HTML page and include
+them in the message as RFC 2557 style "MHTML".  Not sure that any news
+readers will actually display that though.
 
 =head1 ENVIRONMENT VARIABLES
 
