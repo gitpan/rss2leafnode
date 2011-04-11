@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 53, April 2011
+    - oops, fix for Makefile development bits
+
 Version 52, April 2011
     - slash:section in Keywords:
     - slash:department in the links footer for fun

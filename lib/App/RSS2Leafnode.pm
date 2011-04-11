@@ -44,7 +44,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 52;
+  $VERSION = 53;
 }
 
 ## no critic (ProhibitFixedStringMatches)

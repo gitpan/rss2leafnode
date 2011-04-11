@@ -290,11 +290,12 @@ HERE
   $post .= <<'HERE';
 	-podchecker `ls $(LINT_FILES) | grep -v '\.bash$$|\.desktop$$\.png$$|\.xpm$$'`
 	perlcritic $(LINT_FILES)
-
+HERE
 
   # ------ cpants_lint ------
   $post .= <<'HERE';
-kw: $(DISTVNAME).tar.gz
+kw:
+	make $(DISTVNAME).tar.gz
 	-cpants_lint $(DISTVNAME).tar.gz
 HERE
 
