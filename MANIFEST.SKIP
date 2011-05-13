@@ -106,6 +106,8 @@
 # special case p..ulp test build stuff
 devel/h2xs/TestConstFoo/
 
+# special case various executables
+^devel/exe-[^/.]+$
 # special case mall executables
 ^devel/hblk$
 ^devel/mallopt$
@@ -126,6 +128,8 @@ devel/h2xs/TestConstFoo/
 ^devel/gen-bits$
 # special case combo executables
 ^devel/toolbutton-overflow-leak$
+# special case xpother executables
+^devel/screensaver-info$
 
 # special htmlext environs
 ^test-dist/

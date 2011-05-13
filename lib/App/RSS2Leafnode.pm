@@ -29,6 +29,8 @@ use Text::Trim 1.02;  # version 1.02 for undef support
 use URI;
 use HTML::Entities::Interpolate;
 
+use App::RSS2Leafnode::XML::Twig::Other;
+
 # version 1.17 for __p(), and version 1.16 for turn_utf_8_on()
 use Locale::TextDomain 1.17;
 use Locale::TextDomain ('App-RSS2Leafnode');
@@ -44,7 +46,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 53;
+  $VERSION = 54;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -1046,55 +1048,6 @@ sub mime_entity_lines {
 #------------------------------------------------------------------------------
 # XML::Twig stuff
 
-sub elt_tree_strip_prefix {
-  my ($elt, $prefix) = @_;
-  foreach my $child ($elt->descendants_or_self(qr/^\Q$prefix\E:/)) {
-    $child->set_tag ($child->local_name);
-  }
-}
-
-# Return a URI object for string $url.
-# If $url is relative then it's resolved against xml:base, if available, to
-# make it absolute.
-# If $url is undef then return undef, which is handy if passing a possibly
-# attribute like $elt->att('href').
-# The feed toplevel has an xml:base set to the feed location if no other
-# value, so elt_xml_based_uri() ends up relative to the feed location if no
-# other xml:base.
-#
-sub elt_xml_based_uri {
-  my ($elt, $url) = @_;
-  if (! defined $url) { return undef; }
-  $url = URI->new ($url);
-  if (my $base = elt_xml_base ($elt)) {
-    return $url->abs ($base);
-  } else {
-    return $url;
-  }
-}
-
-# Return a URI object for the xml:base applying to $elt, or undef.
-sub elt_xml_base {
-  my ($elt) = @_;
-  my @relative;
-  for ( ; $elt; $elt = $elt->parent) {
-    next if ! defined (my $base = $elt->att('xml:base'));
-    $base = URI->new($base);
-    if (defined $base->scheme) {
-      # an absolute URL
-      while (@relative) {
-        $base = (pop @relative)->abs($base);
-      }
-      return $base;
-    } else {
-      # a relative path
-      push @relative, $base;
-    }
-  }
-  # oops, no base, only relative paths
-  return undef;
-}
-
 # Return the text of $elt and treat child elements as improperly escaped
 # parts of the text too.
 #
@@ -1135,7 +1088,7 @@ sub elt_xhtml_to_html {
 
   # could probably do it destructively, but just in case
   $elt = $elt->copy;
-  elt_tree_strip_prefix ($elt, 'xhtml');
+  App::RSS2Leafnode::XML::Twig::Other::elt_tree_strip_prefix ($elt, 'xhtml');
 
   # lose xmlns:xhtml="http://www.w3.org/1999/xhtml"
   $elt->strip_att('xmlns:xhtml');
@@ -1602,7 +1555,7 @@ sub item_image_uwh {
         next if (defined $width
                  && defined $this_width
                  && $width < $this_width); # prefer smallest
-        $url = elt_xml_based_uri ($link_elt, $url);
+        $url = App::RSS2Leafnode::XML::Twig::Other::elt_xml_based_uri ($link_elt, $url);
         $width = ($this_width || 0);
         $height = ($link_elt->att('media:height') || 0);
         ### $url
@@ -1650,7 +1603,7 @@ sub item_image_uwh {
           $height = 0;
         }
         ### item_image_uwh() RSS: $url
-        return (elt_xml_based_uri ($url_elt, $url),
+        return (App::RSS2Leafnode::XML::Twig::Other::elt_xml_based_uri ($url_elt, $url),
                 $width, $height);
       }
     }
@@ -1687,7 +1640,7 @@ sub item_image_uwh {
         unless (Scalar::Util::looks_like_number($height) && $height > 0) {
           $height = 0;
         }
-        return (elt_xml_based_uri ($elt, $url),
+        return (App::RSS2Leafnode::XML::Twig::Other::elt_xml_based_uri ($elt, $url),
                 $width,
                 $height);
       }
@@ -1697,7 +1650,7 @@ sub item_image_uwh {
     # <statusnet:postIcon rdf:resource="http://avatar.identi.ca/..."></statusnet:postIcon>
     if (my $elt = $where->first_child('statusnet:postIcon')) {
       if (is_non_empty (my $url = $elt->att('rdf:resource'))) {
-        return (elt_xml_based_uri ($elt, $url),
+        return (App::RSS2Leafnode::XML::Twig::Other::elt_xml_based_uri ($elt, $url),
                 0, 0);  # unknown size
       }
     }
@@ -2336,7 +2289,7 @@ sub item_to_links {
                // non_empty ($elt->att('rdf:resource'))
                // non_empty ($elt->trimmed_text)    # RSS <link>
                // next);
-    $uri = elt_xml_based_uri ($elt, $uri);
+    $uri = App::RSS2Leafnode::XML::Twig::Other::elt_xml_based_uri ($elt, $uri);
 
     $l->{'uri'} = $uri;
     $l->{'name'} //= __('Link');
@@ -2394,7 +2347,7 @@ sub item_to_links {
                       // non_empty ($subelt->att('href'))
                       // non_empty ($subelt->att('atom:href')))) {
         push @links, { name => __('Source RSS'),
-                       uri  => elt_xml_based_uri($subelt,$url),
+                       uri  => App::RSS2Leafnode::XML::Twig::Other::elt_xml_based_uri($subelt,$url),
                        download => 0,
                        priority => -200,
                      };
@@ -3077,8 +3030,8 @@ sub twig_parse {
   # ... or might not.
   #
   my $root = $twig->root;
-  elt_tree_strip_prefix ($root, 'atom');
-  elt_tree_strip_prefix ($root, 'rss');
+  App::RSS2Leafnode::XML::Twig::Other::elt_tree_strip_prefix ($root, 'atom');
+  App::RSS2Leafnode::XML::Twig::Other::elt_tree_strip_prefix ($root, 'rss');
   #
   # somehow map_xmlns mangles default attributes like "decimals=...", prefer
   # to see them without rss: or atom: -- maybe
@@ -3181,7 +3134,7 @@ sub item_to_in_reply_to {
                // $elt->att('atom:ref') # comes out atom: under map_xmlns ...
                // next);
     # probably shouldn't be relative actually ...
-    $ref = elt_xml_based_uri ($elt, $ref);
+    $ref = App::RSS2Leafnode::XML::Twig::Other::elt_xml_based_uri ($elt, $ref);
     push @ids, $self->url_to_msgid ($ref);
   }
   if (@ids) {
@@ -3507,7 +3460,7 @@ sub atom_content_flavour {
 sub html_wrap_fragment {
   my ($item, $fragment) = @_;
   my $charset = (is_ascii($fragment) ? 'us-ascii' : 'utf-8');
-  my $base_uri = elt_xml_base($item);
+  my $base_uri = App::RSS2Leafnode::XML::Twig::Other::elt_xml_base($item);
   my $base_header = (defined $base_uri
                      ? "  <base href=\"$Entitize{$base_uri}\">\n"
                      : '');
@@ -3598,7 +3551,7 @@ sub item_unknowns {
   my $xml = '';
   foreach my $elt ($item->children) {
     next if $elt->tag =~ /^#/;  # text
-    next if elt_is_empty($elt);
+    next if App::RSS2Leafnode::XML::Twig::Other::elt_is_empty($elt);
     my $path = $elt->path;
     $path =~ s{^/(rss|channel)/channel}{/channel};
     $path =~ s{^/(feed|rdf:RDF)}{/channel};
@@ -3628,13 +3581,6 @@ sub item_unknowns {
   } else {
     return "\n" . __('Further feed XML:') . "\n" . $xml;
   }
-}
-
-sub elt_is_empty {
-  my ($elt) = @_;
-  return ($elt->has_no_atts
-          && ! $elt->has_child
-          && $elt->text_only =~ /^\s*$/);
 }
 
 # $body construction below
@@ -3748,7 +3694,7 @@ sub fetch_rss_process_one_item {
     my $body_type = elt_content_type ($body);
     $self->verbose (3, ' body_type from elt: ', $body_type);
     my $body_charset = 'utf-8';
-    my $body_base_url = elt_xml_base ($body);
+    my $body_base_url = App::RSS2Leafnode::XML::Twig::Other::elt_xml_base ($body);
     given ($body_type) {
       when (! defined) {          # no $body element at all
         $body = '';

@@ -30,7 +30,7 @@ sub WriteMakefile {
 
   if (exists $opts{'META_MERGE'}) {
     # cf. ExtUtils::MM_Any::metafile_data() default ['t','inc']
-    foreach ('devel', 'examples', 'junk', 'maybe') {
+    foreach ('xt', 'devel', 'examples', 'junk', 'maybe') {
       my $dir = $_;
       if (-d $dir) {
         push @{$opts{'META_MERGE'}->{'no_index'}->{'directory'}}, $dir;
@@ -43,7 +43,14 @@ sub WriteMakefile {
     _meta_merge_shared_devel (\%opts);
   }
 
+  if (! defined $opts{'clean'}->{'FILES'}) {
+    $opts{'clean'}->{'FILES'} = '';
+  }
   $opts{'clean'}->{'FILES'} .= ' temp-lintian $(MY_HTML_FILES)';
+
+  if (! defined $opts{'realclean'}->{'FILES'}) {
+    $opts{'realclean'}->{'FILES'} = '';
+  }
   $opts{'realclean'}->{'FILES'} .= ' TAGS';
 
   if (! defined &MY::postamble) {
@@ -253,11 +260,16 @@ HERE
     if (-d 't') { $lint_files .= ' t/*.t'; }
     if (-d 'xt') { $lint_files .= ' xt/*.t'; }
 
-    foreach ('examples', 'devel') {
-      my $dir = $_;
-      my $pattern = "$dir/*.pl";
-      if (glob ($pattern)) {
-        $lint_files .= " $pattern";
+    my ($dir, $pattern);
+    foreach $dir ('t', 'xt', 'examples', 'devel') {
+      foreach $pattern ("$dir/*.pl", "$dir/*.pm") {
+        my @glob = glob($pattern);
+        ### $pattern
+        ### @glob
+        if (@glob) {
+          $lint_files .= " $pattern";
+          ### $lint_files
+        }
       }
     }
   }
@@ -272,26 +284,22 @@ HERE
   $post .= <<'HERE';
 pc:
 HERE
-
   # ------ pc: podcoverage ------
   foreach (@{$my_options{'MyMakeMakerExtras_Pod_Coverage'}}) {
-      my $class = $_;
+    my $class = $_;
     # the "." obscures it from MyExtractUse.pm
     $post .= "\t-\$(PERLRUNINST) -e 'use "."Pod::Coverage package=>$class'\n";
   }
-
   # ------ pc: podlinkcheck ------
   $post .= <<'HERE';
 	-podlinkcheck -I lib `ls $(LINT_FILES) | grep -v '\.bash$$|\.desktop$$\.png$$|\.xpm$$'`
 HERE
-
   # ------ pc: podchecker ------
   # "podchecker -warnings -warnings" too much reporting every < and >
   $post .= <<'HERE';
 	-podchecker `ls $(LINT_FILES) | grep -v '\.bash$$|\.desktop$$\.png$$|\.xpm$$'`
 	perlcritic $(LINT_FILES)
 HERE
-
   # ------ cpants_lint ------
   $post .= <<'HERE';
 kw:
@@ -346,13 +354,8 @@ check-copyright-years:
 	  done; \
 	  exit $$result)
 
-# only a DEBUG non-zero number is bad, so an expression can copy a debug from
-# another package
-check-debug-constants:
-	if egrep -nH 'DEBUG => [1-9]|^[ \t]*(use|no) Smart::Comments' $(EXE_FILES) $(TO_INST_PM) t/*.t xt/*.t; then exit 1; else exit 0; fi
-
 check-spelling:
-	if find . -type f | egrep -v '(Makefile|dist-deb)' | xargs egrep --color=always -nHi '[g]rabing|[c]usor|[r]efering|[w]riteable|[n]ineth|\b[o]mmitt?ed|[o]mited|[$$][rd]elf|[r]equrie|[n]oticable|[c]ontinous|[e]xistant|[e]xplict|[a]gument|[d]estionation|\b[t]he the\b|\b[i]n in\b|\b[tw]hen then\b|\b[n]ote sure\b'; \
+	if find . -type f | egrep -v '(Makefile|dist-deb)' | xargs egrep --color=always -nHi '[r]ectanglar|[a]vailabe|[g]rabing|[c]usor|[r]efering|[w]riteable|[n]ineth|\b[o]mmitt?ed|[o]mited|[$$][rd]elf|[r]equrie|[n]oticable|[c]ontinous|[e]xistant|[e]xplict|[a]gument|[d]estionation|\b[t]he the\b|\b[i]n in\b|\b[tw]hen then\b|\b[n]ote sure\b'; \
 	then false; else true; fi
 HERE
 
@@ -430,7 +433,7 @@ $(DEBFILE) deb:
 	rm -rf $(DISTVNAME)
 
 lintian-deb: $(DEBFILE)
-	lintian -I -i --suppress-tags new-package-should-close-itp-bug \
+	lintian -I -i --suppress-tags new-package-should-close-itp-bug,desktop-entry-contains-encoding-key \
 	  $(DEBFILE)
 lintian-source:
 	rm -rf temp-lintian; \

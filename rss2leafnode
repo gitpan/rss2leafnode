@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 53;
+our $VERSION = 54;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -96,8 +96,8 @@ Plain web pages can be downloaded too.  Each time the page changes a new
 article is injected.  This is good for a latest news or status page which
 doesn't have an RSS feed.  For example
 
-    fetch_html ('r2l.finance,
-                'http://www.baresearch.com/free/index.php?category=1');
+    fetch_html ('r2l.music,
+      'http://www.abc.net.au/rage/playlist/print/saturday_print.htm');
 
 The target can be an image or similar directly too, it's simply put into a
 news message with its indicated MIME type.  How well it displays depends on
@@ -107,6 +107,11 @@ The message "Subject" is the HTML C<< <title> >>, or something better from
 C<URI::Title> or C<Image::ExifTool> if you've got them.  C<URI::Title> has
 special cases for a few unhelpful sites and C<Image::ExifTool> can get a PNG
 image title.
+
+Since the conf file is Perl code you can write something to construct a URL
+with a date etc if there isn't a single updating page.  It may be worth
+fetching the latest and previous if you're not quite certain when the new
+one becomes available.
 
 =head2 Re-Downloading
 

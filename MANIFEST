@@ -59,6 +59,7 @@ inc/MyMakeMakerExtras.pm
 inc/MyMakeMakerGettext.pm
 lib/App/RSS2Leafnode.pm
 lib/App/RSS2Leafnode/Conf.pm
+lib/App/RSS2Leafnode/XML/Twig/Other.pm
 Makefile.PL
 MANIFEST			This list of files
 MANIFEST.SKIP
@@ -73,6 +74,7 @@ t/test-weaken.t
 t/Test/Weaken/ExtraBits.pm
 xt/0-exe-shebang.t
 xt/0-META-read.t
+xt/0-no-debug-left-on.t
 xt/0-Test-ConsistentVersion.t
 xt/0-Test-DistManifest.t
 xt/0-Test-Pod.t

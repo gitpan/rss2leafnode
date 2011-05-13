@@ -35,6 +35,7 @@ use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
 require App::RSS2Leafnode;
+require App::RSS2Leafnode::XML::Twig::Other;
 require POSIX;
 POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 
@@ -45,7 +46,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 53;
+  my $want_version = 54;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -952,7 +953,7 @@ HERE
     if ($err) { diag $err; }
     my $item = $twig->root->first_descendant(qr/^(item|entry)$/) || die;
 
-    my $got = App::RSS2Leafnode::elt_xml_base($item);
+    my $got = App::RSS2Leafnode::XML::Twig::Other::elt_xml_base($item);
     is ($got, $want, "elt_xml_base() $xml");
   }
 }
@@ -991,7 +992,7 @@ HERE
     my $elt = $twig->root->first_descendant('link') // die;
     my $url = $elt->text;
 
-    my $got = App::RSS2Leafnode::elt_xml_based_uri($elt, $url);
+    my $got = App::RSS2Leafnode::XML::Twig::Other::elt_xml_based_uri($elt, $url);
     is ($got, $want, "elt_xml_based_uri() $xml");
   }
 }
