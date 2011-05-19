@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 55, May 2011
+    - <html lang="..."> in generated rss body
+
 Version 54, May 2011
     - fix for debian/control depends
 

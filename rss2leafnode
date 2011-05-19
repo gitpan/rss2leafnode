@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 54;
+our $VERSION = 55;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -537,6 +537,11 @@ First of
 
 C<xml:lang> is a standard XML attribute which may be present on any element
 and is sometimes found on Atom C<< <content> >> text.
+
+The language code is also added to a HTML body in HTML4 style, though
+whether any renderers/browsers do much with it is another matter.
+
+    <html lang="en">
 
 =item Content-MD5:
 

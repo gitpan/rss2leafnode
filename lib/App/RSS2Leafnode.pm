@@ -46,7 +46,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 54;
+  $VERSION = 55;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -3458,15 +3458,20 @@ sub atom_content_flavour {
 }
 
 sub html_wrap_fragment {
-  my ($item, $fragment) = @_;
+  my ($item, $fragment, $language) = @_;
   my $charset = (is_ascii($fragment) ? 'us-ascii' : 'utf-8');
   my $base_uri = App::RSS2Leafnode::XML::Twig::Other::elt_xml_base($item);
   my $base_header = (defined $base_uri
                      ? "  <base href=\"$Entitize{$base_uri}\">\n"
                      : '');
+  if (is_non_empty ($language)) {
+    $language = " lang=\"$Entitize{$language}\"";
+  } else {
+    $language = '';
+  }
   return (<<"HERE", $charset);
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<html>
+<html$language>
 <head>
   <meta http-equiv=Content-Type content="text/html; charset=$charset">
 $base_header</head>
@@ -3629,6 +3634,7 @@ sub fetch_rss_process_one_item {
 
     my $list_post = googlegroups_link_email(@links);
     my $precedence = (defined $list_post ? 'list' : undef);
+    my $language = $self->item_to_language($item);
 
     # RSS <rating> PICS-Label
     # http://www.w3.org/TR/REC-PICS-labels
@@ -3653,7 +3659,7 @@ sub fetch_rss_process_one_item {
          'In-Reply-To:' => scalar ($self->item_to_in_reply_to($item)),
          References     => $self->{'References:'},
          'Message-ID'        => $msgid,
-         'Content-Language:' => scalar ($self->item_to_language($item)),
+         'Content-Language:' => $language,
          'Importance:'       => scalar ($self->item_to_importance($item)),
          'Priority:'         => scalar ($self->item_to_priority($item)),
          'Face:'             => scalar ($self->item_to_face($item)),
@@ -3787,7 +3793,7 @@ sub fetch_rss_process_one_item {
     }
 
     if ($body_type eq 'html') {
-      ($body, $body_charset) = html_wrap_fragment ($item, $body);
+      ($body, $body_charset) = html_wrap_fragment ($item, $body, $language);
       $body_type = 'text/html';
     }
     if (defined $body_charset) {
