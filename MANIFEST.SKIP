@@ -94,8 +94,10 @@
 ^diff\.tmp
 # inc/MyMakefileExtras.pm "lintian-source"
 ^temp-lintian
-# some of my im module testing
+# various testing
 ^tempfile\.png$
+^tempfile
+\.tmp$
 
 
 # my dists
@@ -126,10 +128,17 @@ devel/h2xs/TestConstFoo/
 ^devel/misc$
 # special case m-i executables
 ^devel/gen-bits$
+^devel/encode-all$
+^devel/encode-dump$
+^devel/Encode-X11-xlib$
+^devel/Encode-X11-xlib2$
 # special case combo executables
 ^devel/toolbutton-overflow-leak$
 # special case xpother executables
 ^devel/screensaver-info$
+# special case xpother samples
+^devel/encode.*\.ctext$
+^devel/encode.*\.utf8$
 
 # special htmlext environs
 ^test-dist/

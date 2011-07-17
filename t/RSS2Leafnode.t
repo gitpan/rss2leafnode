@@ -46,7 +46,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 55;
+  my $want_version = 56;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -222,13 +222,13 @@ is (App::RSS2Leafnode::str_ensure_newline("\n\n"), "\n\n");
      ['<author><email>00</email></author>',
       '00'],
      ['<author><name>some (parens)</name></author>',
-      '"some (parens)" <'.$r2l->DUMMY_EMAIL_ADDRESS.'>'],
+      '"some (parens)" <nobody@feedhost.com>'],
 
      # Atom
      ['<author><name>Foo Bar</name><email></email></author>',
-      'Foo Bar <'.$r2l->DUMMY_EMAIL_ADDRESS.'>'],
+      'Foo Bar <nobody@feedhost.com>'],
      ['<author><name>Foo Bar</name></author>',
-      'Foo Bar <'.$r2l->DUMMY_EMAIL_ADDRESS.'>'],
+      'Foo Bar <nobody@feedhost.com>'],
      ["<author><name>Foo</name><email>
 \t  foo\@bar.com\t
 </email></author>",
@@ -250,7 +250,7 @@ is (App::RSS2Leafnode::str_ensure_newline("\n\n"), "\n\n");
      ['<itunes:author xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
          Some Body
        </itunes:author>',  # plain text
-      'Some Body <'.$r2l->DUMMY_EMAIL_ADDRESS.'>'],
+      'Some Body <nobody@feedhost.com>'],
     ) {
     my ($fragment, $want) = @$data;
 
@@ -1358,7 +1358,7 @@ HERE
   require URI;
   $r2l->{'uri'} = URI->new('http://feedhost.com');
   my $host = $r2l->{'uri'}->host;
-  my $dummyaddr = $r2l->DUMMY_EMAIL_ADDRESS;
+  my $dummyaddr = 'nobody@feedhost.com';
 
   foreach my $data
     (['<dc:contributor>
@@ -1366,7 +1366,7 @@ HERE
            <rdf:value>Some Body</rdf:value>
          </rdf:Description>
        </dc:contributor>',
-      [ 'Some Body <'.$r2l->DUMMY_EMAIL_ADDRESS.'>',
+      [ 'Some Body <nobody@feedhost.com>',
         { uri      => URI->new('http://some.where/home.html'),
           name     => __('Contributor:'),
           download => 0,
@@ -1378,7 +1378,7 @@ HERE
            <rdf:value>Some Body</rdf:value>
          </rdf:Description>
        </dc:contributor>',
-      [ 'Some Body <'.$r2l->DUMMY_EMAIL_ADDRESS.'>',
+      [ 'Some Body <nobody@feedhost.com>',
         { uri      => URI->new('http://some.where/home.html'),
           name     => __('Contributor:'),
           download => 0,
@@ -1402,7 +1402,7 @@ HERE
         undef ] ],
 
      ['<author><name>Foo Bar</name></author>',
-      [ 'Foo Bar <'.$r2l->DUMMY_EMAIL_ADDRESS.'>',
+      [ 'Foo Bar <nobody@feedhost.com>',
         undef ] ],
 
      ['<author><email>foo@bar.com</email></author>',

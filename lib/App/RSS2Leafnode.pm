@@ -46,7 +46,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 55;
+  $VERSION = 56;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -608,12 +608,15 @@ sub isodate_to_rfc822 {
 
 # Return an RFC822 date string, or undef if nothing known.
 # This gets a sensible sort-by-date in the newsreader.
+# <jf:creationDate> seems to be accompanied by the usual <pubDate> so may be
+# redundant
 sub item_to_date {
   my ($self, $item) = @_;
   my $date;
   foreach my $elt ($item, item_to_channel($item)) {
     $date = (non_empty    ($elt->first_child_trimmed_text('pubDate'))
              // non_empty ($elt->first_child_trimmed_text('dc:date'))
+             // non_empty ($elt->first_child_trimmed_text('jf:creationDate'))
              # Atom
              // non_empty ($elt->first_child_trimmed_text('modified'))
              // non_empty ($elt->first_child_trimmed_text('updated'))
@@ -641,6 +644,10 @@ sub item_to_date {
           /channel/item/modified
           /channel/item/created
           /channel/item/issued
+
+          /channel/item/jf:creationDate      --java-locale-human-readable
+          /channel/item/jf:modificationDate
+          /channel/item/jf:date              --free-form
         )} = ();
 
 
@@ -2653,6 +2660,7 @@ use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
     my $elt;
     my $from =
       ($self->elt_to_email    ($elt = $item->first_child('author'))
+       // $self->elt_to_email ($elt = $item->first_child('jf:author'))
        // $self->elt_to_email ($elt = $item->first_child('dc:creator'))
        // $self->elt_to_email ($elt = $item->first_child('dc:contributor'))
        // $self->elt_to_email ($elt = $item->first_child('wiki:username'))
@@ -2728,6 +2736,7 @@ use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
             /channel/item/dc:contributor
             /channel/item/dc:contributor/rdf:Description
             /channel/item/dc:contributor/rdf:Description/rdf:value
+            /channel/item/jf:author
 
             /channel/item/contributor        --atom
             /channel/item/contributor/name
@@ -2858,7 +2867,7 @@ sub email_format {
     # think can't have empty <> or omitted, otherwise the quoted part is
     # still parsed as an address, certainly it's not rfc822 compliant to
     # omit
-    $email = $self->DUMMY_EMAIL_ADDRESS;
+    $email = 'nobody@'.$self->uri_to_host;
   } else {
     $email = $email;
   }
@@ -2915,6 +2924,9 @@ my $map_xmlns
      'http://rdfs.org/sioc/ns#'                     => 'sioc',
      'http://activitystrea.ms/spec/1.0/'            => 'activity',
      'http://ostatus.org/schema/1.0'                => 'ostatus',
+
+     # per http://docs.jivesoftware.com/latest/documentation/rss.html#output
+     'http://www.jivesoftware.com/xmlns/jiveforums/rss' => 'jf',
 
      # these two are different, but treat the same for now
      'http://backend.userland.com/creativeCommonsRssModule'=>'creativeCommons',
@@ -3927,6 +3939,9 @@ sub item_to_comments_rss {
           (defined($url) && $self->item_elt_comments_count($item,$url_elt)));
 }
 
+# <jf:replyCount> is merely informational about how many other <item>s there
+# are which are replies, there's no comments link as such for it to refer
+# to, it seems
 sub item_elt_comments_count {
   my ($self, $item, $elt) = @_;
   return (($elt && $elt->att('thr:count'))
@@ -3935,6 +3950,8 @@ sub item_elt_comments_count {
           // non_empty ($item->first_child_trimmed_text('thr:total'))
           // non_empty ($item->first_child_trimmed_text('slash:comments')));
 }
+@known{qw(/channel/item/jf:replyCount
+        )} = ();
 
 # $group is a string, the name of a local newsgroup
 # $url is a string, an RSS feed to be read

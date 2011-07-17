@@ -231,7 +231,7 @@ sub wait_for_event {
        return 1; # Glib::SOURCE_CONTINUE (new in Glib 1.220)
      });
   if ($widget->can('get_display')) {
-    # GdkDisplay new in Gtk 2.2
+    # display new in Gtk 2.2
     $widget->get_display->sync;
   } else {
     # in Gtk 2.0 gdk_flush() is a sync actually
@@ -256,7 +256,8 @@ sub wait_for_event {
 
 sub X11_chosen_screen_number {
   my ($X) = @_;
-  foreach my $i (0 .. $#{$X->{'screens'}}) {
+  my $i;
+  foreach (0 .. $#{$X->{'screens'}}) {
     if ($X->{'screens'}->[$i]->{'root'} == $X->{'root'}) {
       return $i;
     }

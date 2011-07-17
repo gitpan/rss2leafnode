@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 56, July 2011
+    - jf:author for From
+
 Version 55, May 2011
     - <html lang="..."> in generated rss body
 

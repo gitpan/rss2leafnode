@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 55;
+our $VERSION = 56;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -441,6 +441,7 @@ For reference the headers in the messages are generated roughly as follows,
 First non-empty of
 
     <author>
+    <jf:author>
     <dc:creator>
     <dc:contributor>
     <wiki:username>
@@ -451,10 +452,23 @@ First non-empty of
     <itunes:owner>
     channel <title>
 
-If there's no identifiable mailbox part then C<nobody@rss2leafnode.dummy> is
-added to make an RFC822 address.  The channel title as a fallback shows
-something about where a message came from when there's no other author
-identified.  An author's home page is shown in the links (as noted above).
+RDF may hide the value under C<< <rdf:description><rdf:value> >>
+sub-elements, at least for the C<dc> elements.  Atom has C<< <name> >> and
+C<< <email> >> sub-elements.  C<< <itunes:owner> >> may have an
+C<< <itunes:email> >> sub-element.  Such sub-elements can be checked for any
+element type.  Otherwise the text is generally free-form and might be things
+like
+
+    Name
+    Name <foo@bar.com>
+    foo@bar.com (Name)
+
+If there's no identifiable mailbox part in the text or C<< <email> >> then
+C<nobody@HOSTNAME> is added to make a valid RFC822 address.
+
+The channel C<< <title> >> as a fallback is mean to at least show something
+about where the message is from if there's no author identified.  An
+author's home page is included in the message links, per above.
 
 =item Subject:
 
@@ -467,6 +481,7 @@ First present of
 
     <pubDate>
     <dc:date>
+    <jf:creationDate>
     <modified>
     <updated>
     <issued>
@@ -477,6 +492,10 @@ First present of
 C<dc:date> is ISO format "2000-01-01T12:00:00Z" etc and anything in that
 form is converted to RFC822 style for the messages.  An unrecognised form is
 put through unmodified.
+
+C<< <jf:creationDate> >> is a possibility, but is apparently meant to be
+locale based for human readability and might be accompanied by
+C<< <pubDate> >> anyway so not needed.
 
 =item Date-Received:
 

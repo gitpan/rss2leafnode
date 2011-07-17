@@ -30,10 +30,10 @@ unless (-e $meta_filename) {
   plan skip_all => "$meta_filename doesn't exist -- assume this is a working directory not a dist";
 }
 
-# Test::YAML::Meta version 0.15 for upper case "optional_features" names
+# Test::CPAN::Meta::YAML version 0.15 for upper case "optional_features" names
 #
 eval 'use Test::YAML::Meta 0.15; 1'
-  or plan skip_all => "due to Test::YAML::Meta 0.15 not available -- $@";
+  or plan skip_all => "due to Test::CPAN::Meta::YAML 0.15 not available -- $@";
 
-Test::YAML::Meta::meta_yaml_ok();
+Test::CPAN::Meta::YAML::meta_yaml_ok();
 exit 0;
