@@ -5,7 +5,6 @@ debian/compat
 debian/control
 debian/copyright
 debian/emacsen-startup
-debian/patches/pod-sample-conf-file.diff
 debian/prerm
 debian/rules
 debian/source/format

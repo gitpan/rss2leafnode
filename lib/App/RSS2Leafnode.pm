@@ -42,11 +42,11 @@ BEGIN {
 }
 
 # uncomment this to run the ### lines
-#use Smart::Comments;
+#use Devel::Comments;
 
 our $VERSION;
 BEGIN {
-  $VERSION = 56;
+  $VERSION = 57;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -102,6 +102,9 @@ BEGIN {
 #       http://www.georss.org/atom
 #       http://www.georss.org/rdf_rss1
 #
+#   http://activitystrea.ms/specs/atom/1.0/
+#       activity:
+#
 # URIs
 #   RFC 1738, RFC 2396, RFC 3986 -- URI formats (news/nntp in 1738)
 #   draft-ellermann-news-nntp-uri-11.txt -- news/nntp update
@@ -121,7 +124,7 @@ BEGIN {
 #   RFC 2557 -- MHTML Content-Location
 #   RFC 1864 -- Content-MD5 header
 #   RFC 2369 -- List-Post header and friends
-#   http://www3.ietf.org/proceedings/98dec/I-D/draft-ietf-drums-mail-followup-to-00.txt
+#   http://www.ietf.org/proceedings/98dec/I-D/draft-ietf-drums-mail-followup-to-00.txt
 #       Draft "Mail-Followup-To" header.
 #
 #   RFC 1327 -- X.400 to RFC822 introducing Language header
@@ -1170,13 +1173,19 @@ sub elt_to_rendered_line {
     $str = elt_subtext($elt);
   }
   if ($type eq 'html') {
-    require HTML::FormatText;
-    $str = HTML::FormatText->format_string ($str,
-                                            leftmargin => 0,
-                                            rightmargin => 999);
+    $str = html_to_rendered_line($str);
   }
   # plain 'text' or anything unrecognised collapsed too
   return non_empty(collapse_whitespace($str));
+}
+
+sub html_to_rendered_line {
+  my ($html) = @_;
+  require HTML::FormatText;
+  return collapse_whitespace
+    (HTML::FormatText->format_string ($html,
+                                      leftmargin => 0,
+                                      rightmargin => 999));
 }
 
 
@@ -1953,8 +1962,10 @@ sub http_resp_to_copyright {
 }
 
 sub fetch_html {
-  my ($self, $group, $url) = @_;
+  my ($self, $group, $url, %options) = @_;
   ### fetch_html()
+
+  local @{$self}{keys %options} = values %options;  # hash slice
   $self->verbose (1, __x('page: {url}', url => $url));
 
   my $group_uri = URI->new($group,'news');
@@ -2377,17 +2388,25 @@ sub item_to_links {
       my $want = 1;
       if (my $uri = $l->{'uri'}) {
         my $canonical = $uri->canonical;
+        $canonical->fragment(undef); # ignore #foo anchor for uniqueness
         if (my $prev_l = $seen{$canonical}) {
           $want = 0;
           $prev_l->{'download'} ||= $l->{'download'};
           $l->{'priority'} = max ($l->{'priority'}||0,
                                   $prev_l->{'priority'}||0);
 
-          # "Link" doesn't say much, prefer the other over "Link".
+          # prefer no anchor if have both with and without
+          if (is_empty($l->{'uri'}->fragment)) {
+            $prev_l->{'uri'} = $l->{'uri'};
+          }
+
           if ($prev_l->{'name'} eq __('Link')) {
+            # name "Link" doesn't say much, prefer the other over "Link"
             $prev_l->{'name'} = $l->{'name'};
           } elsif ($l->{'name'} eq __('Link')) {
-            # drop this
+            # don't append "Link" to the previous
+          } elsif ($l->{'name'} eq $prev_l->{'name'}) {
+            # don't double the same name
           } else {
             $prev_l->{'name'} .= ", $l->{'name'}";
           }
@@ -2645,6 +2664,7 @@ use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
   # return ($from, $linkhash)
   sub item_to_from {
     my ($self, $item) = @_;
+    ### item_to_from() ...
     my $channel = item_to_channel($item);
 
     # <author> is supposed to be an email address whereas <dc:creator> is
@@ -2743,6 +2763,10 @@ use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
             /channel/item/contributor/uri
             /channel/item/contributor/url    --atom-typo-maybe
             /channel/item/contributor/email
+
+            /channel/item/activity:actor
+            /channel/item/activity:verb          --usually-post-or-something
+            /channel/item/activity:object-type   --is-this-anything
           )} = ();
 }
 
@@ -2776,7 +2800,8 @@ sub elt_to_email {
 }
 
 # $mailbox_re is a mailbox with domain, like "foo@bar.com"
-# no dots like "foo@localhost" is allowed
+# Allows no dots like "foo@localhost".
+# Allows dashes like "www-something@bar.com".
 #
 # $mailbox_with_comment_re allows an optional paren comment part like
 # "foo@bar.com (Foo)"
@@ -2784,7 +2809,7 @@ sub elt_to_email {
 # cf Email::Address $addr_spec, but its version 1.890 loosened to allow a
 # domain-less bare "foo", which is no good
 #
-my $words_with_dots_re = qr/\w+(\.\w+)*/;
+my $words_with_dots_re = qr/[[:word:]-]+(\.[[:word:]-]+)*/;
 my $mailbox_re = qr/$words_with_dots_re\@$words_with_dots_re/o;
 my $mailbox_with_comment_re = qr/$mailbox_re(\s*\([^\)]*\))?/os;
 
@@ -3401,17 +3426,28 @@ sub item_to_copyright {
               |dc:rights
               |creativeCommons:licen[cs]e
               )$/x;
-  return [ List::MoreUtils::uniq
-           (map {
-             join_non_empty(' ',
-                            # <cc:licence rdf:resource="http://..." />
-                            $_->att('rdf:resource'),
-                            elt_to_rendered_line($_))
-           }
-            ($item->children ($re),
-             # Atom sub-elem <source><rights>...</rights> when from another feed
-             (map {$_->children($re)} $item->children('source')),
-             $channel->children ($re))) ];
+  # Atom sub-elem <source><rights>...</rights>
+  my @parents = ($item, $channel, $item->children('source'));
+
+  my @strings;
+  foreach my $elt (map {$_->children($re)} @parents) {
+    push @strings,
+      join_non_empty(' ',
+                     elt_to_rendered_line($elt),
+                     # eg. <creativeCommons:licence rdf:resource="http://..."/>
+                     $elt->att('rdf:resource'));
+  }
+
+  # <link rel="license" href="...">
+  foreach my $link (map {$_->children('link')} @parents) {
+    ### link for copyright: $link->sprint
+    my $rel;
+    if (($link->att('atom:rel')//$link->att('rel')//'') eq 'license') {
+      push @strings, $link->att('atom:href')//$link->att('href');
+    }
+  }
+  ### @strings
+  return [ List::MoreUtils::uniq(grep {defined} @strings) ];
 }
 @known{qw(/channel/copyright
           /channel/rights
@@ -3427,21 +3463,40 @@ sub item_to_copyright {
 # /channel/item/media:credit   --nothing-much-in-this-one
 
 
-# return copyright string or undef
+# return string or undef
 sub item_to_generator {
   my ($self, $item) = @_;
   my $channel = item_to_channel($item);
+  my @strings;
 
   # both RSS and Atom use <generator>
   # Atom can include version="" and uri=""
-  my $generator = $channel->first_child('generator') // return undef;
-  return collapse_whitespace (join_non_empty (' ',
-                                              $generator->text,
-                                              $generator->att('atom:version'),
-                                              $generator->att('version'),
-                                              $generator->att('atom:uri'),
-                                              $generator->att('uri')));
+  if (my $generator = $channel->first_child('generator')) {
+    push @strings, join_non_empty (' ',
+                                   $generator->text,
+                                   $generator->att('atom:version'),
+                                   $generator->att('version'),
+                                   $generator->att('atom:uri'),
+                                   $generator->att('uri'));
+  }
+
+  # FIXME: is this bit right?
+  # <statusnet:notice_info local_id="54790448"
+  #    source="&lt;a href=&quot;http://nongnu.org/identica-mode/&quot; rel=&quot;nofollow&quot;&gt;Emacs Identica-mode&lt;/a&gt;"
+  #    source_link="http://nongnu.org/identica-mode/"></statusnet:notice_info>
+  #
+  if (my $notice = $item->first_child('statusnet:notice_info')) {
+    if (defined (my $html = $notice->att('atom:source'))) {
+      push @strings, join_non_empty (' ',
+                                     html_to_rendered_line($html),
+                                     $notice->att('atom:source_link'));
+    }
+  }
+
+  return collapse_whitespace (join_non_empty (', ', @strings));
 }
+@known{qw(/channel/item/statusnet:notice_info
+        )} = ();
 
 # return URL string or undef/empty
 sub item_to_feedburner {
@@ -3957,7 +4012,8 @@ sub item_elt_comments_count {
 # $url is a string, an RSS feed to be read
 #
 sub fetch_rss {
-  my ($self, $group, $url) = @_;
+  my ($self, $group, $url, %options) = @_;
+  local @{$self}{keys %options} = values %options;  # hash slice
   $self->verbose (2, "fetch_rss: $group $url");
 
   my $group_uri = URI->new($group,'news');

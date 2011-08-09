@@ -20,7 +20,7 @@ use strict;
 use warnings;
 use base 'News::Rnews';
 
-our $VERSION = 56;
+our $VERSION = 57;
 
 
 sub new {

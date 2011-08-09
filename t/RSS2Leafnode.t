@@ -20,7 +20,7 @@
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 209;
+use Test::More tests => 210;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
 # uncomment this to run the ### lines
@@ -46,7 +46,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 56;
+  my $want_version = 57;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -190,6 +190,9 @@ is (App::RSS2Leafnode::str_ensure_newline("\n\n"), "\n\n");
 
   foreach my $data
     (
+     ['<author>www-foo@bar-quux.com</author>',   # with dash
+      'www-foo@bar-quux.com'],
+
      # RSS
      ["<author></author>",
       undef],

@@ -257,7 +257,7 @@ sub wait_for_event {
 sub X11_chosen_screen_number {
   my ($X) = @_;
   my $i;
-  foreach (0 .. $#{$X->{'screens'}}) {
+  foreach $i (0 .. $#{$X->{'screens'}}) {
     if ($X->{'screens'}->[$i]->{'root'} == $X->{'root'}) {
       return $i;
     }

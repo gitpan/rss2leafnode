@@ -176,6 +176,8 @@ foreach my $uri (@uris) {
   $r2l->status_read;
   delete $r2l->{'global_status'}->{$uri};
 
-  $r2l->$method ('r2l.test', $uri);
+  $r2l->$method ('r2l.test', $uri,
+                # render => 'lynx',
+                );
 }
 exit 0;
