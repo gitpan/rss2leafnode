@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 58, August 2011
+    - per-fetch configs
+
 Version 57, August 2011
     - X-Copyright: from <source> too
     - dashes in From: mailbox parts

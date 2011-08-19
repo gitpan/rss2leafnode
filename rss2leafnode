@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 57;
+our $VERSION = 58;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -67,8 +67,9 @@ your home directory.  For example to put a feed in group "r2l.perl"
     fetch_rss ('r2l.perl', 'http://log.perl.org/atom.xml');
 
 This is actually Perl code, so comment lines begin with C<#> and you can
-write conditionals etc.  The target newsgroup must exist (see L</Leafnode>
-below).  With that done, run C<rss2leafnode> as
+write conditionals etc (see L<perlintro> or L<perlsyn>).  The target
+newsgroup must exist (see L</Leafnode> below).  With that done, run
+C<rss2leafnode> as
 
     rss2leafnode
 
@@ -84,8 +85,9 @@ feeds can be put into a single newsgroup.  Feeds are inserted as they're
 downloaded, so the first articles appear while the rest are still in
 progress.
 
-The target newsgroup can also be a C<news:> or C<nntp:> URL of a server on a
-different host or a different port number if running a personal server.
+The news server is per the L<Net::NNTP> defaults, or the target newsgroup
+can be a C<news:> or C<nntp:> URL of a server on a different host or port
+number, eg. for a personal server.
 
     fetch_rss('news://somehost.mydomain.org:8119/r2l.weather',
               'http://feeds.feedburner.com/PTCC');
@@ -103,8 +105,11 @@ The target can be an image or similar directly too, it's simply put into a
 news message with its indicated MIME type.  How well it displays depends on
 your newsreader.
 
+    fetch_html('r2l.weather',
+               'http://www.bom.gov.au/difacs/IDX0604.gif');
+
 The message "Subject" is the HTML C<< <title> >>, or something better from
-C<URI::Title> or C<Image::ExifTool> if you've got them.  C<URI::Title> has
+C<URI::Title> or C<Image::ExifTool> if you've got those.  C<URI::Title> has
 special cases for a few unhelpful sites and C<Image::ExifTool> can get a PNG
 image title.
 
@@ -116,7 +121,7 @@ becomes available.
 =head2 Re-Downloading
 
 HTTP C<ETag> and C<Last-Modified> headers are used, if provided by the
-server, to avoid re-downloading unchanged content (feeds or web pages).
+server, to avoid re-downloading unchanged content (feeds or web pages).  RSS
 C<< <thr:count> >> is used to check for unchanged comments feeds.  Values
 seen from the last run are saved in a F<.rss2leafnode.status> file in your
 home directory.
@@ -141,7 +146,7 @@ to be careful where a target newsgroup propagates.  Don't make automated
 postings to the world!
 
 For leafnode version 2 see its F<README> file section "LOCAL NEWSGROUPS" on
-creating local-only groups.  Normally just add a line to the
+creating local-only groups.  Basically just add a line to the
 F</etc/news/leafnode/local.groups> file like
 
     r2l.stuff	y	My various feeds
@@ -152,15 +157,15 @@ any description.  "y" means posting is allowed.
 
 =head2 Small News
 
-The Small News "sn" program is a possible local server too.  Create groups
-in it with command
+The Small News "sn" program is a another possible local server.  Create
+groups in it with command
 
     snnewgroup r2l.something
 
-When running C<snntpd> from C<inetd> or similar don't forget a logger
-program argument on the command line as shown in F<INSTALL.run>, otherwise
-log messages go to the client connection and will upset most client
-programs, including C<Net::NNTP> used by C<rss2leafnode>.
+When running the C<snntpd> daemon from C<inetd> or similar don't forget a
+logger program argument on the command line as shown in F<INSTALL.run>,
+otherwise log messages go to the client connection and will upset most
+client programs, including C<Net::NNTP> used by C<rss2leafnode>.
 
 =head2 Copyright
 
@@ -203,11 +208,14 @@ Print the program version number and exit.
 
 =head1 CONFIG OPTIONS
 
-The following variables can be set in the configuration file
+The following config options can be set either in global variables, or on a
+per-feed basis in an individual C<fetch_rss()> or C<fetch_html()>.
 
 =over 4
 
 =item $rss_get_links (default 0)
+
+=item C<fetch_rss ("group", "url", rss_get_links =E<gt> G)>
 
 If true then download links in each item and include the content in the news
 message.  For example,
@@ -218,8 +226,8 @@ message.  For example,
 
 Not all feeds have interesting things at their link.  Sometimes the RSS has
 the full item text already.  But if the RSS is a summary then
-C<$rss_get_links> can make the full article ready to read immediately,
-instead of having to click through from the message.
+C<$rss_get_links> makes the full article ready to read immediately, instead
+of having to click through from the message.
 
 Only the immediate link target URL is retrieved.  No images within the page
 are downloaded (which is often a good thing), and you'll probably have
@@ -227,31 +235,37 @@ trouble if the link uses frames (a set of HTML pages instead of just one).
 
 =item $rss_get_comments (default 0)
 
+=item C<fetch_rss ("group", "url", rss_get_comments =E<gt> G)>
+
 If true then download the comments feeds for items and post as followup news
 articles.  For example,
 
-    $rss_get_comments = 1;
     fetch_rss ('r2l.food',
-      'http://wickedgooddinner.blogspot.com/feeds/posts/default');
+      'http://wickedgooddinner.blogspot.com/feeds/posts/default',
+      rss_get_comments => 1);
 
-To send a followup comment you generally must go to the links in the
-original article (or the followups) and use some sort of web form.  Posting
-a message to the newsgroup goes nowhere.
+To send a followup comment you usually must go to the links in the original
+article (or the followups) and use some sort of web form.  Posting a message
+to the newsgroup goes nowhere.
 
 When a feed is available in both Atom and RSS formats sometimes only the
 Atom one includes a comments feed URL.
 
 Comments feeds are followed for as long as an article appears in the feed,
-though in the current implementation might be checked for new comments only
-when the originating feed changes.
+though in the current implementation it might be checked for new comments
+only when the originating feed changes.
 
 =item $render (default 0)
 
-If true then render HTML to text for the news messages.  Normally item text,
-C<$rss_get_links> downloaded parts, and C<fetch_html> pages are all
-presented as C<text/html>.  If your newsreader doesn't handle HTML very well
-then C<$render> is a good way to see just the text.  Setting C<1> uses
-C<HTML::FormatText>
+=item C<fetch_rss ("group", "url", render =E<gt> R)>
+
+=item C<fetch_html ("group", "url", render =E<gt> R)>
+
+If true then render HTML as plain text in the news messages.  Normally item
+text, downloaded parts from C<$rss_get_links>, and C<fetch_html()> pages are
+all presented as C<text/html>.  If your newsreader doesn't handle HTML very
+well then C<render> is a good way to see just the text.  Setting C<1> uses
+C<HTML::FormatText>,
 
     $render = 1;
     fetch_rss ('r2l.weather',
@@ -260,17 +274,17 @@ C<HTML::FormatText>
 Setting C<"WithLinks"> uses the C<HTML::FormatText::WithLinks> variant (you
 must have that module) which shows HTML links as footnotes.
 
-    $render = 'WithLinks';
     fetch_rss ('r2l.stuff',
-               'http://rss.sciam.com/sciam/basic-science');
+               'http://rss.sciam.com/sciam/basic-science',
+               render => 'WithLinks');
 
 Settings C<elinks>, C<lynx> or C<w3m> dump through the respective external
 program (you must have C<HTML::FormatExternal> and the program).
 
-    $render = 'lynx';
-    $rss_get_links = 1;
     fetch_rss ('r2l.sport',
-               'http://fr.news.yahoo.com/rss/rugby.xml');
+               'http://fr.news.yahoo.com/rss/rugby.xml',
+               rss_get_links => 1,
+               render => 'lynx');
 
 =item $render_width (default 60)
 
@@ -280,24 +294,28 @@ or any special width needed by a particular feed.
 
 =item $get_icon (default 0)
 
+=item C<fetch_rss ("group", "url", get_icon =E<gt> G)>
+
+=item C<fetch_html ("group", "url", get_icon =E<gt> G)>
+
 Download an RSS/Atom icon or HTML favicon as an image for the C<Face>
 header.  The C<Face> header is shown by Gnus and perhaps only a few other
-news readers.  In Gnus it appears with the "From" in the article mode
-display on a graphical screen.  It can be a good visual cue to the channel
-origin, but may not always be worth the extra download.
+news readers.  In Gnus it appears with "From:" in the article mode on a
+graphical screen.  It can be a good visual cue to the origin, but may not
+always be worth the extra download.
 
     $get_icon = 1;
     fetch_rss ('r2l.whatsnew',
                'http://www.archive.org/services/collection-rss.php');
 
-C<Image::Magick> is required to process the images.  Banner images which are
-much wider than high are suppressed as probably advertising and in any case
-not suited to 48x48 size of the Face header specification.  A 48x48 image
-may add perhaps 4 kbytes or more to each message.
+C<Image::Magick> is required to process images.  Banners much wider than
+high are suppressed as probably advertising and in any case not suited to
+48x48 size limit of the C<Face> header specification.  A 48x48 image might
+add perhaps 4 kbytes or more to each message.
 
-For plain RSS and Atom feeds an image is normally per-channel so is the same
-for all articles from the feed.  But an C<itunes:image> can be per-item and
-is used if present.
+For plain RSS and Atom feeds an image is normally a per-channel attribute so
+it's the same for all articles from the feed.  An C<itunes:image> or
+C<activity:actor> can be per-item and is used if present.
 
 =back
 
@@ -307,21 +325,23 @@ is used if present.
 
 =item $rss_charset_override (default undef)
 
+=item C<fetch_rss ("group", "url", rss_charset_override =E<gt> "CHARSET")>
+
 If set then force RSS content to be interpreted in this charset,
 irrespective of what the document says.  See L<XML::Parser/ENCODINGS> for
-the charsets supported (F<.enc> files under
-F</usr/lib/perl5/XML/Parser/Encodings/> plus some builtins).
+the charsets supported (some builtins plus F<.enc> files under
+F</usr/lib/perl5/XML/Parser/Encodings/>).
 
 Use this option if the document is wrong or has no charset specified and
 isn't the XML default utf-8.  Usually you'll only want this for a particular
 offending feed.  For example,
 
     # AIR is latin-1, but doesn't have a <?xml> saying that
-    $rss_charset_override = 'iso-8859-1';
-    fetch_rss ('r2l.finance', 'http://www.aireview.com.au/rss.php');
-    $rss_charset_override = undef;
+    fetch_rss ('r2l.finance',
+               'http://www.aireview.com.au/rss.php',
+               rss_charset_override => 'iso-8859-1');
 
-By default RSS2Leafnode attempts to cope with bad multibyte sequences by
+By default RSS2Leafnode tries to cope with bad multibyte sequences by
 re-coding to the feed's claimed charset.  If that works then the text will
 have some substitute characters (either U+FFFD or question marks "?") and a
 warning is given like
@@ -337,26 +357,37 @@ goes wrong.
 
 =item $html_charset_from_content (default 0)
 
-If true then the charset used for C<fetch_html> content is taken from the
-HTML itself, rather than the server's HTTP headers.  Normally the server
-should be believed, but if a particular server is misconfigured then you can
-try this.
+=item C<fetch_rss ("group", "url", html_charset_from_content =E<gt> H)>
 
-    $html_charset_from_content = 1;
-    fetch_rss ('r2l.stuff',
-               'http://www.somebadserver.com/newspage.html');
+=item C<fetch_html ("group", "url", html_charset_from_content =E<gt> H)>
+
+If true then the charset used for HTML content is taken from the HTML
+itself, rather than the server's HTTP headers.  Normally the server should
+be believed, but if a particular server is misconfigured then you can try
+this.
+
+    fetch_html ('r2l.stuff',
+                'http://www.somebadserver.com/newspage.html',
+                html_charset_from_content => 1);
 
 =back
 
-=head2 Variable Extent
+=head2 Config Extent
 
 Variables take effect from the point they're set, through to the end of the
-file, or until a new setting.  The Perl C<local> feature and a braces block
-can confine a setting to a particular few feeds.  Eg.
+file, or until a new setting. 
+
+Options like C<render =E<gt> 'lynx'> to a particular C<fetch_rss()> or
+C<fetch_html()> override the global settings, just for that call.
+
+The Perl C<local> feature and a braces block can confine a variable setting
+to a group of particular feeds.  Eg.
 
     { local $rss_get_links = 1;
-      fetch_rss ('r2l.finance',
+      fetch_rss ('r2l.debian',
                  'http://www.debian.org/News/weekly/dwn.en.rdf');
+      fetch_rss ('r2l.finance',
+                 ...);
     }
 
 =head1 OTHER DETAILS
@@ -366,9 +397,9 @@ the generated messages so for non-ascii content you'll need a newsreader
 which supports that.  Unrendered HTML is left in the charset the server
 gave, to ensure it matches any C<< <meta http-equiv> >> in the document.  In
 all cases the charset is specified in the MIME message headers or attachment
-parts.  Transfer format in the message body is chosen by C<MIME::Entity>
-which normally means quoted-printable if any non-ascii or very long lines.
-Atom C<< <content> >> already in base64 is left that way.
+parts.  Transfer coding in the message body is chosen by C<MIME::Entity>
+which normally means quoted-printable if any non-ascii or any very long
+lines.  Atom C<< <content> >> already in base64 is left that way.
 
 Links are shown at the end of each message for
 
@@ -393,18 +424,17 @@ Comment or reply links show a count of replies from any of
     thr:count="123"     /
     <slash:comments>    sub-element of <comments>
 
-The RSS format comment feeds used by C<$rss_get_comments> are as follows.
-"appication" is a typo from WordPress pre 2.5 and still sometimes found in
-use as of Feb 2011.
+RSS comment feeds for C<$rss_get_comments> are as follows.  "appication" is
+a typo from WordPress pre 2.5 still sometimes found in use (as of Feb 2011).
 
     <wfw:commentRss>
     <link rel='replies' type='application/atom+xml' ...>
     <link rel='replies' type='appication/atom+xml' ...>
 
-Comments links in the resulting news messages are shown as "Replies" or "RSS
-Replies".  If an RSS comment feed hasn't been detected as RSS it may show up
-as a plain "Replies" instead of "RSS Replies" (and in that case won't be
-downloaded by <$rss_get_comments>).
+Comments links are shown as "Replies" or "RSS Replies".  If an RSS comment
+feed hasn't been detected as RSS it may show up as plain "Replies" instead
+of "RSS Replies" (and in that case won't be downloaded by
+<$rss_get_comments>).
 
 Common Alerts Protocol (CAP) fields for weather alerts etc are shown if
 present (eg. from the US NOAA).  This can have more detail than just the
@@ -421,18 +451,17 @@ not to drop information, and to perhaps suggest extra things RSS2Leafnode
 might present or interpret.
 
 An attempt is made to repair bad XML from a feed with C<XML::Liberal> if you
-have that module.  It uses C<XML::LibXML> and the C<libxml> library and is
-often successful on annoying things like bad entities, at least enough to
-process something.  On hopelessly malformed data it might be slow.
+have that module.  It uses C<XML::LibXML> and the C<libxml> library and
+often succeeds on annoying things like bad entities, at least enough to
+present something.  On hopelessly malformed data it might be a bit slow.
 
 The most common XML problem is too much or too little C<&foo;> entity
 escaping.  Too little can turn HTML markup into nested XML elements.
 RSS2Leafnode treats that as if it was XHTML style sub-elements, though the
-result is likely to be imperfect.  Too much escaping currently ends up
-displaying raw or semi-raw HTML C<< <p> >> or C<&foo;> etc.  An option for
-extra unescaping might improve the display of some bad feeds, but in
-practice that's unlikely to be wholly successful as each bad feed tends to
-be bad in its own special way.
+result is likely to be imperfect.  Too much escaping ends up displaying raw
+or semi-raw HTML C<< <p> >> or C<&foo;> etc.  An option for extra unescaping
+might improve some bad feeds, but in practice it's unlikely to be wholly
+successful since every bad feed tends to be bad in its own special way.
 
 =head2 Message Headers
 
@@ -456,11 +485,11 @@ First non-empty of
     <itunes:owner>
     channel <title>
 
-RDF may hide the value under C<< <rdf:description><rdf:value> >>
-sub-elements, at least for the C<dc> elements.  Atom has C<< <name> >> and
-C<< <email> >> sub-elements.  C<< <itunes:owner> >> may have an
-C<< <itunes:email> >> sub-element.  Such sub-elements can be checked for any
-element type.  Otherwise the text is generally free-form and might be things
+RDF may hide an element value under sub-elements
+C<< <rdf:description><rdf:value> >>, at least for the C<dc> forms.  Atom has
+C<< <name> >> and C<< <email> >> sub-elements.  C<< <itunes:owner> >> may
+have an C<< <itunes:email> >> sub-element.  They can be checked for any
+element type usually.  Otherwise the text is free-form and might be things
 like
 
     Name
@@ -470,7 +499,7 @@ like
 If there's no identifiable mailbox part in the text or C<< <email> >> then
 C<nobody@HOSTNAME> is added to make a valid RFC822 address.
 
-The channel C<< <title> >> as a final fallback is mean to at least show
+The channel C<< <title> >> as a final fallback is meant to at least show
 something about where the message came from if there's no author identified.
 An author's home page is included in the message links described above.
 
@@ -497,8 +526,8 @@ C<dc:date> is ISO format "2000-01-01T12:00:00Z" etc and anything in that
 form is converted to RFC822 style for the messages.  An unrecognised form is
 put through unmodified.
 
-C<< <jf:creationDate> >> is a possibility, but it's apparently meant to be
-locale-based for human readability, and is probably accompanied by
+C<< <jf:creationDate> >> is not used.  It's apparently meant to be
+locale-based for human readability and is probably accompanied by
 C<< <pubDate> >> anyway so not needed.
 
 =item Date-Received:
@@ -531,7 +560,8 @@ All of
     <dc:subject>
     <slash:section>
 
-The sub-category system of <itunes:category> is not currently put through.
+The sub-category system of C<< <itunes:category> >> is not currently put
+through.
 
 =item In-Reply-To:
 
@@ -548,6 +578,10 @@ shown as a link as described above.
 The URL of a C<fetch_html()> or a C<$get_links> attachment part.  Good
 newsreaders can use this to resolve relative links in a HTML part.
 
+This same URL and any C<xml:base> attribute is used as a C<< <base
+href=""> >> for including a HTML fragment, so the location is present when
+saving a message body (and when rendering it to plain text).
+
 =item Content-Language:
 
 First of
@@ -558,8 +592,8 @@ First of
     xml:lang=""
     HTTP response Content-Language header
 
-C<xml:lang> is the standard XML attribute which may be present on any
-element and is sometimes found on Atom C<< <content> >> text.
+C<xml:lang> is the standard XML attribute present on any element and
+sometimes found on Atom C<< <content> >> text.
 
 The language code is also added to a generated HTML body in HTML4 style,
 though whether any renderers/browsers do much with it is another matter.
@@ -575,20 +609,20 @@ download part, though in practice this is almost never sent by HTTP servers.
 
 =item Priority:
 
-Common Alerts Protocol C<< <cap:severity> >> levels Extreme and Severe are
-treated as "Importance: high" and "Priority: urgent".
-C<< <wiki:importance> >> "minor" is "Importance: low".  These headers are
-only supposed to be for X.400 inter-operation though.
+These headers are only supposed to be for X.400 inter-operation.  Common
+Alerts Protocol C<< <cap:severity> >> levels Extreme and Severe are treated
+as "Importance: high" and "Priority: urgent".  C<< <wiki:importance> >>
+"minor" is "Importance: low".
 
 =item Precedence:
 
 "list" for certain Google Groups lists, identified by their link URLs per
 C<List-Post> below.  Perhaps other feeds which come from mailing lists could
-be identified.
+be identified too.
 
 =item Face:
 
-As per the C<$get_icons> option described above, the first item or channel
+Per the C<$get_icons> option described above, the first item or channel
 element
 
      <image>           RSS
@@ -602,7 +636,7 @@ element
 Gnus and perhaps other newsreaders can display C<Face:>, see
 L<http://quimby.gnus.org/circus/face>.
 
-It'd be possible to generate an C<X-Face:> as well or instead, but it's
+It'd be possible to generate an C<X-Face:> as well or instead, but that's
 black and white and a conversion from a colour image out of the feeds is
 unlikely to look good most of the time.
 
@@ -650,49 +684,50 @@ help assign blame for bad feed content etc.
 
 =back
 
-Of course all this mapping wouldn't be necessary if RSS had been news to
-start with.  A news server already serves short messages, either read-only
-or with followups, and if news servers hadn't got a well-deserved reputation
-for being a pain to administer, and if it hadn't been based on transferring
-gigabytes of "full feed" instead of on-demand, then RSS might never have
-been needed.  Of course the other side is that if you're accustomed to HTTP
-for web pages then everything looks like a HTTP page, and if you're used to
-HTML then a edifice like XML to encapsulate a half dozen bits of text seems
-like a good idea.
+Of course all this conversion wouldn't be necessary if RSS had been news in
+the first place.  A news server already serves short messages, either
+read-only or with followups, and if news servers hadn't got a well-deserved
+reputation for being a pain to administer, and if news hadn't been based on
+transferring gigabytes of "full feed" instead of on-demand, then RSS might
+never have been wanted.  Of course the other side is that if you're a web
+page author accustomed to HTTP then everything looks like a HTTP page, and
+if you like HTML then a ridiculous edifice like XML to encapsulate a half
+dozen bits of text might even seem like a good idea.
 
 =head1 BUGS
 
 The way Message-IDs are checked on the news server means that the server
 should be setup to retain messages for at least as long as the feed retains
 items.  If that's not so then old articles will be re-posted by the next
-C<fetch_rss> and will look like new articles to a newsreader.
+C<fetch_rss()> and will look like new articles to a newsreader.
 
 Letting the news server track articles keeps down the amount of state
 C<rss2leafnode> must maintain and means multiple users can insert a feed
 without duplication.  But perhaps long running or mothballed feeds will need
-further repost protection.
+further repost protection.  Maybe an item age limit would be good both for
+this and for seeing only recent posts etc.
 
-No retries are attempted if a news server disconnects, or at least not
-unless posting to a different news server then coming back.  Not sure if
-that's good or bad, but repeated error messages for a disconnect are
-unattractive.
+No retries are attempted if a news server disconnects, at least not unless
+posting to a different news server then coming back.  Not sure if that's
+good or bad, but repeated error messages for a disconnect are unattractive.
 
 Some pre-releases of leafnode 2 have trouble with posts to local newsgroups
 while a C<fetchnews> run is in progress.  The local articles don't show up
-until after a subsequent further C<fetchnews>.
+until after a subsequent further C<fetchnews>.  Or was this only for the
+C<rnews> inject?
 
 No attention is paid to C<< <atom:updated> >> or other changes in an item.
 Should an updated item be re-posted?  Is the C<Supersedes:> header better,
 replacing the article?  Something allowing readers to see or not see updates
-according to user preference would be good.  Currently if C<< <atom:id> >>
-changes then the item is reposted, or if there's no C<id> and the content is
-different enough to make the MD5 hash change.  But C<id> is supposed to stay
-the same for an update is it?
+according to user preference would be good.  Currently the item is reposted
+if C<< <atom:id> >> changes or if there's no C<id> and the content changes
+enough to make a new MD5 hash.  But C<id> is supposed to stay the same for
+an update is it?
 
 The way C<$rss_get_links> only gets the immediate link target could perhaps
-be extended to fetch images, frame parts, etc of a HTML page and include
-them in the message as RFC 2557 style "MHTML".  Not sure that any news
-readers will actually display that though.
+be extended to fetch images, frame sub-parts, etc of a HTML page and include
+them in the message as RFC 2557 style "MHTML".  Do any news readers actually
+display that though?
 
 =head1 ENVIRONMENT VARIABLES
 
