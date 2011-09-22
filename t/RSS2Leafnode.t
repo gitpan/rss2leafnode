@@ -46,7 +46,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 58;
+  my $want_version = 59;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -1333,13 +1333,13 @@ HERE
 #   my $resp = HTTP::Response->new (200, 'OK');
 #   is (App::RSS2Leafnode::http_to_host($resp), 'localhost',
 #       'http_to_host() with no request object');
-# 
+#
 #   require HTTP::Request;
 #   my $req = HTTP::Request->new;
 #   $resp->request ($req);
 #   is (App::RSS2Leafnode::http_to_host($resp), 'localhost',
 #       'http_to_host() with no uri in request');
-# 
+#
 #   foreach my $elem (['http://foo.com/index.html', 'foo.com'],
 #                     ['file:///tmp/index.html','localhost'],
 #                     ['file://hostname.invalid/tmp/index.html','hostname.invalid'],

@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 58;
+our $VERSION = 59;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -45,7 +45,7 @@ exit $r2l->command_line;
 
 __END__
 
-=for stopwords rss2leafnode rss leafnode NNTP config leafnode undef charset utf-8 non-ascii charsets builtins misconfigured Eg Unrendered Google pre-releases Ryde PNG libxml multibyte codings feed's NOAA XHTML unescaping X-From-Url X-RSS-Url X-RSS-Generator eg sn codepage unescape favicon kbytes repost r2l.perl
+=for stopwords rss2leafnode rss leafnode NNTP config leafnode undef charset utf-8 non-ascii charsets builtins misconfigured Eg Unrendered Google pre-releases Ryde PNG libxml multibyte codings feed's NOAA XHTML unescaping X-From-Url X-RSS-Url X-RSS-Generator eg sn codepage unescape favicon kbytes repost r2l.perl conf ie GPL appication WordPress pre RDF reposted MHTML
 
 =head1 NAME
 
@@ -230,8 +230,9 @@ C<$rss_get_links> makes the full article ready to read immediately, instead
 of having to click through from the message.
 
 Only the immediate link target URL is retrieved.  No images within the page
-are downloaded (which is often a good thing), and you'll probably have
-trouble if the link uses frames (a set of HTML pages instead of just one).
+are downloaded, which is often a good thing to reduce bloat or avoid
+occasional advertising in feeds.  You'll probably have trouble if the link
+target uses frames (a set of HTML pages instead of just one).
 
 =item $rss_get_comments (default 0)
 
@@ -389,6 +390,23 @@ to a group of particular feeds.  Eg.
       fetch_rss ('r2l.finance',
                  ...);
     }
+
+=head2 Emacs
+
+In Emacs, F<.rss2leafnode.conf> can be put into C<perl-mode> with the usual
+mode setup in the file
+
+    # -*- mode: perl-mode -*-
+
+Or and C<auto-mode-alist> setup in your F<.emacs>,
+
+    (add-to-list 'auto-mode-alist
+                 '("/\\.rss2leafnode\\.conf\\'" . perl-mode))
+
+The Debian package of C<rss2leafnode> comes with that setup, plus a
+completions ignore for the C<.rss2leafnode.status> file.  (See
+F</etc/emacs/site-start.d/50rss2leafnode.el> in the package, or
+F<debian/emacsen-startup> in the sources.)
 
 =head1 OTHER DETAILS
 

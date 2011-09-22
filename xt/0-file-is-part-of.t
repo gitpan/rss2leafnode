@@ -124,7 +124,7 @@ sub check_file_is_part_of {
 sub diag {
   my $self = shift;
   my $func = $self->{'diag_func'}
-    || Test::More->can('diag')
+    || eval { Test::More->can('diag') }
       || \&_diag;
   &$func(@_);
 }

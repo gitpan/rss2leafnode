@@ -284,6 +284,10 @@ HERE
   $post .= <<'HERE';
 pc:
 HERE
+  # ------ pc: test vars ------
+  # the "." obscures it from MyExtractUse.pm
+  $post .= "\t-\$(PERLRUNINST) -e 'use "."Test::Vars; all_vars_ok()'\n";
+
   # ------ pc: podcoverage ------
   foreach (@{$my_options{'MyMakeMakerExtras_Pod_Coverage'}}) {
     my $class = $_;
@@ -358,7 +362,7 @@ check-copyright-years:
 	  exit $$result)
 
 check-spelling:
-	if find . -type f | egrep -v '(Makefile|dist-deb)' | xargs egrep --color=always -nHi '[a]djustement|[g]lpyh|[r]ectanglar|[a]vailabe|[g]rabing|[c]usor|[r]efering|[w]riteable|[n]ineth|\b[o]mmitt?ed|[o]mited|[$$][rd]elf|[r]equrie|[n]oticable|[c]ontinous|[e]xistant|[e]xplict|[a]gument|[d]estionation|\b[t]he the\b|\b[i]n in\b|\b[tw]hen then\b|\b[n]ote sure\b'; \
+	if find . -type f | egrep -v '(Makefile|dist-deb)' | xargs egrep --color=always -nHi '[a]djustement|[g]lpyh|[r]ectanglar|[a]vailabe|[g]rabing|[c]usor|[r]efering|[w]riteable|[n]ineth|\b[o]mmitt?ed|[o]mited|[$$][rd]elf|[r]equrie|[n]oticable|[c]ontinous|[e]xistant|[e]xplict|[a]gument|[d]estionation|\b[t]he the\b|\b[w]ith with\b|\b[i]n in\b|\b[tw]hen then\b|\b[n]ote sure\b'; \
 	then false; else true; fi
 HERE
 
@@ -447,7 +451,7 @@ lintian-source:
 	mv -T $(DISTVNAME) $(DEBNAME)-$(VERSION); \
 	dpkg-source -b $(DEBNAME)-$(VERSION) \
 	               $(DEBNAME)_$(VERSION).orig.tar.gz; \
-	lintian -I -i --suppress-tags empty-debian-diff *.dsc; \
+	lintian -I -i --suppress-tags empty-debian-diff,debian-rules-uses-deprecated-makefile *.dsc; \
 	cd ..; \
 	rm -rf temp-lintian
 

@@ -26,12 +26,14 @@ use Test::More;
 use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
-use Test::Weaken::ExtraBits;
 
-my $have_test_weaken = eval "use Test::Weaken 2.000; 1";
-if (! $have_test_weaken) {
+if (! eval "use Test::Weaken 2.000; 1") {
   plan skip_all => "due to Test::Weaken 2.000 not available -- $@";
 }
+if (! eval "use Test::Weaken::ExtraBits 1; 1") {
+  plan skip_all => "due to Test::Weaken::ExtraBits not available -- $@";
+}
+
 plan tests => 2;
 
 diag ("Test::Weaken version ", Test::Weaken->VERSION);
@@ -54,7 +56,7 @@ diag ("Test::Weaken version ", Test::Weaken->VERSION);
          return [ $r2l, $ua ];
        },
        # handler funcs set in ua()
-       ignore => \&Test::Weaken::ExtraBits::ignore_global_function,
+       ignore => \&Test::Weaken::ExtraBits::ignore_global_functions,
      });
   is ($leaks, undef, 'deep garbage collection -- new() and ua()');
 

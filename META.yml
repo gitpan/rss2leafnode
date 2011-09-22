@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               rss2leafnode
-version:            58
+version:            59
 abstract:           Download RSS feeds or web pages to an NNTP news server.
 author:
     - Kevin Ryde <user42@zip.com.au>
@@ -120,8 +120,9 @@ optional_features:
     maximum_tests:
         description:  Have "make test" do as much as possible.
         requires:
-            Test::Weaken:  2.0
-            URI::Title:    0
+            Test::Weaken:         2.0
+            Test::Weaken::ExtraBits:  1
+            URI::Title:           0
     render_text_external:
         description:  Optionally render HTML to text using external programs like lynx.
         requires:

@@ -161,6 +161,7 @@ MyMakeMakerExtras::WriteMakefile
        maximum_tests =>
        { description => 'Have "make test" do as much as possible.',
          requires => { 'Test::Weaken' => '2.0',
+                       'Test::Weaken::ExtraBits' => 1,
                        'URI::Title' => 0,
                      },
        },

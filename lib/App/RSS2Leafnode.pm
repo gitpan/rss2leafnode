@@ -46,7 +46,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 58;
+  $VERSION = 59;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -130,7 +130,7 @@ BEGIN {
 #   RFC 1327 -- X.400 to RFC822 introducing Language header
 #   RFC 3282 -- Content-Language header
 #   RFC 1766, RFC 3066, RFC 4646 -- language tag form
-#   
+#
 #
 # NNTP
 #     RFC 977 -- NNTP
@@ -282,7 +282,7 @@ sub new {
                 # secret extra
                 msgidextra => '',
 
-                @_
+                @_,
                }, $class;
 }
 
@@ -391,6 +391,9 @@ sub ua {
     Scalar::Util::weaken (my $weak_self = $self);
     $ua->add_handler (request_send => \&lwp_request_send__verbose);
     $ua->add_handler (response_done => sub {
+                        lwp_response_done__bzip2_mangle ($weak_self, @_)
+                      });
+    $ua->add_handler (response_done => sub {
                         lwp_response_done__check_md5 ($weak_self, @_);
                       });
 
@@ -414,9 +417,24 @@ sub lwp_request_send__verbose {
   return;  # continue processing
 }
 
+
+sub lwp_response_done__bzip2_mangle {
+  my ($self, $resp, $ua, $h) = @_;
+  $self || return;
+  # workaround "bzip2" back from lighttpd
+
+  ### lwp_response_done__bzip2_mangle() ...
+  if (($resp->content_encoding || '') eq 'bzip2') {
+    $self->verbose
+      (2, "Mangle Content-Encoding: bzip2 to x-bzip2 for decode");
+    $resp->header('Content-Encoding','x-bzip2');
+  }
+}
+
 sub lwp_response_done__check_md5 {
   my ($self, $resp, $ua, $h) = @_;
   $self || return;
+  ### lwp_response_done__check_md5() ...
   my $want = $resp->header('Content-MD5') // do {
     $self->verbose (2, 'no Content-MD5 header');
     return;
@@ -656,10 +674,13 @@ sub item_to_date {
 
 sub item_to_timet {
   my ($self, $item) = @_;
+  ### item_to_timet() ...
   my $str = $self->item_to_date($item)
     // return - POSIX::DBL_MAX(); # no date fields
 
   require Date::Parse;
+  ### $str
+  # print Date::Parse::str2time($str),"\n";
   return (Date::Parse::str2time($str)
           // do {
             say __x('Unrecognised date "{date}" from {url}',
@@ -1562,7 +1583,7 @@ sub item_image_uwh {
 
     # identi.ca
     if (my $actor = $where->first_child('activity:actor')) {
-      my ($url, $type, $width, $height);
+      my ($url, $width, $height);
       foreach my $link_elt ($actor->children('link')) {
         ($link_elt->att('rel')||$link_elt->att('atom:rel')||'')
           eq 'avatar' or next;
@@ -3225,8 +3246,6 @@ sub item_to_in_reply_to {
               )$/x;
   sub item_to_keywords {
     my ($self, $item) = @_;
-
-    my @item_children = ($re);
     my $channel = item_to_channel($item);
 
     return join_non_empty
@@ -3441,7 +3460,6 @@ sub item_to_copyright {
   # <link rel="license" href="...">
   foreach my $link (map {$_->children('link')} @parents) {
     ### link for copyright: $link->sprint
-    my $rel;
     if (($link->att('atom:rel')//$link->att('rel')//'') eq 'license') {
       push @strings, $link->att('atom:href')//$link->att('href');
     }
@@ -4051,7 +4069,11 @@ sub fetch_rss {
   }
   local $self->{'resp'} = $resp;
 
-  $resp->decode;
+  $self->verbose (3, "response:", $resp->dump, "\n"); # extra newline
+  $resp->decode
+    or die "Oops, cannot decode Content-Encoding: ",
+      $self->header("Content-Encoding");
+
   my $xml = $resp->content; # raw bytes
   $xml = $self->enforce_rss_charset_override ($xml);
 
@@ -4085,9 +4107,10 @@ sub fetch_rss {
     # secret feature newest N many items ...
     require Scalar::Util;
     unless (Scalar::Util::looks_like_number($n)) { $n = 1; }
+    ### rss_newest_only: $n
     require Sort::Key::Top;
-    @items = Sort::Key::Top::rkeytop (sub { $self->item_to_timet($_) },
-                                      $n, @items);
+    @items = Sort::Key::Top::rnkeytop (sub { $self->item_to_timet($_) },
+                                       $n, @items);
   }
 
   my $new = 0;

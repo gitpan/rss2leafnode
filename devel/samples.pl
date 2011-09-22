@@ -50,7 +50,7 @@ my $r2l = App::RSS2Leafnode->new
   (
    # rss_charset_override => 'windows-1252',
    # rss_charset_override => 'iso-8859-1',
-   verbose => 2,
+   verbose => 3,
    msgidextra => 'Z',
 
    # render => 'lynx',
@@ -75,7 +75,9 @@ GetOptions (require_order => 1,
             'all'        => sub { $r2l->{'rss_newest_only'} = 0 },
             '<>' => sub {
               my ($arg) = @_;
-              push @uris, URI::file->new("$arg");
+              $arg = "$arg";
+              push @uris,
+                ($arg =~ /^[a-z]+:/ ? URI->new($arg) : URI::file->new($arg));
             },
            ) or exit 1;
 
@@ -132,18 +134,21 @@ if (1) {
   $r2l->ua->add_handler(response_done => \&lwp_response_done__add_content_md5);
   sub lwp_response_done__add_content_md5 {
     my ($resp, $ua, $h) = @_;
-    if ($resp->is_success && ! defined $resp->header('Content-MD5')) {
+    if ($resp->is_success && ! defined($resp->header('Content-MD5'))) {
       my $uri = $resp->request->uri;
-      print "$progname: add Content-MD5 to $uri\n";
-      my $content = $resp->decoded_content (charset => 'none');
 
       # require Data::Dumper;
       # print "$progname: ", Data::Dumper->new([\$content],['content'])->Useqq(1)->Dump;
       # print "$progname: ", $resp->headers->as_string;
 
-      require Digest::MD5;
-      my $md5 = Digest::MD5::md5_hex($content);
-      $resp->headers->header ('Content-MD5' => $md5);
+      if (defined (my $content = $resp->decoded_content (charset => 'none'))) {
+        print "$progname: add Content-MD5 to $uri\n";
+        require Digest::MD5;
+        my $md5 = Digest::MD5::md5_hex($content);
+        $resp->headers->header ('Content-MD5' => $md5);
+      } else {
+        print "$progname: oops, cannot decoded_content() to add Content-MD5\n";
+      }
     }
 
     print "$progname: check md5\n";

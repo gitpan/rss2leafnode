@@ -70,7 +70,6 @@ SIGNATURE
 t/MyTestHelpers.pm
 t/RSS2Leafnode.t
 t/test-weaken.t
-t/Test/Weaken/ExtraBits.pm
 xt/0-examples-xrefs.t
 xt/0-exe-shebang.t
 xt/0-file-is-part-of.t
