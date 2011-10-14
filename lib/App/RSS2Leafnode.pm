@@ -46,7 +46,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 59;
+  $VERSION = 60;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -1573,7 +1573,7 @@ sub item_to_face {
 #
 sub item_image_uwh {
   my ($self, $item) = @_;
-  ### item_image_uwh()
+  ### item_image_uwh() ...
 
   # normally only in channel, doesn't hurt to look in item the same as
   # <itunes:image> can be in the item
@@ -1668,7 +1668,14 @@ sub item_image_uwh {
                      && do {
                        $width = $elt->att('width');
                        $height = $elt->att('height');
-                       $elt->att('url') }));
+                       $elt->att('url') })
+                 # seen att('atom:url' rather than plain 'url' ...
+                 || (($elt = $where->first_child('media:thumbnail'))
+                     && is_non_empty ($elt->att('atom:url'))
+                     && do {
+                       $width = $elt->att('width');
+                       $height = $elt->att('height');
+                       $elt->att('atom:url') }));
       ### $url
       if ($url) {
         unless (Scalar::Util::looks_like_number($width) && $width > 0) {

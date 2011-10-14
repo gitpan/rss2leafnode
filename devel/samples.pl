@@ -50,7 +50,7 @@ my $r2l = App::RSS2Leafnode->new
   (
    # rss_charset_override => 'windows-1252',
    # rss_charset_override => 'iso-8859-1',
-   verbose => 3,
+   verbose => 2,
    msgidextra => 'Z',
 
    # render => 'lynx',
@@ -59,7 +59,7 @@ my $r2l = App::RSS2Leafnode->new
    rss_newest_only => 1,
    # rss_get_links => 1,
    # rss_get_comments => 1,
-   # get_icon => 1,
+    get_icon => 1,
   );
 
 my @uris;

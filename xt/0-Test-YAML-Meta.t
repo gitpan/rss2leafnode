@@ -30,10 +30,35 @@ unless (-e $meta_filename) {
   plan skip_all => "$meta_filename doesn't exist -- assume this is a working directory not a dist";
 }
 
-# Test::CPAN::Meta::YAML version 0.15 for upper case "optional_features" names
-#
-eval 'use Test::YAML::Meta 0.15; 1'
-  or plan skip_all => "due to Test::CPAN::Meta::YAML 0.15 not available -- $@";
+eval { require CPAN::Meta::Validator; 1 }
+  or plan skip_all => "due to CPAN::Meta::Validator not available -- $@";
 
-Test::CPAN::Meta::YAML::meta_yaml_ok();
+eval { require YAML; 1 }
+  or skip "due to YAML module not available -- $@", 1;
+
+plan tests => 1;
+
+my $struct = YAML::LoadFile ($meta_filename);
+
+my $cmv = CPAN::Meta::Validator->new($struct);
+ok ($cmv->is_valid);
+if (! $cmv->is_valid) {
+  diag "CPAN::Meta::Validator errors:";
+  foreach ($cmv->errors) { diag $_; }
+}
+
 exit 0;
+
+
+
+
+
+
+
+
+# # Test::CPAN::Meta::YAML version 0.15 for upper case "optional_features" names
+# #
+# eval 'use Test::YAML::Meta 0.15; 1'
+#   or plan skip_all => "due to Test::CPAN::Meta::YAML 0.15 not available -- $@";
+#
+# Test::CPAN::Meta::YAML::meta_yaml_ok();

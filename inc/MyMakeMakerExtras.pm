@@ -131,7 +131,8 @@ sub _meta_merge_shared_devel {
                        'warnings::unused' => 0);
   _meta_merge_req_add (_meta_merge_maximum_devel($opts),
                        # used a lot
-                       'Smart::Comments' => 0);
+                       'Smart::Comments' => 0,
+                       'Devel::Comments' => 0);
   if (-e 'inc/my_pod2html') {
     if (_min_perl_version_lt ($opts, 5.009003)) {
       _meta_merge_req_add (_meta_merge_maximum_devel($opts),

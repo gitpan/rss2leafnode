@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 60, October 2011
+    - fix for media:thumbnail icon
+
 Version 59, September 2011
     - cope with "Content-Encoding: bzip2" from lighttpd
 
