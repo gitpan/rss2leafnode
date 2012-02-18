@@ -1,6 +1,6 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
-# Copyright 2007, 2008, 2009, 2010, 2011 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012 Kevin Ryde
 
 # This file is part of RSS2Leafnode.
 #
@@ -92,6 +92,7 @@ MyMakeMakerExtras::WriteMakefile
    META_MERGE =>
    { resources =>
      { homepage => 'http://user42.tuxfamily.org/rss2leafnode/index.html',
+       license  => 'http://www.gnu.org/licenses/gpl.html',
      },
      optional_features =>
      { maximum_interoperation =>
@@ -165,37 +166,37 @@ MyMakeMakerExtras::WriteMakefile
                        'URI::Title' => 0,
                      },
        },
-       maximum_devel =>
-       { description => 'Stuff used variously for development.',
-         requires => { 'XML::Atom' => 0,
-                       'XML::Atom::Feed' => 0,
-                       'XML::RSS' => 0,
-                       'XML::RSS::LibXML' => 0,
-                       'XML::LibXML' => 0,
-                       'XML::Liberal' => 0,
-                       'Perl6::Slurp' => 0,
-                       'URI::file' => 0, # part of URI
-                       'URI::Title' => 0,
-                       'HTML::TreeBuilder' => 0,
-                       'HTML::FormatText' => 0,
-                       'HTML::Entities' => 0,
-                       'HTML::Lint' => 0,
-                       'DateTime' => 0,
-                       'DateTime::Format::Mail' => 0,
-                       'IO::Socket::SSL' => 0,
-                       'Hook::LexWrap' => 0,
-                       'Module::Find' => 0,
-                       'File::Slurp' => 0,
-                       'Gtk2' => 0,
-                       'HTML::FormatText::WithLinks' => 0,
-                       'Image::ExifTool' => 0,
-                       # maybe 1.881 for regexp fixes
-                       'Email::Address' => '1.881',
-                     },
-       },
      },
    },
   );
+
+# maximum_devel =>
+# { description => 'Stuff used variously for development.',
+#   requires => { 'XML::Atom' => 0,
+#                 'XML::Atom::Feed' => 0,
+#                 'XML::RSS' => 0,
+#                 'XML::RSS::LibXML' => 0,
+#                 'XML::LibXML' => 0,
+#                 'XML::Liberal' => 0,
+#                 'Perl6::Slurp' => 0,
+#                 'URI::file' => 0, # part of URI
+#                 'URI::Title' => 0,
+#                 'HTML::TreeBuilder' => 0,
+#                 'HTML::FormatText' => 0,
+#                 'HTML::Entities' => 0,
+#                 'HTML::Lint' => 0,
+#                 'DateTime' => 0,
+#                 'DateTime::Format::Mail' => 0,
+#                 'IO::Socket::SSL' => 0,
+#                 'Hook::LexWrap' => 0,
+#                 'Module::Find' => 0,
+#                 'File::Slurp' => 0,
+#                 'Gtk2' => 0,
+#                 'HTML::FormatText::WithLinks' => 0,
+#                 'Image::ExifTool' => 0,
+#                 # maybe 1.881 for regexp fixes
+#                 'Email::Address' => '1.881',
+#               },
 
 
 #------------------------------------------------------------------------------

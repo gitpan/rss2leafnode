@@ -1,4 +1,4 @@
-# Copyright 2007, 2008, 2010, 2011 Kevin Ryde
+# Copyright 2007, 2008, 2010, 2011, 2012 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -20,7 +20,7 @@ use strict;
 use warnings;
 use base 'News::Rnews';
 
-our $VERSION = 60;
+our $VERSION = 61;
 
 
 sub new {

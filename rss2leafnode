@@ -2,7 +2,7 @@
 
 # RSS2Leafnode -- copy RSS feeds to a local news spool
 
-# Copyright 2007, 2008, 2009, 2010, 2011 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 60;
+our $VERSION = 61;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -58,8 +58,8 @@ rss2leafnode -- post RSS or Atom feeds and web pages to newsgroups
 =head1 DESCRIPTION
 
 RSS2Leafnode downloads RSS or Atom feeds and posts items as messages to an
-NNTP news server.  It's designed to make text items available in local
-newsgroups, not propagating anywhere (though that's not enforced).
+NNTP news server.  It's designed to make text items available for reading in
+local newsgroups, not propagating anywhere (though that's not enforced).
 
 Desired feeds are given in a configuration file F<.rss2leafnode.conf> in
 your home directory.  For example to put a feed in group "r2l.perl"
@@ -68,25 +68,25 @@ your home directory.  For example to put a feed in group "r2l.perl"
 
 This is actually Perl code, so comment lines begin with C<#> and you can
 write conditionals etc (see L<perlintro> or L<perlsyn>).  The target
-newsgroup must exist (see L</Leafnode> below).  With that done, run
-C<rss2leafnode> as
+newsgroup must exist (see for example L</Leafnode> below).  With that done,
+run C<rss2leafnode> as
 
     rss2leafnode
 
 You can automate with C<cron> or similar.  If you do it under user C<news>
 it could be just after a normal news fetch.  The C<--config> option below
-lets you run different config files at different times, etc.  See
-F<examples/rss2leafnode.conf> in the RSS2Leafnode sources for a complete
-sample.
+lets you run different config files at different times, etc (which code in
+the conf file could do too).  See F<examples/rss2leafnode.conf> in the
+RSS2Leafnode sources for a complete sample.
 
 Messages are added to the news spool using NNTP "POST" commands.  When a
 feed is re-downloaded any items previously added are not repeated.  Multiple
-feeds can be put into a single newsgroup.  Feeds are inserted as they're
-downloaded, so the first articles appear while the rest are still in
+feeds can be put in a single newsgroup.  Each feed is posted as it's
+downloaded, so the first feed articles appear while other feeds are still in
 progress.
 
-The news server is per the L<Net::NNTP> defaults, or the target newsgroup
-can be a C<news:> or C<nntp:> URL of a server on a different host or port
+The target news server is per the L<Net::NNTP> defaults, or a newsgroup can
+be a C<news:> or C<nntp:> URL of a server on a different host or port
 number, eg. for a personal server.
 
     fetch_rss('news://somehost.mydomain.org:8119/r2l.weather',
@@ -110,13 +110,13 @@ your newsreader.
 
 The message "Subject" is the HTML C<< <title> >>, or something better from
 C<URI::Title> or C<Image::ExifTool> if you've got those.  C<URI::Title> has
-special cases for a few unhelpful sites and C<Image::ExifTool> can get a PNG
-image title.
+special cases for a couple of unhelpful sites and C<Image::ExifTool> can get
+a PNG image title.
 
 Since the conf file is Perl code you can write something to construct a URL
 with a date etc if there isn't a single updating page.  It might be worth
-fetching the latest and previous if you're not certain when the new one
-becomes available.
+attempting a couple of dates if you're not certain when the new one becomes
+available.
 
 =head2 Re-Downloading
 
@@ -163,8 +163,8 @@ groups in it with command
     snnewgroup r2l.something
 
 When running the C<snntpd> daemon from C<inetd> or similar don't forget a
-logger program argument on the command line as shown in F<INSTALL.run>,
-otherwise log messages go to the client connection and will upset most
+logger program argument on the command line as described its F<INSTALL.run>
+file, otherwise log messages go to the client connection and will upset most
 client programs, including C<Net::NNTP> used by C<rss2leafnode>.
 
 =head2 Copyright
@@ -173,7 +173,7 @@ It's your responsibility to check the terms of use for any feeds or web
 pages you download with C<rss2leafnode>.  Pay particular attention if
 propagating or re-transmitting resulting messages.
 
-Copyright or license statements in a feed are included in messages as
+Copyright or license statements in a feed are included in the messages as
 C<X-Copyright> headers.  Unless the content is in the public domain such
 copyright notices should be retained.
 
@@ -318,6 +318,21 @@ For plain RSS and Atom feeds an image is normally a per-channel attribute so
 it's the same for all articles from the feed.  An C<itunes:image> or
 C<activity:actor> can be per-item and is used if present.
 
+=item $rss_newest_only (default 0 for all)
+
+=item C<fetch_rss ("group", "url", rss_newest_only =E<gt> $count)>
+
+Take only newest items from an RSS feed.  The default is 0 which means take
+all items from the feed.  For example to get the newest 10 items,
+
+  fetch_rss('r2l.test',
+            'http://www.cpantesters.org/author/K/KRYDE-nopass.rss',
+            rss_newest_only => 10);
+
+This can be good if you're only interested in the most recent item from a
+status or weather feed, or if you only want to get a few items as a random
+taste of a feed.
+
 =back
 
 =head2 Obscure Options
@@ -378,7 +393,7 @@ this.
 Variables take effect from the point they're set, through to the end of the
 file, or until a new setting. 
 
-Options like C<render =E<gt> 'lynx'> to a particular C<fetch_rss()> or
+Options like C<render =E<gt> 'lynx'> in a particular C<fetch_rss()> or
 C<fetch_html()> override the global settings, just for that call.
 
 The Perl C<local> feature and a braces block can confine a variable setting
@@ -398,15 +413,15 @@ mode setup in the file
 
     # -*- mode: perl-mode -*-
 
-Or and C<auto-mode-alist> setup in your F<.emacs>,
+Or an C<auto-mode-alist> setup in your F<.emacs>,
 
     (add-to-list 'auto-mode-alist
                  '("/\\.rss2leafnode\\.conf\\'" . perl-mode))
 
-The Debian package of C<rss2leafnode> comes with that setup, plus a
+The Debian package of C<rss2leafnode> comes with this setup, plus a
 completions ignore for the C<.rss2leafnode.status> file.  (See
 F</etc/emacs/site-start.d/50rss2leafnode.el> in the package, or
-F<debian/emacsen-startup> in the sources.)
+F<debian/emacsen-startup> in the rss2leafnode sources.)
 
 =head1 OTHER DETAILS
 
@@ -454,6 +469,10 @@ feed hasn't been detected as RSS it may show up as plain "Replies" instead
 of "RSS Replies" (and in that case won't be downloaded by
 <$rss_get_comments>).
 
+C<< <media:group> >> links are shown as blocks of links.  Not sure about the
+quality of the formatting yet, and they're not downloaded by
+C<rss_get_links>.
+
 Common Alerts Protocol (CAP) fields for weather alerts etc are shown if
 present (eg. from the US NOAA).  This can have more detail than just the
 text.  Pseudo-link footnotes are shown for,
@@ -464,9 +483,9 @@ text.  Pseudo-link footnotes are shown for,
     <statusnet:origin>      possibly with URL target too
     <media:credit>
 
-Unrecognised item fields are shown in XML at the end of the message so as
-not to drop information, and to perhaps suggest extra things RSS2Leafnode
-might present or interpret.
+Unrecognised item fields are shown in XML at the end of the message.  This
+is a bit technical but tries not to drop information, and might suggest
+extra things RSS2Leafnode could present or interpret.
 
 An attempt is made to repair bad XML from a feed with C<XML::Liberal> if you
 have that module.  It uses C<XML::LibXML> and the C<libxml> library and
@@ -724,11 +743,13 @@ Letting the news server track articles keeps down the amount of state
 C<rss2leafnode> must maintain and means multiple users can insert a feed
 without duplication.  But perhaps long running or mothballed feeds will need
 further repost protection.  Maybe an item age limit would be good both for
-this and for seeing only recent posts etc.
+this and for seeing only recent posts etc.  Perhaps a date or period in
+C<rss_newest_only>.
 
 No retries are attempted if a news server disconnects, at least not unless
 posting to a different news server then coming back.  Not sure if that's
-good or bad, but repeated error messages for a disconnect are unattractive.
+good or bad, but the current repeated error messages for a disconnect are
+unattractive.
 
 Some pre-releases of leafnode 2 have trouble with posts to local newsgroups
 while a C<fetchnews> run is in progress.  The local articles don't show up
@@ -737,16 +758,23 @@ C<rnews> inject?
 
 No attention is paid to C<< <atom:updated> >> or other changes in an item.
 Should an updated item be re-posted?  Is the C<Supersedes:> header better,
-replacing the article?  Something allowing readers to see or not see updates
-according to user preference would be good.  Currently the item is reposted
-if C<< <atom:id> >> changes or if there's no C<id> and the content changes
-enough to make a new MD5 hash.  But C<id> is supposed to stay the same for
-an update is it?
+to replace the article?  Something allowing readers to see or not see
+updates according to user preference might be good.  Currently the item is
+reposted if C<< <atom:id> >> changes or if there's no C<id> and the content
+changes enough to make a new MD5 hash.  But C<id> is supposed to stay the
+same for an update is it?
 
 The way C<$rss_get_links> only gets the immediate link target could perhaps
 be extended to fetch images, frame sub-parts, etc of a HTML page and include
-them in the message as RFC 2557 style "MHTML".  Do any news readers actually
-display that though?
+them in the message as RFC 2557 style "MHTML".  But do any news readers
+actually display that though?
+
+The entire XML feed is read into memory, which might be a touch bloated for
+large feeds.  Of course RSS was conceived as a "site summary", but ends up
+used for bigger content too.  Twig has a partial-tree parse for one item at
+a time, though applying the C<rss_newest_only> option would require a first
+pass to choose items.  A progressive parse could help show at least the
+first few items if there's a syntax error or truncation part-way through.
 
 =head1 ENVIRONMENT VARIABLES
 
@@ -799,7 +827,7 @@ L<http://user42.tuxfamily.org/rss2leafnode/index.html>
 
 =head1 LICENSE
 
-Copyright 2007, 2008, 2009, 2010, 2011 Kevin Ryde
+Copyright 2007, 2008, 2009, 2010, 2011, 2012 Kevin Ryde
 
 RSS2Leafnode is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free

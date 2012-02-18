@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2012 Kevin Ryde
 
 # 0-file-is-part-of.t is shared by several distributions.
 #
@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License along
 # with this file.  If not, see <http://www.gnu.org/licenses/>.
 
-BEGIN { require 5 }
+require 5;
 use strict;
 use Test::More tests => 1;
 

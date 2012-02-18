@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               rss2leafnode
-version:            60
+version:            61
 abstract:           Download RSS feeds or web pages to an NNTP news server.
 author:
     - Kevin Ryde <user42@zip.com.au>
@@ -50,7 +50,7 @@ no_index:
         - xt
         - devel
         - examples
-generated_by:       ExtUtils::MakeMaker version 6.56
+generated_by:       ExtUtils::MakeMaker version 6.57_05
 meta-spec:
     url:      http://module-build.sourceforge.net/META-spec-v1.4.html
     version:  1.4
@@ -63,44 +63,6 @@ optional_features:
         description:   A better Subject for fetch_html() messages using URI::Title.
         requires:
             URI::Title:  0
-    maximum_devel:
-        description:  Stuff used variously for development.
-        requires:
-            DateTime:             0
-            DateTime::Format::Mail:  0
-            Devel::Comments:      0
-            Email::Address:       1.881
-            File::Slurp:          0
-            Gtk2:                 0
-            Hook::LexWrap:        0
-            HTML::Entities:       0
-            HTML::FormatText:     0
-            HTML::FormatText::WithLinks:  0
-            HTML::Lint:           0
-            HTML::TreeBuilder:    0
-            Image::ExifTool:      0
-            IO::Socket::SSL:      0
-            Module::Find:         0
-            Parse::CPAN::Meta:    0
-            Perl6::Slurp:         0
-            Smart::Comments:      0
-            Test::DistManifest:   0
-            Test::Pod:            1.00
-            Test::Synopsis:       0
-            Test::YAML::Meta:     0.15
-            URI::file:            0
-            URI::Title:           0
-            warnings::unused:     0
-            XML::Atom:            0
-            XML::Atom::Feed:      0
-            XML::Liberal:         0
-            XML::LibXML:          0
-            XML::RSS:             0
-            XML::RSS::LibXML:     0
-            YAML:                 0
-            YAML::Syck:           0
-            YAML::Tiny:           0
-            YAML::XS:             0
     maximum_interoperation:
         description:  All the optional and possible things RSS2Leafnode can use.
         requires:

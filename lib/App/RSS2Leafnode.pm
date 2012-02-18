@@ -1,4 +1,4 @@
-# Copyright 2007, 2008, 2009, 2010, 2011 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -42,11 +42,11 @@ BEGIN {
 }
 
 # uncomment this to run the ### lines
-#use Devel::Comments;
+#use Smart::Comments;
 
 our $VERSION;
 BEGIN {
-  $VERSION = 60;
+  $VERSION = 61;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -228,15 +228,6 @@ sub str_count_lines {
   return scalar($str =~ tr/\n//) + (length($str) && substr($str,-1) ne "\n");
 }
 
-use constant::defer NUMBER_FORMAT => sub {
-  require Number::Format;
-  Number::Format->VERSION(1.5); # for format_bytes() options params
-  return Number::Format->new
-    (-kilo_suffix => __p('number-format-kilobytes','K'),
-     -mega_suffix => __p('number-format-megabytes','M'),
-     -giga_suffix => __p('number-format-gigabytes','G'));
-};
-
 sub File_Temp_DEBUG_saver {
   my ($self, $newval) = @_;
   require Scope::Guard;
@@ -262,6 +253,27 @@ sub homedir {
   # call each time just in case playing tricks with $ENV{HOME} in conf file
   return File::HomeDir->my_home
     // croak 'File::HomeDir says you have no home directory';
+}
+
+#------------------------------------------------------------------------------
+# Number::Format for sizes in bytes
+
+use constant::defer NUMBER_FORMAT => sub {
+  require Number::Format;
+  Number::Format->VERSION(1.5); # for format_bytes() options params
+  return Number::Format->new
+    (-kilo_suffix => __p('number-format-kilobytes','K'),
+     -mega_suffix => __p('number-format-megabytes','M'),
+     -giga_suffix => __p('number-format-gigabytes','G'));
+};
+
+sub format_size_in_bytes {
+  my ($self, $length) = @_;
+  if ($length >= 2000) {
+    return $self->NUMBER_FORMAT()->format_bytes ($length, precision => 1);
+  } else {
+    return __x('{size} bytes', size => $length);
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -537,6 +549,10 @@ $known{'/channel/item/dc:valid'} = undef;
            /channel/item/source
 
            /channel/item/twitter:source
+
+
+           --google-documents-stuff
+           /channel/item/gd:extendedProperty
         )} = ();
 
 # --weather
@@ -1916,6 +1932,34 @@ sub imagemagick_from_data {
 }
 
 
+#------------------------------------------------------------------------------
+# XML::Liberal
+
+use constant::defer have_xml_liberal => sub {
+  my ($self) = @_;
+  if (eval { require XML::Liberal; 1 }) {
+    return 1;
+  }
+  $self->verbose (3, __x('XML::Liberal not available: {error}', error => $@));
+  return 0;
+};
+
+# try to correct $xmlstr
+# if successful return a new xml string, otherwise return undef
+sub xml_liberal_correction {
+  my ($self, $xmlstr) = @_;
+  $self->have_xml_liberal or return;
+
+  ### try XML-Liberal ...
+  my $liberal = XML::Liberal->new('LibXML');
+  if (my $doc = eval { $liberal->parse_string($xmlstr) }) {
+    return $doc->toString;
+  } else {
+    $self->verbose (2, __x('XML::Liberal parse error: {error}', error => $@));
+    return undef;
+  }
+}
+
 
 #------------------------------------------------------------------------------
 # error as news message
@@ -2166,6 +2210,8 @@ sub item_to_links {
   # <enclosure> without a length.  Would probably skip medium="image".
   # Can have a <media:title> sub-element.
   #
+  # ENHANCE-ME: <media:content> can have a file size and duration.
+  #
   # FIXME: <media:group> is a collection of <media:content> in different
   # formats etc.  Have seen this from archive.org just duplicating
   # <enclosure>.
@@ -2345,9 +2391,7 @@ sub item_to_links {
     # links
     if (defined (my $length = ($elt->att('atom:length')
                                // $elt->att('length')))) {
-      if ($length >= 2000) {
-        push @paren, NUMBER_FORMAT()->format_bytes ($length, precision => 1);
-      }
+      push @paren, $self->format_size_in_bytes($length);
     }
     # <itunes:duration> applies to <enclosure>.  Just a number means
     # seconds, otherwise MM:SS or HH:MM:SS.
@@ -3013,7 +3057,7 @@ my $map_xmlns
 
 sub twig_parse {
   my ($self, $xml) = @_;
-  ### twig_parse()
+  ### twig_parse() ...
 
   # default "discard_spaces" chucks leading and trailing space on content,
   # which is usually a good thing
@@ -3057,15 +3101,13 @@ sub twig_parse {
 
   # Or attempt to put it through XML::Liberal, if available.
   #
-  if ($err && eval { require XML::Liberal; 1 }) {
-    ### try XML-Liberal
-    my $liberal = XML::Liberal->new('LibXML');
-    if (my $doc = eval { $liberal->parse_string($xml) }) {
-      my $liberal_xml = $doc->toString;
-
-      ### reparse with twig
+  if ($err) {
+    my $liberal_xml = $self->xml_liberal_correction($xml);
+    if (defined $liberal_xml) {
+      ### reparse xml liberal fixup with twig ...
       $twig = XML::Twig->new (map_xmlns => $map_xmlns);
       if ($twig->safe_parse ($liberal_xml)) {
+        ### now ok ...
         $err = Text::Trim::trim($err);
         $twig->root->set_att('rss2leafnode:fixup',
                              "XML::Liberal fixed: {error}",
@@ -3097,7 +3139,7 @@ sub twig_parse {
   my $root = $twig->root;
   App::RSS2Leafnode::XML::Twig::Other::elt_tree_strip_prefix ($root, 'atom');
   App::RSS2Leafnode::XML::Twig::Other::elt_tree_strip_prefix ($root, 'rss');
-  #
+
   # somehow map_xmlns mangles default attributes like "decimals=...", prefer
   # to see them without rss: or atom: -- maybe
   #   foreach my $child ($root->descendants_or_self) {
@@ -3646,7 +3688,9 @@ sub item_unknowns {
   my ($self, $item, $want_html) = @_;
 
   my $xml = '';
-  foreach my $elt ($item->children) {
+  foreach my $elt (map {$_->tag eq 'media:group' # descend into media:group
+                          ? $_->children : $_}
+                   $item->children) {
     next if $elt->tag =~ /^#/;  # text
     next if App::RSS2Leafnode::XML::Twig::Other::elt_is_empty($elt);
     my $path = $elt->path;
@@ -3656,9 +3700,10 @@ sub item_unknowns {
     next if $path =~ m{/xhtml};
     next if $path =~ m{^/channel/item/(description|content:encoded)/};
     next if exists $known{$path};
+    ### unknown path: $path
 
+    require Text::Wrap;
     my $part = do {
-      require Text::Wrap;
       local $Text::Wrap::columns = $self->{'render_width'} + 1 + 4;
       local $Text::Wrap::unexpand = 0;  # no tabs in output
       $elt->sprint
@@ -3674,9 +3719,100 @@ sub item_unknowns {
 
   if ($want_html) {
     return "\n<p>\n" . __('Further feed XML:') . "<br>\n"
-        . "<pre>$Entitize{$xml}</pre>\n</p>\n";
+      . "<pre>$Entitize{$xml}</pre>\n</p>\n";
   } else {
     return "\n" . __('Further feed XML:') . "\n" . $xml;
+  }
+}
+
+@known{qw(/channel/item/media:group/media:title
+          /channel/item/media:group/media:description
+          /channel/item/media:group/media:credit
+          /channel/item/media:group/media:player
+          /channel/item/media:group/media:thumbnail
+          /channel/item/media:group/media:content
+          /channel/item/media:group/media:copyright
+
+          --ENHANCE-ME--nothing-for-these-yet
+          /channel/item/media:group/media:category
+          /channel/item/media:group/media:rating
+        )} = (); # hash slice
+
+sub media_group_to_html {
+  my ($self, $group) = @_;
+  ### media_group_to_html(): "$group"
+
+  my $ret = "<p>\n";
+  my @lines;
+
+  foreach my $elt ($group->children('media:title'),
+                   $group->children('media:description')) {
+    push @lines, elt_to_html($elt);
+  }
+
+  foreach my $elt ($group->children('media:credit')) {
+    my $html = elt_to_html($elt);
+    if (defined (my $role = non_empty($elt->att('role')))) {
+      $html .= " ($Entitize{$role})";
+    }
+    push @lines, $html;
+  }
+  foreach my $elt ($group->children('media:player'),
+                   $group->children('media:thumbnail'),
+                   $group->children('media:content')) {
+    my $url = $elt->att('url') // next;
+    my $abs_url = App::RSS2Leafnode::XML::Twig::Other::elt_xml_based_uri
+      ($group, $url);
+
+    my $html = "<a href=\"$Entitize{$abs_url}\"";
+    if (defined (my $type = non_empty($elt->att('type')))) {
+      $html .= " type=\"$Entitize{$type}\"";
+    }
+    if (defined (my $lang = non_empty($elt->att('lang')))) {
+      $html .= " hreflang=\"$Entitize{$lang}\"";
+    }
+    $html .= ">$Entitize{$url}$url</a>";
+    {
+      my @paren;
+      if (defined (my $size = non_empty($elt->att('fileSize')))) {
+        push @paren, $self->format_size_in_bytes($size);
+      }
+      if (defined (my $duration = non_empty($elt->att('duration')))) {
+        if ($duration !~ /:/) {
+          $duration = __px('s-for-seconds', '{duration}s',
+                           duration => $duration);
+        }
+        push @paren, $duration;
+      }
+      if (@paren) {
+        $html .= $Entitize{' (' . join(', ',@paren). ')'};
+      }
+    }
+    $html .= "\n";
+    push @lines, $html;
+  }
+
+  foreach my $elt ($group->children('media:copyright')) {
+    push @lines, "Copyright: ".elt_to_html($elt);
+  }
+
+  ### total lines: scalar(@lines)
+  return "<p>\n" . join("<br>\n",@lines) . "\n</p>\n";
+}
+
+sub elt_to_html {
+  my ($elt) = @_;
+  defined $elt or return;
+  
+  my $type = elt_content_type ($elt);
+  if ($type eq 'xhtml') {
+    return elt_xhtml_to_html($elt);
+  }
+  my $str = elt_subtext($elt);
+  if ($type eq 'html') {
+    return $str;
+  } else {
+    return $Entitize{$str};
   }
 }
 
@@ -3837,8 +3973,43 @@ sub fetch_rss_process_one_item {
                      ? links_to_html(@links)
                      : links_to_text(@links));
     $links_str .= $self->item_common_alert_protocol($item, $links_want_html);
-    $links_str .= $self->item_unknowns($item, $links_want_html);
     my @parts;
+
+    # <media:group> elements as either a html part or a
+    {
+      my $content = join ("\n",
+                          map {$self->media_group_to_html($_)}
+                          $item->children('media:group'));
+      ($content, my $charset) = html_wrap_fragment ($item, $content);
+      my $content_type = 'text/html';
+      ($content, $content_type, $charset, my $rendered)
+        = $self->render_maybe ($content, $content_type, $charset,
+                               $body_base_url);
+      if ($content_type eq 'text/plain') {
+        $links_str .= $content;
+      } else {
+        $content = Encode::encode ($charset, $content);
+        push @parts, $self->mime_build ({}, # headers
+                                        Type    => $content_type,
+                                        Charset => $charset,
+                                        Data    => $content);
+      }
+    }
+
+    if (is_non_empty(my $content
+                     = $self->item_unknowns($item, $links_want_html))) {
+      my $content_type = ($links_want_html ? 'text/html' : 'text/plain');
+      if (@parts) {
+        my $charset = (is_ascii($content) ? 'us-ascii' : 'utf-8');
+        $content = Encode::encode ($charset, $content);
+        push @parts, $self->mime_build ({}, # headers
+                                        Type    => $content_type,
+                                        Charset => $charset,
+                                        Data    => $content);
+      } else {
+        $links_str .= $content;
+      }
+    }
 
     if ($self->{'rss_get_links'}) {
       foreach my $l (@links) {
@@ -4214,7 +4385,7 @@ L<http://user42.tuxfamily.org/rss2leafnode/index.html>
 
 =head1 LICENSE
 
-Copyright 2007, 2008, 2009, 2010, 2011 Kevin Ryde
+Copyright 2007, 2008, 2009, 2010, 2011, 2012 Kevin Ryde
 
 RSS2Leafnode is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free

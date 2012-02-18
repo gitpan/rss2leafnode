@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2008, 2009, 2010, 2011 Kevin Ryde
+# Copyright 2008, 2009, 2010, 2011, 2012 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -50,16 +50,16 @@ my $r2l = App::RSS2Leafnode->new
   (
    # rss_charset_override => 'windows-1252',
    # rss_charset_override => 'iso-8859-1',
-   verbose => 2,
-   msgidextra => 'Z',
+   verbose => 1,
+   msgidextra => 'Y',
 
    # render => 'lynx',
    render_width => 50,
 
-   rss_newest_only => 1,
+   rss_newest_only => 2,
    # rss_get_links => 1,
    # rss_get_comments => 1,
-    get_icon => 1,
+   get_icon => 1,
   );
 
 my @uris;

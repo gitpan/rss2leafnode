@@ -43,6 +43,7 @@ devel/samples.pl
 devel/single-entry.yaml
 devel/tags.pl
 devel/top-ref.pl
+devel/tree-parse.pl
 devel/twig-base.pl
 devel/twig-map-default.pl
 devel/unused.pl
@@ -80,4 +81,12 @@ xt/0-Test-DistManifest.t
 xt/0-Test-Pod.t
 xt/0-Test-Synopsis.t
 xt/0-Test-YAML-Meta.t
+xtools/my-check-copyright-years.sh
+xtools/my-check-spelling.sh
+xtools/my-deb.sh
+xtools/my-diff-prev.sh
+xtools/my-kwalitee.sh
+xtools/my-manifest.sh
+xtools/my-tags.sh
+xtools/my-wunused.sh
 META.yml                                 Module meta-data (added by MakeMaker)
