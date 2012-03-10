@@ -87,6 +87,7 @@ xtools/my-deb.sh
 xtools/my-diff-prev.sh
 xtools/my-kwalitee.sh
 xtools/my-manifest.sh
+xtools/my-pc.sh
 xtools/my-tags.sh
 xtools/my-wunused.sh
 META.yml                                 Module meta-data (added by MakeMaker)

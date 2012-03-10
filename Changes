@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 62, March 2012
+    - show <author><gd:image> as Face
+
 Version 61, February 2012
     - show media:group links
     - document the rss_newest_only option

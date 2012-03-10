@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 61;
+our $VERSION = 62;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -600,6 +600,11 @@ All of
 The sub-category system of C<< <itunes:category> >> is not currently put
 through.
 
+Some blog feeds seem to give a big set of categories, an aggregate of
+everything in the blog or some such, making an unattractively long
+C<Keywords:> header.  It's kept in full for the sake of completeness, but if
+viewing it in a newsreader then some sort of line limit might be wanted.
+
 =item In-Reply-To:
 
 C<< <thr:in-reply-to> >> elements (per RFC 4685) turned into Message-IDs the
@@ -669,14 +674,15 @@ element
      <statusnet:postIcon>
      <media:thumbnail>
      <activity:actor><link rel="avatar">
+     <author><gd:image>
      HTML favicon      for fetch_html()
 
 Gnus and perhaps other newsreaders can display C<Face:>, see
 L<http://quimby.gnus.org/circus/face>.
 
 It'd be possible to generate an C<X-Face:> as well or instead, but it's
-black and white and a conversion from a colour image out of the feeds is
-unlikely to look good most of the time.
+black and white and converting a colour image from the feeds is unlikely to
+look good.
 
 =item List-Post:
 

@@ -46,7 +46,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 61;
+  $VERSION = 62;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -1591,10 +1591,8 @@ sub item_image_uwh {
   my ($self, $item) = @_;
   ### item_image_uwh() ...
 
-  # normally only in channel, doesn't hurt to look in item the same as
-  # <itunes:image> can be in the item
-  #
-  foreach my $where ($item, item_to_channel($item)) {
+  foreach my $where ($item,
+                     item_to_channel($item)) {
     ### image text: $where->first_child_text('image')
 
     # identi.ca
@@ -1712,6 +1710,21 @@ sub item_image_uwh {
       if (is_non_empty (my $url = $elt->att('rdf:resource'))) {
         return (App::RSS2Leafnode::XML::Twig::Other::elt_xml_based_uri ($elt, $url),
                 0, 0);  # unknown size
+      }
+    }
+
+    # <author><gd:image ...>
+    # eg. from blogger.com
+    # <gd:image rel='http://schemas.google.com/g/2005#thumbnail' width='16' height='16' src='http://img2.blogblog.com/img/b16-rounded.gif'/>
+    {
+      my $elt;
+      if (($elt = $where->first_child('author'))
+          && ($elt = $elt->first_child('gd:image'))
+          && (is_non_empty (my $url = $elt->att('src') // $elt->att('atom:src')))) {
+        ### $url
+        return (App::RSS2Leafnode::XML::Twig::Other::elt_xml_based_uri ($elt, $url),
+                $elt->att('width') || $elt->att('atom:width') || 0,
+                $elt->att('height') || $elt->att('atom:height') || 0);
       }
     }
   }

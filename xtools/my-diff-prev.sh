@@ -36,7 +36,7 @@ if test -z "$VERSION"; then
 fi
 
 case $VERSION in
-  3.*) PREV_VERSION=3.008000 ;;
+  3.*) PREV_VERSION=3.012000 ;;
   *)   PREV_VERSION="`expr $VERSION - 1`" ;;
 esac
 if test -z "$VERSION"; then
