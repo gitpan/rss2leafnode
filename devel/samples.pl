@@ -50,7 +50,7 @@ my $r2l = App::RSS2Leafnode->new
   (
    # rss_charset_override => 'windows-1252',
    # rss_charset_override => 'iso-8859-1',
-   verbose => 1,
+   verbose => 3,
    msgidextra => 'Y',
 
    # render => 'lynx',

@@ -75,7 +75,7 @@ sub DEBUG { 0 }
 }
 
 sub diag {
-  if (eval { Test::More->can('diag') }) {
+  if (do { local $@; eval { Test::More->can('diag') }}) {
     Test::More::diag (@_);
   } else {
     my $msg = join('', map {defined($_)?$_:'[undef]'} @_)."\n";

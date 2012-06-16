@@ -46,7 +46,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 62;
+  $VERSION = 63;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -403,9 +403,6 @@ sub ua {
     Scalar::Util::weaken (my $weak_self = $self);
     $ua->add_handler (request_send => \&lwp_request_send__verbose);
     $ua->add_handler (response_done => sub {
-                        lwp_response_done__bzip2_mangle ($weak_self, @_)
-                      });
-    $ua->add_handler (response_done => sub {
                         lwp_response_done__check_md5 ($weak_self, @_);
                       });
 
@@ -427,20 +424,6 @@ sub lwp_request_send__verbose {
   my $self = $ua->{(__PACKAGE__)};
   $self->verbose (2, "request_send:", $req->dump, "\n"); # extra newline
   return;  # continue processing
-}
-
-
-sub lwp_response_done__bzip2_mangle {
-  my ($self, $resp, $ua, $h) = @_;
-  $self || return;
-  # workaround "bzip2" back from lighttpd
-
-  ### lwp_response_done__bzip2_mangle() ...
-  if (($resp->content_encoding || '') eq 'bzip2') {
-    $self->verbose
-      (2, "Mangle Content-Encoding: bzip2 to x-bzip2 for decode");
-    $resp->header('Content-Encoding','x-bzip2');
-  }
 }
 
 sub lwp_response_done__check_md5 {

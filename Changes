@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 63, June 2012
+    - HTTP::Message 6.03 does "bzip2" vs "x-bzip2" itself now
+
 Version 62, March 2012
     - show <author><gd:image> as Face
 

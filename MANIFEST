@@ -55,7 +55,6 @@ devel/xml.pl
 devel/yahoolinks.yaml
 examples/rss2leafnode.conf
 inc/my_pod2html
-inc/MyMakeMakerExtras.pm
 inc/MyMakeMakerGettext.pm
 lib/App/RSS2Leafnode.pm
 lib/App/RSS2Leafnode/Conf.pm

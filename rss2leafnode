@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 62;
+our $VERSION = 63;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -75,19 +75,19 @@ run C<rss2leafnode> as
 
 You can automate with C<cron> or similar.  If you do it under user C<news>
 it could be just after a normal news fetch.  The C<--config> option below
-lets you run different config files at different times, etc (which code in
-the conf file could do too).  See F<examples/rss2leafnode.conf> in the
+lets you run different config files at different times, etc.  Code in the
+conf file could do too.  See F<examples/rss2leafnode.conf> in the
 RSS2Leafnode sources for a complete sample.
 
 Messages are added to the news spool using NNTP "POST" commands.  When a
 feed is re-downloaded any items previously added are not repeated.  Multiple
 feeds can be put in a single newsgroup.  Each feed is posted as it's
-downloaded, so the first feed articles appear while other feeds are still in
-progress.
+downloaded, so the first feed's articles appear while other feeds are yet to
+be downloaded.
 
-The target news server is per the L<Net::NNTP> defaults, or a newsgroup can
-be a C<news:> or C<nntp:> URL of a server on a different host or port
-number, eg. for a personal server.
+The target news server follows the L<Net::NNTP> defaults, or the newsgroup
+name can be a C<news:> or C<nntp:> URL of a server on a different host or
+port number.  For example a personal server on a high port number,
 
     fetch_rss('news://somehost.mydomain.org:8119/r2l.weather',
               'http://feeds.feedburner.com/PTCC');
@@ -98,25 +98,25 @@ Plain web pages can be downloaded too.  Each time the page changes a new
 article is injected.  This is good for a latest news or status page.  For
 example
 
-    fetch_html ('r2l.music,
+    fetch_html ('r2l.music',
       'http://www.abc.net.au/rage/playlist/print/saturday_print.htm');
 
-The target can be an image or similar directly too, it's simply put into a
+The target can be an image or similar directly too.  It's simply put in a
 news message with its indicated MIME type.  How well it displays depends on
 your newsreader.
 
     fetch_html('r2l.weather',
                'http://www.bom.gov.au/difacs/IDX0604.gif');
 
-The message "Subject" is the HTML C<< <title> >>, or something better from
+The message "Subject" is the HTML C<< <title> >> or something better from
 C<URI::Title> or C<Image::ExifTool> if you've got those.  C<URI::Title> has
 special cases for a couple of unhelpful sites and C<Image::ExifTool> can get
 a PNG image title.
 
-Since the conf file is Perl code you can write something to construct a URL
-with a date etc if there isn't a single updating page.  It might be worth
-attempting a couple of dates if you're not certain when the new one becomes
-available.
+If a web page isn't at a fixed location you can write some Perl code in
+F<.rss2leafnode.conf> to construct a URL with a date etc.  It might be worth
+attempting a couple of nearby dates if you're not certain when the new one
+becomes available.
 
 =head2 Re-Downloading
 
@@ -146,7 +146,7 @@ to be careful where a target newsgroup propagates.  Don't make automated
 postings to the world!
 
 For leafnode version 2 see its F<README> file section "LOCAL NEWSGROUPS" on
-creating local-only groups.  Basically just add a line to the
+creating local-only groups.  Add a line to the
 F</etc/news/leafnode/local.groups> file like
 
     r2l.stuff	y	My various feeds
@@ -165,7 +165,7 @@ groups in it with command
 When running the C<snntpd> daemon from C<inetd> or similar don't forget a
 logger program argument on the command line as described its F<INSTALL.run>
 file, otherwise log messages go to the client connection and will upset most
-client programs, including C<Net::NNTP> used by C<rss2leafnode>.
+client program code, including C<Net::NNTP> used by C<rss2leafnode>.
 
 =head2 Copyright
 
@@ -418,18 +418,18 @@ Or an C<auto-mode-alist> setup in your F<.emacs>,
     (add-to-list 'auto-mode-alist
                  '("/\\.rss2leafnode\\.conf\\'" . perl-mode))
 
-The Debian package of C<rss2leafnode> comes with this setup, plus a
-completions ignore for the C<.rss2leafnode.status> file.  (See
+The Debian package of C<rss2leafnode> has this setup, plus a completions
+ignore for the C<.rss2leafnode.status> file.  See
 F</etc/emacs/site-start.d/50rss2leafnode.el> in the package, or
-F<debian/emacsen-startup> in the rss2leafnode sources.)
+F<debian/emacsen-startup> in the RSS2Leafnode sources.
 
 =head1 OTHER DETAILS
 
-Non-ascii RSS and Atom text and rendered HTML text are all coded as utf-8 in
-the generated messages so for non-ascii content you'll need a newsreader
-which supports that.  Unrendered HTML is left in the charset the server
-gave, to ensure it matches any C<< <meta http-equiv> >> in the document.  In
-all cases the charset is specified in the MIME message headers or attachment
+Non-ascii RSS and Atom text and rendered HTML text are coded as utf-8 in the
+generated messages so for non-ascii content you'll need a newsreader which
+supports that.  Unrendered HTML is left in the charset the server gave, to
+ensure it matches any C<< <meta http-equiv> >> in the document.  In all
+cases the charset is specified in the MIME message headers or attachment
 parts.  Transfer coding in the message body is chosen by C<MIME::Entity>
 which normally means quoted-printable if any non-ascii or any very long
 lines.  Atom C<< <content> >> already in base64 is left that way.
@@ -489,8 +489,9 @@ extra things RSS2Leafnode could present or interpret.
 
 An attempt is made to repair bad XML from a feed with C<XML::Liberal> if you
 have that module.  It uses C<XML::LibXML> and the C<libxml> library and
-often succeeds on annoying things like bad entities, at least enough to
-present something.  On hopelessly malformed data it might be a bit slow.
+often succeeds on annoying things like bad C<&foo;> entities, at least
+enough to present something.  On hopelessly malformed data it might be a bit
+slow.
 
 The most common XML problem is too much or too little C<&foo;> entity
 escaping.  Too little can turn HTML markup into nested XML elements.
@@ -498,7 +499,7 @@ RSS2Leafnode treats that as if it was XHTML style sub-elements, though the
 result is likely to be imperfect.  Too much escaping ends up displaying raw
 or semi-raw HTML C<< <p> >> or C<&foo;> etc.  An option for extra unescaping
 might improve some bad feeds, but in practice it's unlikely to be wholly
-successful since every bad feed tends to be bad in its own special way.
+successful.  Every bad feed tends to be bad in its own special way.
 
 =head2 Message Headers
 
@@ -749,7 +750,7 @@ Letting the news server track articles keeps down the amount of state
 C<rss2leafnode> must maintain and means multiple users can insert a feed
 without duplication.  But perhaps long running or mothballed feeds will need
 further repost protection.  Maybe an item age limit would be good both for
-this and for seeing only recent posts etc.  Perhaps a date or period in
+this and for seeing only recent posts etc.  Perhaps a date or age in
 C<rss_newest_only>.
 
 No retries are attempted if a news server disconnects, at least not unless
@@ -767,20 +768,22 @@ Should an updated item be re-posted?  Is the C<Supersedes:> header better,
 to replace the article?  Something allowing readers to see or not see
 updates according to user preference might be good.  Currently the item is
 reposted if C<< <atom:id> >> changes or if there's no C<id> and the content
-changes enough to make a new MD5 hash.  But C<id> is supposed to stay the
-same for an update is it?
+changes enough to make a new MD5 hash.  But is C<id> supposed to stay the
+same for an update?
 
 The way C<$rss_get_links> only gets the immediate link target could perhaps
 be extended to fetch images, frame sub-parts, etc of a HTML page and include
 them in the message as RFC 2557 style "MHTML".  But do any news readers
-actually display that though?
+actually display that?
 
-The entire XML feed is read into memory, which might be a touch bloated for
-large feeds.  Of course RSS was conceived as a "site summary", but ends up
-used for bigger content too.  Twig has a partial-tree parse for one item at
-a time, though applying the C<rss_newest_only> option would require a first
-pass to choose items.  A progressive parse could help show at least the
-first few items if there's a syntax error or truncation part-way through.
+The entire XML feed is read into memory, which might be a little too much
+for large feeds.  Of course RSS was conceived as a "site summary", but ends
+up used for bigger content too.  Twig has a partial-tree parse for one item
+at a time, though applying the C<rss_newest_only> option would require a
+first pass to choose items.  A progressive parse might help show at least
+the first few items if there's a syntax error or truncation part-way
+through.  A bit of care might be needed that small changes by the automated
+charset recoding or C<XML::Liberal> etc doesn't cause duplicated posts.
 
 =head1 ENVIRONMENT VARIABLES
 

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2007, 2008, 2009, 2010, 2011 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -18,8 +18,35 @@
 # with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
+
+
+
+
 __END__
 
+
+#------------------------------------------------------------------------------
+# HTTP::Message 6.03 recognises this itself now
+
+    $ua->add_handler (response_done => sub {
+                        lwp_response_done__bzip2_mangle ($weak_self, @_)
+                      });
+sub lwp_response_done__bzip2_mangle {
+  my ($self, $resp, $ua, $h) = @_;
+  $self || return;
+  # workaround "bzip2" back from lighttpd
+
+  ### lwp_response_done__bzip2_mangle() ...
+  if (($resp->content_encoding || '') eq 'bzip2') {
+    $self->verbose
+      (2, "Mangle Content-Encoding: bzip2 to x-bzip2 for decode");
+    $resp->header('Content-Encoding','x-bzip2');
+  }
+}
+
+
+
+#------------------------------------------------------------------------------
 
   my @keywords = List::MoreUtils::uniq
     (map { collapse_whitespace($_) }

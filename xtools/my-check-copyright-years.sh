@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# my-check-copyright-years.sh -- run cpants_lint kwalitee checker
+# my-check-copyright-years.sh -- check copyright years in dist
 
 # Copyright 2009, 2010, 2011, 2012 Kevin Ryde
 
@@ -25,7 +25,9 @@ set -e
 # find files in the dist with mod times this year, but without this year in
 # the copyright line
 
-DISTVNAME=`sed -n 's/^DISTVNAME = \(.*\)/\1/p' Makefile`
+if test -z "$DISTVNAME"; then
+  DISTVNAME=`sed -n 's/^DISTVNAME = \(.*\)/\1/p' Makefile`
+fi
 if test -z "$DISTVNAME"; then
   echo "DISTVNAME not found"
   exit 1

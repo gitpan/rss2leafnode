@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               rss2leafnode
-version:            62
+version:            63
 abstract:           Download RSS feeds or web pages to an NNTP news server.
 author:
     - Kevin Ryde <user42@zip.com.au>
@@ -47,9 +47,7 @@ no_index:
     directory:
         - t
         - inc
-        - xt
         - devel
-        - examples
 generated_by:       ExtUtils::MakeMaker version 6.57_05
 meta-spec:
     url:      http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -109,3 +107,5 @@ optional_features:
             Time::Duration::ja:   0
             Time::Duration::Locale:  0
             Time::Duration::sv:   0
+recommends:
+    HTTP::Message:  6.03

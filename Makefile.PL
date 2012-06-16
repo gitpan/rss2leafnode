@@ -23,10 +23,9 @@ use warnings;
 use ExtUtils::MakeMaker;
 
 use lib 'inc';
-use MyMakeMakerExtras;
 use MyMakeMakerGettext;
 
-MyMakeMakerExtras::WriteMakefile
+WriteMakefile
   (NAME         => 'rss2leafnode',
    ABSTRACT     => 'Download RSS feeds or web pages to an NNTP news server.',
    VERSION_FROM => 'lib/App/RSS2Leafnode.pm',
@@ -94,6 +93,12 @@ MyMakeMakerExtras::WriteMakefile
      { homepage => 'http://user42.tuxfamily.org/rss2leafnode/index.html',
        license  => 'http://www.gnu.org/licenses/gpl.html',
      },
+     recommends => {
+                    # version 6.03 recognises "bzip2" as well as "x-bzip2"
+                    'HTTP::Message' => '6.03',
+                   },
+     no_index => { directory=>['devel'] },
+
      optional_features =>
      { maximum_interoperation =>
        { description => 'All the optional and possible things RSS2Leafnode can use.',
@@ -204,7 +209,5 @@ package MY;
 sub postamble {
   my ($makemaker) = @_;
   $makemaker->{'PO_DOMAIN'} = 'App-RSS2Leafnode';
-  return
-    MyMakeMakerExtras::postamble($makemaker)
-        . MyMakeMakerGettext::postamble($makemaker);
+  return MyMakeMakerGettext::postamble($makemaker);
 }
