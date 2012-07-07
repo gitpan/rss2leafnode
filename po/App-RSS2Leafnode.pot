@@ -1,4 +1,4 @@
-# Copyright 2007, 2008, 2009, 2010, 2011, 2012 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -85,300 +85,300 @@ msgstr ""
 msgid "Warning, MD5 checksum mismatch on download {url}\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:685
+#: lib/App/RSS2Leafnode.pm:691
 #, perl-brace-format
 msgid "Unrecognised date \"{date}\" from {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:807
+#: lib/App/RSS2Leafnode.pm:813
 #, perl-brace-format
 msgid "nntp: {host}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:814
+#: lib/App/RSS2Leafnode.pm:820
 #, perl-brace-format
 msgid "Cannot connect to NNTP on \"{host}\"\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:837
+#: lib/App/RSS2Leafnode.pm:843
 #, perl-brace-format
 msgid ""
 "rss2leafnode: no group \"{group}\" on host \"{host}\"\n"
 "    (See the rss2leafnode man page for notes on creating groups.)\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:855
+#: lib/App/RSS2Leafnode.pm:861
 msgid "exists already"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:866
+#: lib/App/RSS2Leafnode.pm:872
 #, perl-brace-format
 msgid "Cannot post: {message}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1277
+#: lib/App/RSS2Leafnode.pm:1288
 #, perl-brace-format
 msgid "XML::RSS::Timing complains about {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1325
+#: lib/App/RSS2Leafnode.pm:1336
 #, perl-brace-format
 msgid "discard old status {url}\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1415
+#: lib/App/RSS2Leafnode.pm:1426
 msgid "unchanged"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1431
+#: lib/App/RSS2Leafnode.pm:1442
 #, perl-brace-format
 msgid "no status info for {url}\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1448
+#: lib/App/RSS2Leafnode.pm:1459
 #, perl-brace-format
 msgid "timing: next update {time} (local time)"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1453
+#: lib/App/RSS2Leafnode.pm:1464
 #, perl-brace-format
 msgid "which is {duration} from now"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1789
+#: lib/App/RSS2Leafnode.pm:1800
 #, perl-brace-format
 msgid "  no image: {status}\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1835
+#: lib/App/RSS2Leafnode.pm:1846
 #, perl-brace-format
 msgid "image is a banner ({width}x{height}), ignore"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1923
+#: lib/App/RSS2Leafnode.pm:1934
 #, perl-brace-format
 msgid ""
 "  imagemagick doesn't like image data ({length} bytes) from {url}: {error}\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1939
+#: lib/App/RSS2Leafnode.pm:1950
 #, perl-brace-format
 msgid "XML::Liberal not available: {error}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:1954
+#: lib/App/RSS2Leafnode.pm:1965
 #, perl-brace-format
 msgid "XML::Liberal parse error: {error}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2003 lib/App/RSS2Leafnode.pm:2092
+#: lib/App/RSS2Leafnode.pm:2014 lib/App/RSS2Leafnode.pm:2103
 #, perl-brace-format
 msgid "{group} 1 new article"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2037
+#: lib/App/RSS2Leafnode.pm:2048
 #, perl-brace-format
 msgid "page: {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2053 lib/App/RSS2Leafnode.pm:4023
-#: lib/App/RSS2Leafnode.pm:4239
+#: lib/App/RSS2Leafnode.pm:2064 lib/App/RSS2Leafnode.pm:4045
+#: lib/App/RSS2Leafnode.pm:4261
 #, perl-brace-format
 msgid ""
 "rss2leafnode: {url}\n"
 " {status}\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2075
+#: lib/App/RSS2Leafnode.pm:2086
 #, perl-brace-format
 msgid "RSS2Leafnode {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2264 lib/App/RSS2Leafnode.pm:2326
+#: lib/App/RSS2Leafnode.pm:2276 lib/App/RSS2Leafnode.pm:2342
 msgid "Encl"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2267
+#: lib/App/RSS2Leafnode.pm:2279 lib/App/RSS2Leafnode.pm:2439
+msgid "Source"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:2283
 msgid "Diff"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2270
+#: lib/App/RSS2Leafnode.pm:2286
 msgid "History"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2274
+#: lib/App/RSS2Leafnode.pm:2290
 msgid "Author"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2279
+#: lib/App/RSS2Leafnode.pm:2295
 msgid "Geo location"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2284
+#: lib/App/RSS2Leafnode.pm:2300
 msgid "Discussion"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2290
+#: lib/App/RSS2Leafnode.pm:2306
 #, perl-brace-format
 msgid "RSS Comments({count})"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2292
+#: lib/App/RSS2Leafnode.pm:2308
 msgid "RSS Comments"
-msgstr ""
-
-#: lib/App/RSS2Leafnode.pm:2300
-#, perl-brace-format
-msgid "Comments({count})"
-msgstr ""
-
-#: lib/App/RSS2Leafnode.pm:2302 lib/App/RSS2Leafnode.pm:2356
-msgid "Comments"
 msgstr ""
 
 #: lib/App/RSS2Leafnode.pm:2316
 #, perl-brace-format
+msgid "Comments({count})"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:2318 lib/App/RSS2Leafnode.pm:2372
+msgid "Comments"
+msgstr ""
+
+#: lib/App/RSS2Leafnode.pm:2332
+#, perl-brace-format
 msgid "skip link \"{type}\""
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2330
+#: lib/App/RSS2Leafnode.pm:2346
 msgid "Conversation"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2334
+#: lib/App/RSS2Leafnode.pm:2350
 msgid "Attention"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2338
+#: lib/App/RSS2Leafnode.pm:2354
 msgid "Related"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2345
+#: lib/App/RSS2Leafnode.pm:2361
 #, perl-brace-format
 msgid "RSS Replies({count})"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2346
+#: lib/App/RSS2Leafnode.pm:2362
 msgid "RSS Replies"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2350
+#: lib/App/RSS2Leafnode.pm:2366
 #, perl-brace-format
 msgid "Replies({count})"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2351
+#: lib/App/RSS2Leafnode.pm:2367
 msgid "Replies"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2360
+#: lib/App/RSS2Leafnode.pm:2376
 msgid "Via"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2364
+#: lib/App/RSS2Leafnode.pm:2380
 #, perl-brace-format
 msgid "{linkrel}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2383 lib/App/RSS2Leafnode.pm:2471
-#: lib/App/RSS2Leafnode.pm:2474
+#: lib/App/RSS2Leafnode.pm:2399 lib/App/RSS2Leafnode.pm:2487
+#: lib/App/RSS2Leafnode.pm:2490
 msgid "Link"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2397 lib/App/RSS2Leafnode.pm:3778
+#: lib/App/RSS2Leafnode.pm:2413 lib/App/RSS2Leafnode.pm:3800
 #, perl-brace-format
 msgctxt "s-for-seconds"
 msgid "{duration}s"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2423
-msgid "Source"
-msgstr ""
-
-#: lib/App/RSS2Leafnode.pm:2435
+#: lib/App/RSS2Leafnode.pm:2451
 msgid "Source RSS"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2503
+#: lib/App/RSS2Leafnode.pm:2519
 #, perl-brace-format
 msgid "Credit: {who}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2516
+#: lib/App/RSS2Leafnode.pm:2532
 #, perl-brace-format
 msgid "Explicit: {value}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2525
+#: lib/App/RSS2Leafnode.pm:2541
 #, perl-brace-format
 msgid "Department: {department}"
 msgstr ""
 
 #. TRANSLATORS: the latin1/unicode degree symbol can be used
 #. here instead of " deg"
-#: lib/App/RSS2Leafnode.pm:2599
+#: lib/App/RSS2Leafnode.pm:2616
 #, perl-brace-format
 msgid "{latitude} deg N"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2600
+#: lib/App/RSS2Leafnode.pm:2617
 #, perl-brace-format
 msgid "{latitude} deg S"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2604
+#: lib/App/RSS2Leafnode.pm:2621
 #, perl-brace-format
 msgid "{longitude} deg E"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2605
+#: lib/App/RSS2Leafnode.pm:2622
 #, perl-brace-format
 msgid "{longitude} deg W"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2609
+#: lib/App/RSS2Leafnode.pm:2626
 #, perl-brace-format
 msgid "Geo location: {latitude}, {longitude}, alt {altitude}m"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2614
+#: lib/App/RSS2Leafnode.pm:2631
 #, perl-brace-format
 msgid "Geo location: {latitude}, {longitude}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2722
+#: lib/App/RSS2Leafnode.pm:2739
 msgid "Author:"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2723
+#: lib/App/RSS2Leafnode.pm:2740
 msgid "Creator:"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2724
+#: lib/App/RSS2Leafnode.pm:2741
 msgid "Contributor:"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2725
+#: lib/App/RSS2Leafnode.pm:2742
 msgid "Managing Editor:"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2726
+#: lib/App/RSS2Leafnode.pm:2743
 msgid "Webmaster:"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2727
+#: lib/App/RSS2Leafnode.pm:2744
 msgid "Publisher:"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2728
+#: lib/App/RSS2Leafnode.pm:2745
 msgid "Owner:"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2729
+#: lib/App/RSS2Leafnode.pm:2746
 msgid "User:"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3089
+#: lib/App/RSS2Leafnode.pm:3105
 #, perl-brace-format
 msgid ""
 "Feed {url}\n"
@@ -386,7 +386,7 @@ msgid ""
 "  ({where})\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3111
+#: lib/App/RSS2Leafnode.pm:3127
 #, perl-brace-format
 msgid ""
 "Feed {url}\n"
@@ -394,58 +394,58 @@ msgid ""
 "  continuing with repairs by XML::Liberal\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3124
+#: lib/App/RSS2Leafnode.pm:3140
 #, perl-brace-format
 msgid ""
 "Parse error on URL {url}\n"
 "{error}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3424
+#: lib/App/RSS2Leafnode.pm:3445
 msgid "no subject"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3717 lib/App/RSS2Leafnode.pm:3720
+#: lib/App/RSS2Leafnode.pm:3739 lib/App/RSS2Leafnode.pm:3742
 msgid "Further feed XML:"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:3828
+#: lib/App/RSS2Leafnode.pm:3850
 #, perl-brace-format
 msgid "item: {subject}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4014
+#: lib/App/RSS2Leafnode.pm:4036
 #, perl-brace-format
 msgid "link: \"{name}\" {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4026
+#: lib/App/RSS2Leafnode.pm:4048
 #, perl-brace-format
 msgid ""
 "Cannot download link {url}\n"
 " {status}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4122
+#: lib/App/RSS2Leafnode.pm:4144
 msgid "posted"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4139
+#: lib/App/RSS2Leafnode.pm:4161
 #, perl-brace-format
 msgid "comments count unchanged: {count}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4222
+#: lib/App/RSS2Leafnode.pm:4244
 #, perl-brace-format
 msgid "rss comments: {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4224
+#: lib/App/RSS2Leafnode.pm:4246
 #, perl-brace-format
 msgid "feed: {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4256
+#: lib/App/RSS2Leafnode.pm:4278
 #, perl-brace-format
 msgid ""
 "XML::Twig parse error on\n"
@@ -454,7 +454,7 @@ msgid ""
 "\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4259
+#: lib/App/RSS2Leafnode.pm:4281
 #, perl-brace-format
 msgid ""
 "which redirected to\n"
@@ -463,11 +463,11 @@ msgid ""
 "\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4262
+#: lib/App/RSS2Leafnode.pm:4284
 msgid "Raw XML below.\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4264
+#: lib/App/RSS2Leafnode.pm:4286
 #, perl-brace-format
 msgid "Error parsing {url}"
 msgstr ""

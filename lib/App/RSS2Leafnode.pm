@@ -46,7 +46,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 63;
+  $VERSION = 64;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -473,9 +473,13 @@ sub enforce_html_charset_from_content {
 #------------------------------------------------------------------------------
 my %known;
 
-# <dc:valid> dates through which thing is valid
+# <dcterms:valid> dates through which thing is valid
 # ENHANCE-ME: is this something to work into the skipdays? or a message expiry?
-$known{'/channel/item/dc:valid'} = undef;
+#
+$known{'/channel/item/dcterms:valid'} = undef;
+
+# <dcterms:audience> maybe the target audience for speeches, announcements.
+$known{'/channel/item/dcterms:audience'} = undef;
 
 # <eq:depth> earthquake depth, repeat of text
 # <eq:seconds> unix seconds since 1970 date of earthquake, repeating text
@@ -498,7 +502,6 @@ $known{'/channel/item/dc:valid'} = undef;
            /channel/tagline
            /channel/info      --atom-something-freeform
            /channel/itunes:summary
-           /channel/item/dc:audience
            /channel/feedburner:info
 
            --nothing-much-in-these-as-yet-eg.-rssboard
@@ -629,7 +632,8 @@ sub isodate_to_rfc822 {
 # Return an RFC822 date string, or undef if nothing known.
 # This gets a sensible sort-by-date in the newsreader.
 # <jf:creationDate> seems to be accompanied by the usual <pubDate> so may be
-# redundant
+# redundant.
+#
 sub item_to_date {
   my ($self, $item) = @_;
   my $date;
@@ -641,6 +645,7 @@ sub item_to_date {
              // non_empty ($elt->first_child_trimmed_text('modified'))
              // non_empty ($elt->first_child_trimmed_text('updated'))
              // non_empty ($elt->first_child_trimmed_text('issued'))
+             // non_empty ($elt->first_child_trimmed_text('dcterms:issued'))
              // non_empty ($elt->first_child_trimmed_text('created'))
              # channel
              // non_empty ($elt->first_child_trimmed_text('lastBuildDate'))
@@ -664,6 +669,7 @@ sub item_to_date {
           /channel/item/modified
           /channel/item/created
           /channel/item/issued
+          /channel/item/dcterms:issued
 
           /channel/item/jf:creationDate      --java-locale-human-readable
           /channel/item/jf:modificationDate
@@ -1149,6 +1155,11 @@ sub elt_xhtml_to_html {
 # RSS http://www.debian.org/News/weekly/dwn.en.rdf circa Feb 2010 had some
 # html in its <title>, but believe that's an error (mozilla shows it as
 # plain text) and that RSS is all plain text outside <description>.
+#
+# <dc:type>text</dc:type> probably refers only to the nature of the item,
+# not the formatting as html vs text.
+#
+@known{'/channel/item/dc:type'} = undef;
 #
 sub elt_content_type {
   my ($elt) = @_;
@@ -2229,6 +2240,7 @@ sub item_to_links {
                                  |sioc:links_to
                                  |sioc:reply_of
                                  |statusnet:origin
+                                 |dc:source
                                  )$/ix);
   ### link elts: "@elts"
 
@@ -2262,6 +2274,10 @@ sub item_to_links {
         given ($tag) {
           when ('enclosure') {
             $l->{'name'} = __('Encl');
+          }
+          when ('dc:source') {
+            $l->{'name'} = __('Source');
+            $l->{'download'} = 0;
           }
           when ('wiki:diff') {
             $l->{'name'} = __('Diff');
@@ -2537,6 +2553,7 @@ sub item_to_links {
 
            /channel/item/link
            /channel/item/enclosure
+           /channel/item/dc:source
            /channel/item/comments
            /channel/item/wfw:comment
            /channel/item/wfw:commentRss
@@ -3037,9 +3054,8 @@ my $map_xmlns
      # eg. http://earthquake.usgs.gov/earthquakes/shakemap/rss.xml
      'http://earthquake.usgs.gov/rss/1.0/' => 'eq',
 
-     # don't need to distinguish dcterms from plain dc as yet
      'http://purl.org/dc/elements/1.1/'             => 'dc',
-     'http://purl.org/dc/terms/'                    => 'dc',
+     'http://purl.org/dc/terms/'                    => 'dcterms',
 
      # purl.org might be supposed to be the home for wiki:, but it's a 404
      # and usemod.com suggests its page instead
@@ -3411,15 +3427,20 @@ sub uri_to_host {
           // 'localhost');
 }
 
+# <dc:subject> is supposed to be a keyword type thing, but might be better
+# than nothing.  Not sure have ever actually seen <dc:subject> without
+# <title>, so perhaps this is pointless.
+#
+# <dc:title> is probably pointless within an item, would it ever be present
+# without a plain <title>?
+#
 sub item_to_subject {
   my ($self, $item) = @_;
 
   # Atom <title> can have type="html" etc in the usual way.
   return
     (elt_to_rendered_line ($item->first_child('title'))
-     # dc:subject is supposed to be a keyword type thing, but might be
-     # better than nothing.  Not sure have ever actually seen <dc:subject>
-     # without <title>, so perhaps this is pointless ...
+     // elt_to_rendered_line ($item->first_child('dc:title'))
      // elt_to_rendered_line ($item->first_child('dc:subject'))
      // __('no subject'));
 }
@@ -3430,6 +3451,7 @@ sub item_to_subject {
 
           /channel/item/dc:subject
           /channel/item/title
+          /channel/item/dc:title
           /channel/item/itunes:title
           /channel/item/itunes:subtitle  --not-using-this-as-yet
         )} = ();
@@ -3486,7 +3508,7 @@ sub item_to_copyright {
   #
   my $re = qr/^(rights     # Atom
               |copyright   # RSS, don't think entity-encoded html allowed there
-              |dc:license
+              |dcterms:license
               |dc:rights
               |creativeCommons:licen[cs]e
               )$/x;

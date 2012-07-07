@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 63;
+our $VERSION = 64;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -543,8 +543,14 @@ An author's home page is included in the message links described above.
 
 =item Subject:
 
-C<< <title> >> or C<< <dc:subject> >>.  A C<< <dc:subject> >> is normally
-only a keyword but might be better than nothing.
+First present of
+
+    <title>
+    <dc:title>
+    <dc:subject>
+
+C<< <dc:subject> >> is normally only a keyword but might be better than
+nothing.
 
 =item Date:
 
@@ -556,6 +562,7 @@ First present of
     <modified>
     <updated>
     <issued>
+    <dcterms:issued>
     <created>
     <lastBuildDate>
     <published>
@@ -708,8 +715,8 @@ An RSS2Leafnode extension, being all of following.  See L</Copyright> above.
 
     <rights>                           Atom
     <copyright>                        RSS
-    <dc:license>
     <dc:rights>
+    <dcterms:license>
     <creativeCommons:license>
     <link rel="license" href="...">    Atom
 

@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 64, June 2012
+    - <dc:source> as a link
+
 Version 63, June 2012
     - HTTP::Message 6.03 does "bzip2" vs "x-bzip2" itself now
 

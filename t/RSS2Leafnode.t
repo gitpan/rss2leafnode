@@ -20,7 +20,7 @@
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 210;
+use Test::More tests => 211;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
 # uncomment this to run the ### lines
@@ -46,7 +46,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 63;
+  my $want_version = 64;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -539,6 +539,14 @@ HERE
 <rss version="2.0">
  <channel>
   <item><title>Item One</title></item>
+ </channel>
+</rss>
+HERE
+                    ['Item One', <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0">
+ <channel>
+  <item><dc:title>Item One</dc:title></item>
  </channel>
 </rss>
 HERE
