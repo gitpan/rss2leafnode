@@ -46,7 +46,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 64;
+  my $want_version = 65;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -545,7 +545,7 @@ HERE
                     ['Item One', <<'HERE'],
 <?xml version="1.0"?>
 <rss version="2.0">
- <channel>
+ <channel xmlns:dc="http://purl.org/dc/elements/1.1/">
   <item><dc:title>Item One</dc:title></item>
  </channel>
 </rss>
@@ -593,9 +593,12 @@ HERE
                    ) {
     my ($want, $xml) = @$data;
     my ($twig, $err) = $r2l->twig_parse ($xml);
-    if ($err) { diag $err; }
-    my $item = $twig->root->first_descendant(qr/^(item|entry)$/) || die;
-
+    if ($err) {
+      diag $err;
+      die "Oops, cannot parse sample XML";
+    }
+    my $item = $twig->root->first_descendant(qr/^(item|entry)$/)
+      || die "Oops, cannot find first item in sample data";
     is ($r2l->item_to_subject ($item),
         $want,
         "item_to_subject() $xml");
