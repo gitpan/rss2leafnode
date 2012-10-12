@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 65;
+our $VERSION = 66;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -75,19 +75,20 @@ run C<rss2leafnode> as
 
 You can automate with C<cron> or similar.  If you do it under user C<news>
 it could be just after a normal news fetch.  The C<--config> option below
-lets you run different config files at different times, etc.  Code in the
-conf file could do too.  See F<examples/rss2leafnode.conf> in the
+lets you run different config files at different times, etc.  (Code in the
+conf file could do that too.)  See F<examples/rss2leafnode.conf> in the
 RSS2Leafnode sources for a complete sample.
 
 Messages are added to the news spool using NNTP "POST" commands.  When a
 feed is re-downloaded any items previously added are not repeated.  Multiple
 feeds can be put in a single newsgroup.  Each feed is posted as it's
-downloaded, so the first feed's articles appear while other feeds are yet to
-be downloaded.
+downloaded, so the first feed's articles appear while other feeds are still
+being downloaded.
 
 The target news server follows the L<Net::NNTP> defaults, or the newsgroup
-name can be a C<news:> or C<nntp:> URL of a server on a different host or
-port number.  For example a personal server on a high port number,
+name can be in the form of a L C<news:> or C<nntp:> URL of a server on a
+different host or port.  For example a personal server on a high port
+number,
 
     fetch_rss('news://somehost.mydomain.org:8119/r2l.weather',
               'http://feeds.feedburner.com/PTCC');
@@ -122,14 +123,14 @@ becomes available.
 
 HTTP C<ETag> and C<Last-Modified> headers are used, if provided by the
 server, to avoid re-downloading unchanged content (feeds or web pages).  RSS
-C<< <thr:count> >> is used to check for unchanged comments feeds.  Values
-seen from the last run are saved in a F<.rss2leafnode.status> file in your
-home directory.
+C<< <thr:count> >> or C<< <slash:comments> >> are used to check for
+unchanged comments feeds.  Values seen from the last run are saved in a
+F<.rss2leafnode.status> file in your home directory.
 
 If you've got C<XML::RSS::Timing> then it's used for RSS C<ttl>,
 C<updateFrequency>, etc from a feed.  This means the feed is not
-re-downloaded until its specified update times.  Only a few feeds have good
-timing info, most merely have a C<ttl> advising for instance 5 minutes
+re-downloaded until its declared update times.  But only a few feeds have
+good timing info, most merely have a C<ttl> advising for instance 5 minutes
 between rechecks.
 
 With C<--verbose> the next calculated update time is printed, in case you're
@@ -322,16 +323,35 @@ C<activity:actor> can be per-item and is used if present.
 
 =item C<fetch_rss ("group", "url", rss_newest_only =E<gt> $count)>
 
+=item C<fetch_rss ("group", "url", rss_newest_only =E<gt> $period)>
+
 Take only newest items from an RSS feed.  The default is 0 which means take
-all items from the feed.  For example to get the newest 10 items,
+all items from the feed.  The value is either a number for the latest few
+items, eg. 10 items,
 
   fetch_rss('r2l.test',
             'http://www.cpantesters.org/author/K/KRYDE-nopass.rss',
             rss_newest_only => 10);
 
-This can be good if you're only interested in the most recent item from a
-status or weather feed, or if you only want to get a few items as a random
-taste of a feed.
+Or it can be a string giving a period of time.  Only items newer than this
+are taken
+
+    "60 minutes"
+    "1 hour"    "36 hours"
+    "1 day"     "2 days"
+    "1 day"     "2 days"
+    "1 month"   "5 months"
+    "1 year"    "0.75 years"
+
+C<rss_newest_only> can be good if you're only interested in the most recent
+item from a status or weather feed, or if you only want to get a few items
+as a random taste of a feed.
+
+If a feed goes back further than the news server retains then giving a
+period such as "90 days" or whatever corresponding to the server time will
+prevent old articles being re-added when the server discards them.  (It'd be
+better if the news server could be asked for its retention time, but this
+option is better than nothing.)
 
 =back
 
@@ -458,7 +478,7 @@ Comment or reply links show a count of replies from any of
     <slash:comments>    sub-element of <comments>
 
 RSS comment feeds for C<$rss_get_comments> are as follows.  "appication" is
-a typo from WordPress pre 2.5 still sometimes found in use (as of Feb 2011).
+a typo from WordPress pre 2.5 still sometimes found in use (as of Oct 2012).
 
     <wfw:commentRss>
     <link rel='replies' type='application/atom+xml' ...>
@@ -466,8 +486,8 @@ a typo from WordPress pre 2.5 still sometimes found in use (as of Feb 2011).
 
 Comments links are shown as "Replies" or "RSS Replies".  If an RSS comment
 feed hasn't been detected as RSS it may show up as plain "Replies" instead
-of "RSS Replies" (and in that case won't be downloaded by
-<$rss_get_comments>).
+of "RSS Replies".  In that case it won't be downloaded by the
+C<rss_get_comments> option.
 
 C<< <media:group> >> links are shown as blocks of links.  Not sure about the
 quality of the formatting yet, and they're not downloaded by
@@ -742,40 +762,37 @@ read-only or with followups, and if news servers hadn't got a well-deserved
 reputation for being a pain to administer, and if news hadn't been based on
 transferring gigabytes of "full feed" instead of on-demand, then RSS might
 never have been wanted.  Of course the other side is that if you're a web
-page author accustomed to HTTP then everything looks like a HTTP page, and
-if you like HTML then a ridiculous edifice like XML to encapsulate a half
-dozen bits of text might even seem like a good idea.
+page author accustomed to HTTP then everything looks like a HTTP, and if you
+like HTML then a ridiculous edifice like XML to encapsulate a half dozen
+bits of text might even seem like a good idea.
 
 =head1 BUGS
 
 The way Message-IDs are checked on the news server means that the server
 should be setup to retain messages for at least as long as the feed retains
-items.  If that's not so then old articles will be re-posted by the next
-C<fetch_rss()> and will look like new articles to a newsreader.
-
-Letting the news server track articles keeps down the amount of state
+items, or as long as the C<rss_newest_only> option you select for the feed.
+If that's not so then old articles will be re-posted by the next
+C<fetch_rss()> and will look like new articles to a newsreader.  (Letting
+the news server track articles keeps down the amount of state
 C<rss2leafnode> must maintain and means multiple users can insert a feed
-without duplication.  But perhaps long running or mothballed feeds will need
-further repost protection.  Maybe an item age limit would be good both for
-this and for seeing only recent posts etc.  Perhaps a date or age in
-C<rss_newest_only>.
+without duplication.)
 
 No retries are attempted if a news server disconnects, at least not unless
 posting to a different news server then coming back.  Not sure if that's
 good or bad, but the current repeated error messages for a disconnect are
 unattractive.
 
-Some pre-releases of leafnode 2 have trouble with posts to local newsgroups
-while a C<fetchnews> run is in progress.  The local articles don't show up
-until after a subsequent further C<fetchnews>.  Or was this only for the
-C<rnews> inject?
+Some pre-releases of leafnode 2 might have trouble posting to local
+newsgroups while a C<fetchnews> run is in progress.  The local articles
+don't show up until after a subsequent further C<fetchnews>.  Or was this
+only for the C<rnews> inject?
 
 No attention is paid to C<< <atom:updated> >> or other changes in an item.
 Should an updated item be re-posted?  Is the C<Supersedes:> header better,
 to replace the article?  Something allowing readers to see or not see
-updates according to user preference might be good.  Currently the item is
+updates according to user preference would be good.  Currently the item is
 reposted if C<< <atom:id> >> changes or if there's no C<id> and the content
-changes enough to make a new MD5 hash.  But is C<id> supposed to stay the
+changes enough to make a new MD5 hash.  Or is C<id> supposed to stay the
 same for an update?
 
 The way C<$rss_get_links> only gets the immediate link target could perhaps
@@ -789,7 +806,7 @@ up used for bigger content too.  Twig has a partial-tree parse for one item
 at a time, though applying the C<rss_newest_only> option would require a
 first pass to choose items.  A progressive parse might help show at least
 the first few items if there's a syntax error or truncation part-way
-through.  A bit of care might be needed that small changes by the automated
+through.  Some care would be needed that small changes by the automated
 charset recoding or C<XML::Liberal> etc doesn't cause duplicated posts.
 
 =head1 ENVIRONMENT VARIABLES

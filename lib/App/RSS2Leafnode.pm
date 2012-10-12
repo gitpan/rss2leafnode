@@ -15,6 +15,14 @@
 # You should have received a copy of the GNU General Public License along
 # with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
+
+# maybe:
+# location links
+# http://maps.google.com/maps?ll=-35.066667,148.1
+# http://maps.google.com/maps?ll=-35.066667,148.1&spn=0.01,0.01&t=m
+
+
+
 package App::RSS2Leafnode;
 use 5.010;
 use strict;
@@ -25,6 +33,7 @@ use Hash::Util::FieldHash;
 use List::Util 'min', 'max';
 use List::MoreUtils;
 use POSIX (); # ENOENT, etc
+use Scalar::Util;
 use Text::Trim 1.02;  # version 1.02 for undef support
 use URI;
 use HTML::Entities::Interpolate;
@@ -46,7 +55,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 65;
+  $VERSION = 66;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -396,7 +405,6 @@ sub ua {
 
     # one connection kept alive
     my $ua = LWP::UserAgent->new (keep_alive => 1);
-    require Scalar::Util;
     Scalar::Util::weaken ($ua->{(__PACKAGE__)} = $self);
     $ua->agent ('RSS2leafnode/' . $self->VERSION . ' ');
 
@@ -880,6 +888,7 @@ sub nntp_post {
 #------------------------------------------------------------------------------
 # HTML title
 
+# extra data associated against a HTTP::Response object
 Hash::Util::FieldHash::fieldhash (my %resp_exiftool_info);
 
 # return hashref { Title => $str, ... }, or empty {} if no exiftool etc
@@ -1408,10 +1417,12 @@ sub status_etagmod_resp {
     }
 
     if ($twig) {
-      if (rss_newest_cmp($self,$status) > 0) {
-        # the newest number increases
-        $status->{'rss_newest_only'} = $self->{'rss_newest_only'};
-      }
+      # record previously applied newest option
+      $status->{'rss_newest_only'} = $self->{'rss_newest_only'};
+      
+      # if (rss_newest_cmp($self,$status) > 0) {
+      #   # the newest number increases
+      # }
     }
     foreach my $key (keys %$status) {
       if (! defined $status->{$key}) { delete $status->{$key} }
@@ -1440,14 +1451,15 @@ sub status_etagmod_req {
   my $status = $self->{'global_status'}->{$url}
     // do {
       $self->verbose (2, __x("no status info for {url}\n", url => $url));
-      return 1; # download
+      return 1; # want download
     };
 
   if ($for_rss) {
     # if status says the last download was for only a certain number of
-    # newest, then force a re-download if the now desired newest is greater
-    if (rss_newest_cmp($self,$status) > 0) {
-      return 1;
+    # newest, then force a re-download if that option now different
+    if (! str_equal($self->{'rss_newest_only'},
+                    $status->{'rss_newest_only'})) {
+      return 1; # want download
     }
   }
 
@@ -1477,18 +1489,23 @@ sub status_etagmod_req {
 }
 
 # return -1 if x<y, 0 if x==y, or 1 if x>1
-sub rss_newest_cmp {
+# sub rss_newest_cmp {
+#   my ($x, $y) = @_;
+#   if ($x->{'rss_newest_only'}) {
+#     if (! $y->{'rss_newest_only'}) {
+#       return -1;  # x finite, y infinite
+#     }
+#     # x and y finite
+#     return ($x->{'rss_newest_only'} <=> $y->{'rss_newest_only'});
+#   } else {
+#     # x infinite, so 1 if y finite, 0 if y infinite too
+#     return !! $y->{'rss_newest_only'};
+#   }
+# }
+sub str_equal {
   my ($x, $y) = @_;
-  if ($x->{'rss_newest_only'}) {
-    if (! $y->{'rss_newest_only'}) {
-      return -1;  # x finite, y infinite
-    }
-    # x and y finite
-    return ($x->{'rss_newest_only'} <=> $y->{'rss_newest_only'});
-  } else {
-    # x infinite, so 1 if y finite, 0 if y infinite too
-    return !! $y->{'rss_newest_only'};
-  }
+  return ((defined $x && defined $y && $x eq $y)
+          || (! defined $x && ! defined $y));
 }
 
 #------------------------------------------------------------------------------
@@ -1638,7 +1655,6 @@ sub item_image_uwh {
         }
       }
       if (is_non_empty ($url)) {
-        require Scalar::Util;
         my $width = $image_elt->first_child_text('width');
         unless (Scalar::Util::looks_like_number($width) && $width > 0) {
           $width = 0;
@@ -3009,6 +3025,82 @@ sub email_phrase_quote {
 
 
 #------------------------------------------------------------------------------
+# rss_newest_only
+
+{
+  my %multiplier = (minute => 60,
+                    hour   => 3600,
+                    day    => 86400,
+                    week   => 86400 * 7,
+                    month  => 365.25 * 86400 / 12,
+                    year   => 365.25 * 86400,
+                   );
+  # return a target time_t, or undef
+  sub rss_newest_only_timet {
+    my ($self) = @_;
+    
+    if (defined (my $str = $self->{'rss_newest_only'})) {
+      if ($str =~ /^\s*(\d+)\s*(minute|hour|day|week|month|year)s?\s*$/) {
+        return time() - $1*$multiplier{$2};
+      }
+    }
+    return undef;
+  }
+}
+
+# return a number, or undef
+sub rss_newest_only_count {
+  my ($self) = @_;
+  if (defined (my $str = $self->{'rss_newest_only'})) {
+    if (Scalar::Util::looks_like_number($str)) {
+      ### rss_newest_only number: $str
+      return $str;
+    }
+  }
+  return undef;
+}
+
+# return @items restricted or filtered by rss_newest_only
+sub rss_newest_only_items {
+  my ($self, @items) = @_;
+
+  if (defined (my $count = $self->rss_newest_only_count)) {
+    if ($count == 0) {
+      # rss_newest_only=>0 means don't apply a newest
+      return @items;
+    }
+    my $before = scalar(@items);
+    require Sort::Key::Top;
+    @items = Sort::Key::Top::rnkeytop (sub { $self->item_to_timet($_) },
+                                       $count, @items);
+
+    my $after = scalar(@items);
+    if ($before != $after) {
+      $self->verbose (1, " rss_newest_only reduce count $before to $after items");
+    }
+    return @items;
+  }
+
+  if (defined (my $target_timet = $self->rss_newest_only_timet)) {
+    my $before = scalar(@items);
+    @items = grep { my $got_timet = $self->item_to_timet($_);
+                    ! defined $got_timet || $got_timet >= $target_timet }
+      @items;
+    my $after = scalar(@items);
+    if ($before != $after) {
+      $self->verbose (1, " rss_newest_only reduce age $before to $after items");
+    }
+    return @items;
+  }
+
+  if (defined (my $str = $self->{'rss_newest_only'})) {
+    die "rss2leafnode: unrecognised rss_newest_only: ",$str;
+  }
+  return @items;
+}
+
+
+#------------------------------------------------------------------------------
 # fetch RSS
 
 my $map_xmlns
@@ -4299,15 +4391,7 @@ sub fetch_rss {
   # "item" for RSS/RDF, "entry" for Atom
   my @items = $twig->descendants(qr/^(item|entry)$/);
 
-  if (my $n = $self->{'rss_newest_only'}) {
-    # secret feature newest N many items ...
-    require Scalar::Util;
-    unless (Scalar::Util::looks_like_number($n)) { $n = 1; }
-    ### rss_newest_only: $n
-    require Sort::Key::Top;
-    @items = Sort::Key::Top::rnkeytop (sub { $self->item_to_timet($_) },
-                                       $n, @items);
-  }
+  @items = $self->rss_newest_only_items(@items);
 
   my $new = 0;
   foreach my $item (@items) {

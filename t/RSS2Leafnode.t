@@ -20,7 +20,7 @@
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 211;
+use Test::More tests => 197;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
 # uncomment this to run the ### lines
@@ -46,7 +46,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 65;
+  my $want_version = 66;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -335,36 +335,36 @@ HERE
 #------------------------------------------------------------------------------
 # rss_newest_cmp()
 
-diag "rss_newest_cmp()";
-{
-  foreach my $data (
-                    [ undef, undef, 0 ],
-                    [     0, undef, 0 ],
-                    [ undef,     0, 0 ],
-                    [     0,     0, 0 ],
-
-                    [ undef,     5, 1 ],
-                    [     0,     5, 1 ],
-
-                    [     5, undef, -1 ],
-                    [     5,     0, -1 ],
-
-                    [     5,     5,  0 ],
-                    [     4,     5, -1 ],
-                    [     5,     4,  1 ],
-
-                    [     2,     2,  0 ],
-                    [     1,     2, -1 ],
-                    [     2,     1,  1 ],
-                   ) {
-    my ($x, $y, $want) = @$data;
-    my $got = App::RSS2Leafnode::rss_newest_cmp({rss_newest_only => $x},
-                                                {rss_newest_only => $y});
-    $got ||= 0;
-    is ($got, $want,
-        "rss_newest_cmp() ".($x//'undef')." ".($y//'undef'));
-  }
-}
+# diag "rss_newest_cmp()";
+# {
+#   foreach my $data (
+#                     [ undef, undef, 0 ],
+#                     [     0, undef, 0 ],
+#                     [ undef,     0, 0 ],
+#                     [     0,     0, 0 ],
+# 
+#                     [ undef,     5, 1 ],
+#                     [     0,     5, 1 ],
+# 
+#                     [     5, undef, -1 ],
+#                     [     5,     0, -1 ],
+# 
+#                     [     5,     5,  0 ],
+#                     [     4,     5, -1 ],
+#                     [     5,     4,  1 ],
+# 
+#                     [     2,     2,  0 ],
+#                     [     1,     2, -1 ],
+#                     [     2,     1,  1 ],
+#                    ) {
+#     my ($x, $y, $want) = @$data;
+#     my $got = App::RSS2Leafnode::rss_newest_cmp({rss_newest_only => $x},
+#                                                 {rss_newest_only => $y});
+#     $got ||= 0;
+#     is ($got, $want,
+#         "rss_newest_cmp() ".($x//'undef')." ".($y//'undef'));
+#   }
+# }
 
 
 #------------------------------------------------------------------------------

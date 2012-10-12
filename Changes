@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 66, October 2012
+    - rss_newest_only option new period "30 days" etc
+
 Version 65, July 2012
     - tests namespace fix
 

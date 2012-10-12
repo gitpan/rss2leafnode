@@ -37,7 +37,7 @@ set -e
 
 if find . -name my-check-spelling.sh -prune \
           -o -type f -print0 \
-| xargs -0 egrep --color=always -nHi 'recurrance|nineth|\bto to\b|tranpose|adjustement|glpyh|rectanglar|availabe|grabing|cusor|refering|writeable|nineth|\bommitt?ed|omited|[$][rd]elf|requrie|noticable|continous|existant|explict|agument|destionation|\bthe the\b|\bfor for\b|\bare have\b|\bare are\b|\bwith with\b|\bin in\b|\b[tw]hen then\b|\bnote sure\b|\bnote yet\b|correspondance|sprial'
+| xargs -0 egrep --color=always -nHi 'recurrance|nineth|\bon on\b|\bto to\b|tranpose|adjustement|glpyh|rectanglar|availabe|grabing|cusor|refering|writeable|nineth|\bommitt?ed|omited|[$][rd]elf|requrie|noticable|continous|existant|explict|agument|destionation|\bthe the\b|\bfor for\b|\bare have\b|\bare are\b|\bwith with\b|\bin in\b|\b[tw]hen then\b|\bnote sure\b|\bnote yet\b|correspondance|sprial|wholely'
 then
   # nothing found
   exit 1
