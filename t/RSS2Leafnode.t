@@ -46,7 +46,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 66;
+  my $want_version = 67;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -384,6 +384,7 @@ diag "enforce_html_charset_from_content()";
 <body>Hello</body>
 </html>
 HERE
+
                     # This one might be slightly dependent on what LWP
                     # thinks of nothing in the content.
                     [ 'US-ASCII',
@@ -406,8 +407,16 @@ HERE
     my $resp = HTTP::Response->new (200, 'OK', $headers, $content);
     $r2l->enforce_html_charset_from_content($resp);
     diag "resp headers:\n", $resp->headers->as_string;
-    is ($resp->content_charset,
-        $want,
+    my $got = $resp->content_charset;
+
+    # HTTP::Message version 6.04 uses IO::HTML which does something for
+    # ms-dos giving codepage 1252 instead of the standard 8859-1, even when
+    # there's no characters of either.
+    if (lc($got) eq 'windows-1252' && lc($want) eq 'iso-8859-1') {
+      $want = $got;
+    }
+
+    is ($got, $want,
         "enforce_html_charset_from_content() $want html: $content");
   }
 }

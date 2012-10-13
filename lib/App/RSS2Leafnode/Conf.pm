@@ -20,7 +20,7 @@ use 5.010;
 use strict;
 use warnings;
 
-our $VERSION = 66;
+our $VERSION = 67;
 
 {
   package App::RSS2Leafnode::Conf::Tie;
