@@ -46,7 +46,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 67;
+  my $want_version = 68;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -1421,24 +1421,19 @@ HERE
         } ] ],
 
      ['<author><name>Foo Bar</name><email>foo@bar.com</email></author>',
-      [ 'Foo Bar <foo@bar.com>',
-        undef ] ],
+      [ 'Foo Bar <foo@bar.com>' ] ],
 
      ['<author><name>Foo Bar</name></author>',
-      [ 'Foo Bar <nobody@feedhost.com>',
-        undef ] ],
+      [ 'Foo Bar <nobody@feedhost.com>' ] ],
 
      ['<author><email>foo@bar.com</email></author>',
-      [ 'foo@bar.com',
-        undef ] ],
+      [ 'foo@bar.com' ] ],
 
      ['<author></author>',
-      [ 'nobody@'.$host,
-        undef ] ],
+      [ 'nobody@'.$host ] ],
 
      ['',
-      [ 'nobody@'.$host,
-        undef ] ],
+      [ 'nobody@'.$host ] ],
     ) {
     my ($fragment, $want) = @$data;
 

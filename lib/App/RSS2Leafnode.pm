@@ -51,11 +51,11 @@ BEGIN {
 }
 
 # uncomment this to run the ### lines
-#use Smart::Comments;
+# use Smart::Comments;
 
 our $VERSION;
 BEGIN {
-  $VERSION = 67;
+  $VERSION = 68;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -113,6 +113,9 @@ BEGIN {
 #
 #   http://activitystrea.ms/specs/atom/1.0/
 #       activity:
+#   http://prismstandard.org/namespaces/basic/2.0/
+#   http://www.prismstandard.org/specifications/2.0/PRISM_prism_namespace_2.0.pdf
+#       Prism
 #
 # URIs
 #   RFC 1738, RFC 2396, RFC 3986 -- URI formats (news/nntp in 1738)
@@ -121,14 +124,18 @@ BEGIN {
 #   RFC 2141 -- urn:
 #   RFC 4122 -- uuid format (as under urn:uuid:)
 #   RFC 4151 -- tag:
+#   RFC 1034, RFC 1123 -- domain names
+#   RFC 2606 -- reserved domain names ".invalid"
 #
 # XML
 #   http://www.w3.org/TR/xmlbase/ -- xml:base
 #   RFC 3023 text/xml etc media types
 #
 # Mail Messages
-#   RFC 850, RFC 1036, RFC 5536
+#   RFC 850, RFC 1036
 #       -- News message format, inc headers and rnews format
+#   RFC 2822, RFC 5322, RFC 5536
+#       -- Email message format.
 #   RFC 2076, RFC 4021 -- headers summary.
 #   RFC 2557 -- MHTML Content-Location
 #   RFC 1864 -- Content-MD5 header
@@ -753,6 +760,7 @@ sub url_to_msgid {
 
   # $host can be empty if running from a file:///
   # "localhost" is a bit bogus and in particular leafnode won't accept it.
+  # ".invalid" as per RFC 2606
   if (is_empty($host) || $host eq 'localhost') {
     $host = 'rss2leafnode.invalid';
   }
@@ -2005,7 +2013,7 @@ sub error_message {
     ({
       'Path:'       => 'localhost',
       'Newsgroups:' => $self->{'nntp_group'},
-      From          => 'RSS2Leafnode <nobody@localhost>',
+      From          => __('RSS2Leafnode').' <nobody@localhost>',
       Subject       => $subject,
       Date          => $date,
       'Message-ID'  => $msgid,
@@ -2594,6 +2602,7 @@ sub item_to_links {
            /channel/item/sioc:reply_of
            /channel/item/media:credit
            /channel/item/itunes:explicit
+           /channel/item/itunes:block
 
            --believed-to-be-duplicate-of-description
            /channel/item/media:content
@@ -2762,76 +2771,96 @@ use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
      username       => __('User:'),
     );
 
-  # return ($from, $linkhash)
+  # Return ($from, $linkhash,$linkhash,...).
+  # $from is a string like "foo@bar.com".
+  # Multiple authors are for example "foo@bar.com, quux@bar.com" as per RFC5322
+  # email, though currently no Sender: is picked out from among them.
   sub item_to_from {
     my ($self, $item) = @_;
     ### item_to_from() ...
     my $channel = item_to_channel($item);
 
     # <author> is supposed to be an email address whereas <dc:creator> is
-    # looser.  The RSS recommendation is to use author when revealing an email
-    # and dc:creator when hiding it.
+    # looser.  The RSS recommendation is <author> when revealing an email
+    # and <dc:creator> when hiding it.
     #
     # <dc:contributor> appears in wiki: feeds as the item's author.
     #
-    # <contributor> can appear multiple times in Atom item.  Could show them
-    # as multiple addresses in From:, but for now prefer just one primary
-    # author.
+    # <contributor> can appear multiple times in Atom item.  For now prefer
+    # to show just the primary author or authors.
     #
-    my $elt;
-    my $from =
-      ($self->elt_to_email    ($elt = $item->first_child('author'))
-       // $self->elt_to_email ($elt = $item->first_child('jf:author'))
-       // $self->elt_to_email ($elt = $item->first_child('dc:creator'))
-       // $self->elt_to_email ($elt = $item->first_child('dc:contributor'))
-       // $self->elt_to_email ($elt = $item->first_child('wiki:username'))
-       // $self->elt_to_email ($elt = $item->first_child('itunes:author'))
+    # The first 
+    #
+    my @from;
+    my @links;
+    foreach my $try ([$item, 'author'],
+                     [$item, 'jf:author'],
+                     [$item, 'dc:creator'],
+                     [$item, 'dc:contributor'],
+                     [$item, 'wiki:username'],
+                     [$item, 'itunes:author'],
 
-       // $self->elt_to_email ($elt = $channel->first_child('author'))
-       // $self->elt_to_email ($elt = $channel->first_child('dc:creator'))
-       // $self->elt_to_email ($elt = $channel->first_child('itunes:author'))
-       // $self->elt_to_email ($elt = $channel->first_child('managingEditor'))
-       // $self->elt_to_email ($elt = $channel->first_child('webMaster'))
+                     [$channel, 'author'],
+                     [$channel, 'dc:creator'],
+                     [$channel, 'itunes:author'],
+                     [$channel, 'managingEditor'],
+                     [$channel, 'webMaster'],
 
-       // $self->elt_to_email ($elt = $item   ->first_child('dc:publisher'))
-       // $self->elt_to_email ($elt = $channel->first_child('dc:publisher'))
-       // $self->elt_to_email ($elt = $channel->first_child('itunes:owner'))
-       // do { undef $elt }
+                     [$item   , 'dc:publisher'],
+                     [$channel, 'dc:publisher'],
+                     [$channel, 'itunes:owner'],
+                    ) {
+      my ($where, $tag) = @$try;
+      ### $tag
 
-       # Atom <title> can have type="html" etc in the usual way, so render.
-       # Hope the channel title is different from the item title.
-       // $self->email_format (elt_to_rendered_line
-                               ($channel->first_child('title')))
+      if (my @elts = $item->children($tag)) {
+        foreach my $elt (@elts) {
+          push @from, $self->elt_to_email($elt);
 
-       // ('nobody@'.$self->uri_to_host)
-      );
-    my $link;
-    if ($elt && (my $uri =
-                 (# Atom
-                  # <author>
-                  #   <name>Foo Bar</name>
-                  #   <uri>http://some.where</uri>
-                  # </author>
-                  #
-                  non_empty ($elt->first_child_text('uri'))
+          # author's home page etc as a link
+          if (my $uri =
+              (# Atom
+               # <author>
+               #   <name>Foo Bar</name>
+               #   <uri>http://some.where</uri>
+               # </author>
+               #
+               non_empty ($elt->first_child_text('uri'))
 
-                  # ModWiki dc:contributor example
-                  #     <rdf:Description link="http://openwiki.com/?FooBar">
-                  #       <rdf:value>Foo Bar</rdf:value>
-                  #     </rdf:Description>
-                  # The text shows rss:link= and the example just link=.
-                  #
-                  // non_empty (do {
-                    my $child; ($child = $elt->first_child('rdf:Description'))
-                      && ($child->att('link') // $child->att('rss:link'))
-                    })))) {
-      (my $tag = $elt->tag) =~ s/.*?://;
-      $link = { uri      => URI->new($uri),
-                name     => ($tag_to_link_name{$tag} // "\u$tag:"),
-                download => 0,
-                priority => -20 };
+               # ModWiki dc:contributor example
+               #     <rdf:Description link="http://openwiki.com/?FooBar">
+               #       <rdf:value>Foo Bar</rdf:value>
+               #     </rdf:Description>
+               # The text shows rss:link= and the example just link=.
+               #
+               // non_empty (do {
+                 my $child; ($child = $elt->first_child('rdf:Description'))
+                   && ($child->att('link') // $child->att('rss:link'))
+                 }))) {
+            my $tag = $elt->tag;
+            $tag =~ s/.*?://;
+            push @links, { uri      => URI->new($uri),
+                           name     => ($tag_to_link_name{$tag} // "\u$tag:"),
+                           download => 0,
+                           priority => -20 };
+          }
+        }
+      }
+      last if @from;
     }
-    return ($from, $link);
+    if (! @from) {
+      # Atom <title> can have type="html" etc in the usual way, so render.
+      # Hope the channel title is different from the item title.
+      @from = ($self->email_format (elt_to_rendered_line
+                                    ($channel->first_child('title'))));
+    }
+    if (! @from) {
+      @from = ('nobody@'.$self->uri_to_host);
+    }
+
+    ### @from
+    return (join(', ',@from),
+            @links);
   }
   @known{qw(/channel/author
             /channel/author/name   --atom
@@ -2872,8 +2901,9 @@ use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
 }
 
 # $elt is an XML::Twig::Elt
-# return an email address, either just the text part of $elt or Atom
-# sub-elements <name> and <email>
+# Return an email address, either just the text part of $elt or Atom
+# sub-elements <name> and <email>.
+# If $elt is empty then return an empty list.
 #
 sub elt_to_email {
   my ($self, $elt) = @_;
@@ -3815,6 +3845,7 @@ sub item_unknowns {
     require Text::Wrap;
     my $part = do {
       local $Text::Wrap::columns = $self->{'render_width'} + 1 + 4;
+      local $Text::Wrap::huge = 'overflow'; # don't break long words
       local $Text::Wrap::unexpand = 0;  # no tabs in output
       $elt->sprint
     };
@@ -3946,11 +3977,9 @@ sub fetch_rss_process_one_item {
 
   if (! $self->nntp_message_id_exists ($msgid)) {
     my $channel = item_to_channel($item);
-    my ($from, $from_link) = $self->item_to_from($item);
-    my @links = $self->item_to_links ($item);
-    if ($from_link) {
-      push @links, $from_link;
-    }
+    my ($from, @from_links) = $self->item_to_from($item);
+    my @links = ($self->item_to_links ($item),
+                 @from_links);
 
     # For comments feeds show "Re: Foo" as the subject.  Haven't seen a
     # comments feed with anything useful in the <title>.  Could think about

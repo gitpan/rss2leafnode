@@ -51,16 +51,15 @@ then DPKG_ARCH=all
 else DPKG_ARCH=`dpkg --print-architecture`
 fi
 
+# programs named after the dist, libraries named with "lib"
+# gtk2-ex-splash and wx-perl-podbrowser programs are lib too though
 DEBNAME=`echo $DISTNAME | tr A-Z a-z`
-if test -z "$EXE_FILES"
-then
-  case "$EXE_FILES" in
-  gtk2*) ;;
-  *) DEBNAME="lib${DEBNAME}-perl" ;;
-  esac
-fi
+case "$EXE_FILES" in
+gtk2-ex-splash|wx-perl-podbrowser|'')
+  DEBNAME="lib${DEBNAME}-perl" ;;
+esac
 
-DEBVNAME="${DEBNAME}_$VERSION-1"
+DEBVNAME="${DEBNAME}_$VERSION-0.1"
 DEBFILE="${DEBVNAME}_$DPKG_ARCH.deb"
 
 # ExtUtils::MakeMaker 6.42 of perl 5.10.0 makes "$(DISTVNAME).tar.gz" depend
@@ -113,7 +112,7 @@ fi
 dpkg-source -b $DEBNAME-$VERSION \
                ${DEBNAME}_$VERSION.orig.tar.gz; \
 lintian -I -i \
-  --suppress-tags empty-debian-diff,debian-rules-uses-deprecated-makefile *.dsc
+  --suppress-tags maintainer-upload-has-incorrect-version-number,empty-debian-diff,debian-rules-uses-deprecated-makefile *.dsc
 cd /
 rm -rf $TEMP
 

@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 68, December 2012
+    - multiple authors in From:
+
 Version 67, October 2012
     - tests allow for msdos bits of IO::HTML
 

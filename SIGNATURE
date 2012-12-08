@@ -15,12 +15,12 @@ not run its Makefile.PL or Build.PL.
 Hash: SHA1
 
 SHA1 842745cb706f8f2126506f544492f7a80dbe29b3 COPYING
-SHA1 2d67150c4d38e4df489b12ad1d5137e61ecabf70 Changes
+SHA1 7e0dfb03ba01df7eb9b2da89de727ff68d79024d Changes
 SHA1 59a6df399108dc213cb4c60d5348f31ab35fe060 MANIFEST
 SHA1 b758f740af57256154bbf4e1f8a760a1b9f9dfe1 MANIFEST.SKIP
-SHA1 e0bb91d62914b372ac5363347f9d8a516936f7ed META.yml
+SHA1 3c3c1915542d54ec57d7033bfbc299ba11ab068d META.yml
 SHA1 2cdb68fed0f5be559fc67d67363900cfc22b8f6b Makefile.PL
-SHA1 5b252c22c4416bdb0b319f8e4de89f1fc6ca89d0 debian/changelog
+SHA1 f3bc9fdc9b132cc9e7216cab103861e0be259ab9 debian/changelog
 SHA1 ac3478d69a3c81fa62e60f5c3696165a4e5e6ac4 debian/compat
 SHA1 d0f84236ac2c796941a5885edbd1e71b3374941d debian/control
 SHA1 fe369bf09997993e75ed7dad8db18e7cb2ec80d9 debian/copyright
@@ -42,17 +42,17 @@ SHA1 1566cf99477ea36f89ccc23fcb2b4eed11e7dda0 devel/icons.pl
 SHA1 279b5b752dd1dd76d84a3db580e8082374762104 devel/ihave.pl
 SHA1 7e73e3ae333250d13c06f3c78a28d2bf6353c886 devel/lib/Localize/GetSetMethod.pm
 SHA1 b0635c4018b34b6ae40fa32ce2f6789f50dfc762 devel/lib/Localize/ScalarRef.pm
-SHA1 0b07a21e0fd55c8b179cff91b6e1938f842933eb devel/lib/News/Rnews.pm
-SHA1 ba6aabca0062c8b13ab9d07352742ffb6ad1be92 devel/lib/News/Rnews.t
-SHA1 694ca0bb9313dd461d147822b90219eaf274d015 devel/lib/Plagger/Plugin/Filter/FormatText.pm
-SHA1 65b178289e4b37c33bb0874ddf6cdf7e273bdabc devel/lib/Plagger/Plugin/Filter/GoogleListPost.pm
-SHA1 08bbf41b0fc3b53dfc204b3e227e4ef8afb3182e devel/lib/Plagger/Plugin/Filter/YahooLinks.pm
-SHA1 db3ecdc77869d376c9fe81a56878948fcaec5bbc devel/lib/Plagger/Plugin/Publish/Rnews.pm
+SHA1 f11b2337bda5dc775e16fba31debc3e804086fcc devel/lib/News/Rnews.pm
+SHA1 b3554c9c3921da084a8104a514a6a5f00f2b7d32 devel/lib/News/Rnews.t
+SHA1 51b436469a985877e9ba46a9cd31c36a33489c1e devel/lib/Plagger/Plugin/Filter/FormatText.pm
+SHA1 f28e986ad05b9e9f2c57d299b0280762dc079f0e devel/lib/Plagger/Plugin/Filter/GoogleListPost.pm
+SHA1 7a4186b052fbb8fabdab90f8f8b303d21def1bb3 devel/lib/Plagger/Plugin/Filter/YahooLinks.pm
+SHA1 c9f404447aa4f3ad8e8d91ea9cf1b03f9a33d97a devel/lib/Plagger/Plugin/Publish/Rnews.pm
 SHA1 fefb260be5e6e43e409797c31be6858a955b004b devel/libxml.pl
 SHA1 8a9456be5453312a39cc67fca6498be7351e51fe devel/lwp-title.html
 SHA1 d3900a13240619524a0d342d79d5476892b9f4d7 devel/lwp-title.pl
 SHA1 11635c1dc2600a19535a6b89c73dab96263b092b devel/mime-entity.pl
-SHA1 932cc87a434fc59fd2ff633c6eb46aaa7d1bfce3 devel/misc.pl
+SHA1 e6dbe7ed3fdb31b594465255d963d3bda9567331 devel/misc.pl
 SHA1 e611bdebb43b47cf516900c119218d79da05acbd devel/namespace.pl
 SHA1 7d0169d783c7ab21025a875e3496259e882a267b devel/recode.pl
 SHA1 9a7a5554036214185cc2d5f991546656901ca977 devel/render-ascii.pl
@@ -67,8 +67,8 @@ SHA1 5b386892b6fd4c5cc4b0fcab75fdaaeb3b351fed devel/tree-parse.pl
 SHA1 3a1576a014b90468f3b24103bb4f3672d11daa41 devel/twig-base.pl
 SHA1 e83882b2191e49f2cf2d79b5f9bb228b16f73aa1 devel/twig-map-default.pl
 SHA1 88944e306a2337eb9d8196effe5dcf00e74b739f devel/unused.pl
-SHA1 45c09e62951c55bef2c6e4b3484c6aa185b815c9 devel/unused/Leafnode.pm
-SHA1 a09fe6de30ba49d567e05f9226fc2ef8fc458a02 devel/unused/Plagger.t
+SHA1 4044338a3c068526c0dc9b35cbe22e7d95fcbb84 devel/unused/Leafnode.pm
+SHA1 f6d99d491e559ad548ff9c8165ba806da5e1517d devel/unused/Plagger.t
 SHA1 d4b84132605bee0637d3ff631f2f5821fbe5295d devel/xml-encoding.pl
 SHA1 fbb0acf019ab414916158d498164f8ffade5b6dd devel/xml-liberal.pl
 SHA1 4357075b95b9c89f558336a9135199c024036488 devel/xml.pl
@@ -76,15 +76,15 @@ SHA1 933d1189ef3e23b87393a056e9264a167a7c2597 devel/yahoolinks.yaml
 SHA1 19ee17f294bff8d7716725401cb0c85d01f9e3d9 examples/rss2leafnode.conf
 SHA1 a2fa0855f3a1ea6140956ec567bea259e0099893 inc/MyMakeMakerGettext.pm
 SHA1 7a988b2aa7ed09f1cb9029a1ef3f0e2139dca0cf inc/my_pod2html
-SHA1 8977a4cdf3e126f4e6ce0929777e1835fdb50e53 lib/App/RSS2Leafnode.pm
-SHA1 8274fa27ef63e5e7e50e66435af9d827c5b27329 lib/App/RSS2Leafnode/Conf.pm
-SHA1 b8add88590048c65cc887c460c049e1cbceb9dc8 lib/App/RSS2Leafnode/XML/Twig/Other.pm
-SHA1 b68acadc6c77dcefde8eda2105fd52e509a2c4ca po/App-RSS2Leafnode.pot
+SHA1 d28e4644c7eccd355aa4888bbc6ab0b47a94525e lib/App/RSS2Leafnode.pm
+SHA1 33a64ee5c2bcb33513c5454d92732429b2c77515 lib/App/RSS2Leafnode/Conf.pm
+SHA1 b44864090016ee9a87e1b1a640a20bbc39b1ee53 lib/App/RSS2Leafnode/XML/Twig/Other.pm
+SHA1 056973718bc490c878d9af5ff33b5ed6cf846750 po/App-RSS2Leafnode.pot
 SHA1 1cba170b869f05138b4e0f9c9ae281d6518af9fb po/README
 SHA1 307336cdbcb10cd7c7ea2f9f610597e9c681fa35 po/header.pot
-SHA1 a6977bbd9652f8502f12e994f01a0c7e34e3c0ba rss2leafnode
+SHA1 7cd27da9c9adedc36a9d20336edfabc259e760db rss2leafnode
 SHA1 3855de075da37f5bc4e6a5534b2f00cc14872a98 t/MyTestHelpers.pm
-SHA1 e3bcebc23c5ce1d57f61c97c41a3698b150243eb t/RSS2Leafnode.t
+SHA1 5160ef9e1431eabfe6d3dfe868c9a9cddc75be40 t/RSS2Leafnode.t
 SHA1 1f3955ea946440dcaa4f1b423305f83890902037 t/test-weaken.t
 SHA1 811028548aa4b360b5086d1af3150f9dde348aa6 xt/0-META-read.t
 SHA1 c9e7a47e1f397eb5f46d7e4ef21754d9df76e36e xt/0-Test-ConsistentVersion.t
@@ -95,10 +95,10 @@ SHA1 ec454b1b524d2d0b35e5a7d8292ad13d82becab5 xt/0-Test-YAML-Meta.t
 SHA1 bdc59bfb29089f4c801a4282c0c3498f9a7982e5 xt/0-examples-xrefs.t
 SHA1 42c04ae557ab86d3488c647ea17bd37cd2bd7d6a xt/0-exe-shebang.t
 SHA1 2fb2ce60ce5c740d1eb7e3b55a96f3ccb84d38c3 xt/0-file-is-part-of.t
-SHA1 daba2840c7f128371d42516619a0e04fee2f5ff4 xt/0-no-debug-left-on.t
+SHA1 aeb6f41dfae96d04459448f6c3e3dee44691e722 xt/0-no-debug-left-on.t
 SHA1 84a47c1d71fd58797a2754030998dfb673b62811 xtools/my-check-copyright-years.sh
 SHA1 1f28ea8151b0f8554e5ab4e5bbcf1c5371f788eb xtools/my-check-spelling.sh
-SHA1 fad81dac3edf7be728f70b50d772571ff31f1bdb xtools/my-deb.sh
+SHA1 59164eaeb61442a799e88fbd2cad0b503588da32 xtools/my-deb.sh
 SHA1 2db0a23176de55a8ee8f1643f239aeaa2bcf4fa1 xtools/my-diff-prev.sh
 SHA1 6c48137d49c3619eca39796d49f26332eea55d4a xtools/my-kwalitee.sh
 SHA1 e4a15f9b4bcf1d087de2d9ed8e87bf92b0469a6c xtools/my-manifest.sh
@@ -108,7 +108,7 @@ SHA1 631dabf52c65a7b8613d6565fef2c2416ebba7e9 xtools/my-wunused.sh
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.12 (GNU/Linux)
 
-iD8DBQFQeeTcLFMCIV9q3ToRAqZDAJ9WhnV4rg8F8BPzg2tt3Nnh3UGfCwCdEVwu
-0BpNGmEkDl5icRfqxFzN4Hk=
-=/wTI
+iD8DBQFQw84DLFMCIV9q3ToRAsk6AKCvCM/y37VJtMhhneP3dQIYVrgjlwCeItvM
+Yd5i/YSGV0CdAWkPaOwtqPE=
+=Zr1m
 -----END PGP SIGNATURE-----

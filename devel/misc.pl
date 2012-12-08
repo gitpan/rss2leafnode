@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2010 Kevin Ryde
+# Copyright 2010, 2012 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -23,6 +23,24 @@ use warnings;
 
 # uncomment this to run the ### lines
 use Smart::Comments;
+
+{
+  require HTML::ExtractMain;
+  require File::Slurp;
+  my $str = File::Slurp::slurp('samp/swellnet-daily.html');
+  my $main = HTML::ExtractMain::extract_main_html($str);
+  print <<HERE;
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+</head>
+<body>
+$main
+</body>
+HERE
+  exit 0;
+}
 
 {
   my $str = 'fdjsk fdjsk fjksd fksd jkfs jfk sjkf skjf sk fjks fskjf sdk fsd';

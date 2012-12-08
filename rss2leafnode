@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 67;
+our $VERSION = 68;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -543,23 +543,35 @@ First non-empty of
     <itunes:owner>
     channel <title>
 
-RDF may hide an element value under sub-elements
-C<< <rdf:description><rdf:value> >>, at least for the C<dc> forms.  Atom has
-C<< <name> >> and C<< <email> >> sub-elements.  C<< <itunes:owner> >> may
-have an C<< <itunes:email> >> sub-element.  They can be checked for any
-element type usually.  Otherwise the text is free-form and might be things
-like
+The C<dc> bits in RDF might have sub-elements
+C<< <rdf:description><rdf:value> >> containing the actual text.
+
+    <dc:contributor>
+      <rdf:Description ...>
+        <rdf:value>Mary McConnell</rdf:value>
+      </rdf:Description>
+    </dc:contributor>
+
+Atom has C<< <name> >> and C<< <email> >> sub-elements.
+C<< <itunes:owner> >> may have an C<< <itunes:email> >> sub-element.  Such
+sub-elements can be checked without worrying whether the feed is supposed to
+be Atom or RSS etc.  When there's no sub-elements the text is free-form and
+might be things like
 
     Name
     Name <foo@bar.com>
     foo@bar.com (Name)
 
-If there's no identifiable mailbox part in the text or C<< <email> >> then
-C<nobody@HOSTNAME> is added to make a valid RFC822 address.
+If there's no identifiable email mailbox part in the text or C<< <email> >>
+then C<nobody@HOSTNAME> is added to make a valid RFC822 address.
 
 The channel C<< <title> >> as a final fallback is meant to at least show
 something about where the message came from if there's no author identified.
 An author's home page is included in the message links described above.
+
+Sometimes there may be multiple C<< <dc:creator> >> elements.  They're
+combined as a multi-author C<From> per RFC5322 (though without picking out a
+C<Sender> from among them).
 
 =item Subject:
 
