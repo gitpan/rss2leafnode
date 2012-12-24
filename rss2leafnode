@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 68;
+our $VERSION = 69;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -353,6 +353,28 @@ prevent old articles being re-added when the server discards them.  (It'd be
 better if the news server could be asked for its retention time, but this
 option is better than nothing.)
 
+=item $html_extract_main (default 0 for all)
+
+=item C<fetch_html ("group", "url", html_extract_main =E<gt> 1)>
+
+=item C<fetch_rss ("group", "url", html_extract_main =E<gt> 1)>
+
+Use L<HTML::ExtractMain> on downloaded HTML to pick out the "main" text from
+the page.  For C<fetch_rss()> this is applied to downloaded link parts (per
+C<rss_get_links> above).
+
+C<HTML::ExtractMain> is good for removing headers or side columns of
+boilerplate bumf on a page.  For a plain text view like RSS2Leafnode such
+things tend to waste space and may come out looking particularly poor from a
+non-tables renderer such as C<HTML::FormatText> or C<lynx>.
+
+The algorithm in C<HTML::ExtractMain> is a simple paragraph scoring system
+(as of its version 0.62).  It does a surprisingly good job but you might
+want to check how much it discards, in case something good has not been
+reckoned part of the main text.  There's no configuration for ExtractMain,
+but perhaps in the future the "1" here to enable could be some settings or
+whatever.
+
 =back
 
 =head2 Obscure Options
@@ -514,12 +536,12 @@ enough to present something.  On hopelessly malformed data it might be a bit
 slow.
 
 The most common XML problem is too much or too little C<&foo;> entity
-escaping.  Too little can turn HTML markup into nested XML elements.
+escaping.  Too little can turn HTML markup into nested XML elements and
 RSS2Leafnode treats that as if it was XHTML style sub-elements, though the
-result is likely to be imperfect.  Too much escaping ends up displaying raw
-or semi-raw HTML C<< <p> >> or C<&foo;> etc.  An option for extra unescaping
-might improve some bad feeds, but in practice it's unlikely to be wholly
-successful.  Every bad feed tends to be bad in its own special way.
+result is likely to be imperfect.  Too much escaping results in raw or
+semi-raw HTML C<< <p> >> or C<&foo;> coming through.  An option for extra
+unescaping might improve some bad feeds but in practice unlikely to be
+wholly successful.  Every bad feed tends to be bad in its own special way.
 
 =head2 Message Headers
 
@@ -533,6 +555,7 @@ First non-empty of
 
     <author>
     <jf:author>
+    <slate:author>
     <dc:creator>
     <dc:contributor>
     <wiki:username>
@@ -636,6 +659,7 @@ All of
     <media:keywords>
     <dc:subject>
     <slash:section>
+    <slate:topic>
 
 The sub-category system of C<< <itunes:category> >> is not currently put
 through.
@@ -692,9 +716,14 @@ download part, though in practice this is almost never sent by HTTP servers.
 =item Priority:
 
 These headers are only supposed to be for X.400 inter-operation.  Common
-Alerts Protocol C<< <cap:severity> >> levels Extreme and Severe are treated
-as "Importance: high" and "Priority: urgent".  C<< <wiki:importance> >>
-"minor" is "Importance: low".
+Alerts Protocol and Wiki (L<http://www.meatballwiki.org/wiki/ModWiki>) are
+treated as
+
+    <cap:severity> "Extreme" and "Severe"
+       -> "Importance: high" and "Priority: urgent"
+
+    <wiki:importance> "minor"
+       -> "Importance: low"
 
 =item Precedence:
 
@@ -802,24 +831,29 @@ only for the C<rnews> inject?
 No attention is paid to C<< <atom:updated> >> or other changes in an item.
 Should an updated item be re-posted?  Is the C<Supersedes:> header better,
 to replace the article?  Something allowing readers to see or not see
-updates according to user preference would be good.  Currently the item is
+updates according to user preference might be good.  Currently the item is
 reposted if C<< <atom:id> >> changes or if there's no C<id> and the content
-changes enough to make a new MD5 hash.  Or is C<id> supposed to stay the
-same for an update?
+changes enough to make a new MD5 hash.  Is C<id> supposed to stay the same
+for an update?
 
 The way C<$rss_get_links> only gets the immediate link target could perhaps
 be extended to fetch images, frame sub-parts, etc of a HTML page and include
 them in the message as RFC 2557 style "MHTML".  But do any news readers
 actually display that?
 
+Perhaps there should be a limit on the size of links to be downloaded.
+Sometimes podcast links have both a html page and a full audio link.  If the
+audio is bigger than some threshold then might like to download the html but
+not the audio.
+
 The entire XML feed is read into memory, which might be a little too much
-for large feeds.  Of course RSS was conceived as a "site summary", but ends
-up used for bigger content too.  Twig has a partial-tree parse for one item
-at a time, though applying the C<rss_newest_only> option would require a
-first pass to choose items.  A progressive parse might help show at least
-the first few items if there's a syntax error or truncation part-way
-through.  Some care would be needed that small changes by the automated
-charset recoding or C<XML::Liberal> etc doesn't cause duplicated posts.
+for large feeds.  RSS was conceived as a "site summary" but is used for
+bigger content too.  Twig has a partial-tree parse for one item at a time,
+though applying the C<rss_newest_only> option would require a first pass to
+choose items.  A progressive parse might help show at least the first few
+items if there's a fatal syntax error or truncation part-way through.  Some
+care would be needed that small changes by the automated charset recoding or
+C<XML::Liberal> etc doesn't cause duplicated posts.
 
 =head1 ENVIRONMENT VARIABLES
 

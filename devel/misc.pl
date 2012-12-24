@@ -39,6 +39,9 @@ use Smart::Comments;
 $main
 </body>
 HERE
+  require HTML::FormatText;
+  my $formatter = HTML::FormatText->new(rightmargin => 50);
+  print $formatter->format_string($main);
   exit 0;
 }
 

@@ -20,7 +20,7 @@ use 5.010;
 use strict;
 use warnings;
 
-our $VERSION = 68;
+our $VERSION = 69;
 
 {
   package App::RSS2Leafnode::Conf::Tie;
@@ -55,6 +55,7 @@ foreach my $field ('verbose',
                    'rss_charset_override',
                    'get_icon',
                    'html_charset_from_content',
+                   'html_extract_main',
 
                    # secret variables
                    'msgidextra',
@@ -83,9 +84,12 @@ App::RSS2Leafnode::Conf -- conf file environment for rss2leafnode
 
 =head1 DESCRIPTION
 
-The F<~/rss2leafnode.conf> file is run in this package.  The C<fetch_rss>
-and C<fetch_html> functions and the config variables operate on an
-RSS2Leafnode object.
+The F<~/rss2leafnode.conf> file is run in package
+C<App::RSS2Leafnode::Conf>.  The C<fetch_rss()> and C<fetch_html()>
+functions and the config variables operate on an RSS2Leafnode object.
+
+See L<rss2leafnode> for overall operation and L<rss2leafnode/CONFIG OPTIONS>
+for the available variables.
 
 =head1 SEE ALSO
 

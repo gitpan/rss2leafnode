@@ -55,7 +55,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 68;
+  $VERSION = 69;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -2109,17 +2109,23 @@ sub fetch_html {
                  # show original url in subject, not anywhere redirected
                  // __x('RSS2Leafnode {url}', url => $url));
 
+  my $from = $self->http_resp_to_from($resp);
+  my $date = $resp->header('Last-Modified');
+  my $face = $self->http_resp_to_face($resp);
+  my $copyright = $self->http_resp_to_copyright($resp);
+  $self->http_resp_extract_main($resp);
+
   my $top = $self->mime_part_from_response
     ($resp,
      Top                 => 1,
      'Path:'             => scalar ($self->uri_to_host),
      'Newsgroups:'       => $group,
-     From                => scalar ($self->http_resp_to_from($resp)),
+     From                => $from,
      Subject             => $subject,
-     Date                => scalar ($resp->header('Last-Modified')),
+     Date                => $date,
      'Message-ID'        => $msgid,
-     'Face:'             => scalar ($self->http_resp_to_face($resp)),
-     'X-Copyright:'      => scalar ($self->http_resp_to_copyright($resp)));
+     'Face:'             => $face,
+     'X-Copyright:'      => $copyright);
 
   mime_entity_lines($top);
   $self->nntp_post($top) || return;
@@ -2127,6 +2133,30 @@ sub fetch_html {
   say __x("{group} 1 new article", group => $group);
 }
 
+# $resp is a HTTP::Response
+# If the $self->{'html_extract_main'} option is true and $resp is html then
+# resplace the $resp content with HTML::ExtractMain extracted part.
+#
+sub http_resp_extract_main {
+  my ($self, $resp) = @_;
+
+  $self->{'html_extract_main'} or return;
+  $resp->headers->content_is_html() or return;
+
+  require HTML::ExtractMain;
+  $resp->decode;                        # expand any compression
+  my $content = $resp->decoded_content; # as wide-chars
+  $content = HTML::ExtractMain::extract_main_html($content);
+  if (! defined $content) {
+    $self->verbose (1, __(" HTML::ExtractMain no main part found, posting whole"));
+    return;
+  }
+  ### main extracted: $content
+  $resp->remove_header('Content-MD5'); # since changed content
+  my $charset = $resp->content_charset;
+  $content = Encode::encode ($charset, $content);
+  $resp->content($content);
+}
 
 #------------------------------------------------------------------------------
 # RSS hacks
@@ -2784,6 +2814,9 @@ use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
     # looser.  The RSS recommendation is <author> when revealing an email
     # and <dc:creator> when hiding it.
     #
+    # <slate:author> is ahead of <dc:creator> since <slate:author> has a url
+    # attribute.
+    #
     # <dc:contributor> appears in wiki: feeds as the item's author.
     #
     # <contributor> can appear multiple times in Atom item.  For now prefer
@@ -2795,6 +2828,7 @@ use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
     my @links;
     foreach my $try ([$item, 'author'],
                      [$item, 'jf:author'],
+                     [$item, 'slate:author'],
                      [$item, 'dc:creator'],
                      [$item, 'dc:contributor'],
                      [$item, 'wiki:username'],
@@ -2815,6 +2849,7 @@ use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
 
       if (my @elts = $item->children($tag)) {
         foreach my $elt (@elts) {
+          ### elt for From: $elt->sprint
           push @from, $self->elt_to_email($elt);
 
           # author's home page etc as a link
@@ -2826,6 +2861,10 @@ use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
                # </author>
                #
                non_empty ($elt->first_child_text('uri'))
+
+               # slate.com
+               # <slate:author url="">Joe Bloggs</slate:author>
+               // non_empty ($elt->att('url'))
 
                # ModWiki dc:contributor example
                #     <rdf:Description link="http://openwiki.com/?FooBar">
@@ -2887,6 +2926,7 @@ use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
             /channel/item/dc:contributor/rdf:Description
             /channel/item/dc:contributor/rdf:Description/rdf:value
             /channel/item/jf:author
+            /channel/item/slate:author
 
             /channel/item/contributor        --atom
             /channel/item/contributor/name
@@ -3106,7 +3146,7 @@ sub rss_newest_only_items {
 
     my $after = scalar(@items);
     if ($before != $after) {
-      $self->verbose (1, " rss_newest_only reduce count $before to $after items");
+      $self->verbose (1, " rss_newest_only reduce $before items to $after items");
     }
     return @items;
   }
@@ -3154,6 +3194,7 @@ my $map_xmlns
      'http://xmlns.com/foaf/0.1/'                   => 'foaf',
      'http://status.net/ont/'                       => 'statusnet',
      'http://rdfs.org/sioc/ns#'                     => 'sioc',
+     'http://www.slate.com'                         => 'slate',
      'http://activitystrea.ms/spec/1.0/'            => 'activity',
      'http://ostatus.org/schema/1.0'                => 'ostatus',
 
@@ -3181,6 +3222,7 @@ my $map_xmlns
 
      # purl.org might be supposed to be the home for wiki:, but it's a 404
      # and usemod.com suggests its page instead
+     # Spec at http://www.meatballwiki.org/wiki/ModWiki
      'http://purl.org/rss/1.0/modules/wiki/'        => 'wiki',
      'http://www.usemod.com/cgi-bin/mb.pl?ModWiki'  => 'wiki',
 
@@ -3351,9 +3393,12 @@ sub item_to_msgid {
                                    ))));
 }
 # FIXME: is <wordzilla:id> anything that can be used ?
+# <slate:id> not needed, its feed has a guid.
 @known{qw(/channel/item/guid
           /channel/item/id
-          /channel/item/wordzilla:id)} = ();
+          /channel/item/wordzilla:id
+          /channel/item/slate:id
+         )} = ();
 
 # Return an "In-Reply-To:" value for $item, being a space-separated list of
 # Message-ID strings including angles <>, or undef if nothing.  The message
@@ -3426,6 +3471,7 @@ sub item_to_in_reply_to {
               |media:keywords
               |dc:subject
               |slash:section
+              |slate:topic
               )$/x;
   sub item_to_keywords {
     my ($self, $item) = @_;
@@ -3449,6 +3495,8 @@ sub item_to_in_reply_to {
          map {$_->children('cb:keyword')} $item->children,
         )));
   }
+  # maybe could show <slate:section> like "Health and Science" as a keyword
+  # too, for now just omit
   @known{qw(/channel/category
             /channel/itunes:category
             /channel/itunes:category/itunes:category
@@ -3456,7 +3504,10 @@ sub item_to_in_reply_to {
             /channel/item/category
             /channel/item/itunes:keywords
             /channel/item/media:keywords
-            /channel/item/slash:section)} = ();
+            /channel/item/slash:section
+            /channel/item/slate:topic
+            /channel/item/slate:section
+          )} = ();
 }
 
 {
@@ -3576,6 +3627,9 @@ sub item_to_subject {
           /channel/item/dc:title
           /channel/item/itunes:title
           /channel/item/itunes:subtitle  --not-using-this-as-yet
+          /channel/item/slate:menuline   --copy-of-subject-it-seems
+          /channel/item/slate:rubric     --blog-title
+          /channel/item/slate:blog       --blog-title
         )} = ();
 
 
@@ -4185,6 +4239,7 @@ sub fetch_rss_process_one_item {
         #
         $self->enforce_html_charset_from_content ($resp);
         $headers{'Face:'} ||= $self->http_resp_to_face($resp);
+        $self->http_resp_extract_main($resp);
         push @parts, $self->mime_part_from_response ($resp);
       }
     }

@@ -71,7 +71,7 @@ WriteMakefile
                     # using that
                     'URI' => 0,
                     'URI::Escape' => 0,
-                    'URI::tag' => 0, # for hostname of atom <id>s
+                    'URI::tag' => 0, # for hostname of atom <id>
 
                     # version 3.34 for att_exists()
                     'XML::Twig' => '3.34',
@@ -108,6 +108,7 @@ WriteMakefile
                        'Time::Duration::Locale' => 0,
                        'Time::Duration::ja'     => 0,
                        'Time::Duration::sv'     => 0,
+                       'HTML::ExtractMain'      => 0,
                        'HTML::FormatExternal'        => 16,
                        'HTML::FormatText::WithLinks' => 0,
                        'URI::Title'      => 0,
