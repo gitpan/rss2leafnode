@@ -2,7 +2,7 @@
 
 # RSS2Leafnode -- copy RSS feeds to a local news spool
 
-# Copyright 2007, 2008, 2009, 2010, 2011, 2012 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 69;
+our $VERSION = 70;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -539,9 +539,11 @@ The most common XML problem is too much or too little C<&foo;> entity
 escaping.  Too little can turn HTML markup into nested XML elements and
 RSS2Leafnode treats that as if it was XHTML style sub-elements, though the
 result is likely to be imperfect.  Too much escaping results in raw or
-semi-raw HTML C<< <p> >> or C<&foo;> coming through.  An option for extra
-unescaping might improve some bad feeds but in practice unlikely to be
-wholly successful.  Every bad feed tends to be bad in its own special way.
+semi-raw HTML C<< <p> >> or C<&foo;> coming through.  C<&apos;> may be XHTML
+instead of HTML, though many browsers support it anyway.  An option for
+extra unescaping might improve some bad feeds but in practice is unlikely to
+be wholly successful.  Every bad feed tends to be bad in its own special
+way.
 
 =head2 Message Headers
 
@@ -906,7 +908,7 @@ L<http://user42.tuxfamily.org/rss2leafnode/index.html>
 
 =head1 LICENSE
 
-Copyright 2007, 2008, 2009, 2010, 2011, 2012 Kevin Ryde
+Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013 Kevin Ryde
 
 RSS2Leafnode is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free

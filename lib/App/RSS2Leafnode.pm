@@ -1,4 +1,4 @@
-# Copyright 2007, 2008, 2009, 2010, 2011, 2012 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -55,7 +55,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 69;
+  $VERSION = 70;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -2147,6 +2147,12 @@ sub http_resp_extract_main {
   $resp->decode;                        # expand any compression
   my $content = $resp->decoded_content; # as wide-chars
   $content = HTML::ExtractMain::extract_main_html($content);
+  
+  # extract_main_html() gives back xhtml, avoid &apos; which is an xml-ism
+  # not in the html standards.  &apos; is supported by many browsers, but
+  # not for example by w3m.
+  $content =~ s/&apos;/&#39;/;
+
   if (! defined $content) {
     $self->verbose (1, __(" HTML::ExtractMain no main part found, posting whole"));
     return;
@@ -4571,7 +4577,7 @@ L<http://user42.tuxfamily.org/rss2leafnode/index.html>
 
 =head1 LICENSE
 
-Copyright 2007, 2008, 2009, 2010, 2011, 2012 Kevin Ryde
+Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013 Kevin Ryde
 
 RSS2Leafnode is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free

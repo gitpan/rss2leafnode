@@ -18,8 +18,7 @@
 
 # "leafnode | news-transport-system" is only "Reccommends" so as not
 # to force removal of rss2leafnode if switching news servers, and
-# since in theory the $news_host option makes it possible to connect
-# to a nearby remote news server.
+# since rss2leafnode can be directed to a remote nntp server.
 
 Source: rss2leafnode
 Section: news
