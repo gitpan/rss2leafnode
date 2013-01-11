@@ -1,4 +1,4 @@
-# Copyright 2007, 2008, 2009, 2010, 2011, 2012 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -21,7 +21,7 @@ use strict;
 use Exporter;
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
 
-$VERSION = 70;
+$VERSION = 71;
 @ISA = ('Exporter');
 @EXPORT_OK = (qw(elt_is_empty
                  elt_tree_strip_prefix

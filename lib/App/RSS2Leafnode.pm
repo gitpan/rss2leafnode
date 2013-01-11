@@ -55,7 +55,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 70;
+  $VERSION = 71;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -2151,7 +2151,7 @@ sub http_resp_extract_main {
   # extract_main_html() gives back xhtml, avoid &apos; which is an xml-ism
   # not in the html standards.  &apos; is supported by many browsers, but
   # not for example by w3m.
-  $content =~ s/&apos;/&#39;/;
+  $content =~ s/&apos;/&#39;/g;
 
   if (! defined $content) {
     $self->verbose (1, __(" HTML::ExtractMain no main part found, posting whole"));

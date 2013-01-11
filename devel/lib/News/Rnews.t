@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright 2008, 2009, 2010, 2011, 2012 Kevin Ryde
+# Copyright 2008, 2009, 2010, 2011, 2012, 2013 Kevin Ryde
 
 # This file is part of RSS2Leafnode.
 #
@@ -26,7 +26,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $want_version = 70;
+my $want_version = 71;
 is ($News::Rnews::VERSION, $want_version, 'VERSION variable');
 is (News::Rnews->VERSION,  $want_version, 'VERSION class method');
 { ok (eval { News::Rnews->VERSION($want_version); 1 },
