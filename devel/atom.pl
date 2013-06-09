@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2008, 2009, 2010 Kevin Ryde
+# Copyright 2008, 2009, 2010, 2013 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -39,7 +39,7 @@ my $xml = <<'HERE';
     <title>Item One</title>
     <author>
       <name>Foo Bar</name>
-      <email>foo@bar.com</email>
+      <email>foo@example.com</email>
     </author>
   </entry>
 </feed>

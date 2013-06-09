@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011 Kevin Ryde
+# Copyright 2011, 2013 Kevin Ryde
 
 # 0-examples-xrefs.t is shared by several distributions.
 #
@@ -24,7 +24,7 @@ use Test::More;
 
 use lib 't';
 use MyTestHelpers;
-BEGIN { MyTestHelpers::nowarnings() }
+BEGIN { MyTestHelpers::nowarnings(); }
 
 my $manifest = ExtUtils::Manifest::maniread();
 my @example_files = grep m{examples/.*\.pl$}, keys %$manifest;

@@ -20,6 +20,9 @@
 # location links
 # http://maps.google.com/maps?ll=-35.066667,148.1
 # http://maps.google.com/maps?ll=-35.066667,148.1&spn=0.01,0.01&t=m
+#
+# <link rel="canonical" href="http://www.example.com/">
+# when site has mutliple names for a page, relative or absolute
 
 
 
@@ -55,7 +58,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 71;
+  $VERSION = 72;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -506,88 +509,88 @@ $known{'/channel/item/dcterms:audience'} = undef;
           /channel/items/rdf:Seq
           /channel/items/rdf:Seq/rdf:li)} = ();
 
-@known{qw(
-           /channel/cloud
-           /channel/link
-           /channel/docs
-           /channel/generator
-           /channel/rating
-           /channel/id
-           /channel/description
-           /channel/tagline
-           /channel/info      --atom-something-freeform
-           /channel/itunes:summary
-           /channel/feedburner:info
+@known{('/channel/cloud',
+        '/channel/link',
+        '/channel/docs',
+        '/channel/generator',
+        '/channel/rating',
+        '/channel/id',
+        '/channel/description',
+        '/channel/tagline',
+        '/channel/info', # atom something freeform
+        '/channel/itunes:summary',
+        '/channel/feedburner:info',
 
-           --nothing-much-in-these-as-yet-eg.-rssboard
-           /channel/item/sitemap:priority
-           /channel/item/sitemap:changefreq
+        # nothing much in these as yet eg. rssboard
+        '/channel/item/sitemap:priority',
+        '/channel/item/sitemap:changefreq',
 
-           --feedburner-junk
-           /channel/feedburner:feedFlare
+        # feedburner junk
+        '/channel/feedburner:feedFlare',
 
-           --images
-           /channel/itunes:owner
-           /channel/itunes:owner/itunes:name
-           /channel/itunes:owner/itunes:email
+        # images
+        '/channel/itunes:owner',
+        '/channel/itunes:owner/itunes:name',
+        '/channel/itunes:owner/itunes:email',
 
-           /channel/textInput
-           /channel/textInput/description
-           /channel/textInput/link
-           /channel/textInput/name
-           /channel/textInput/title
-           /channel/textinput
-           /channel/textinput/title
-           /channel/textinput/description
-           /channel/textinput/name
-           /channel/textinput/link
+        '/channel/textInput',
+        '/channel/textInput/description',
+        '/channel/textInput/link',
+        '/channel/textInput/name',
+        '/channel/textInput/title',
+        '/channel/textinput',
+        '/channel/textinput/title',
+        '/channel/textinput/description',
+        '/channel/textinput/name',
+        '/channel/textinput/link',
 
-           /channel/openSearch:totalResults
-           /channel/openSearch:startIndex
-           /channel/openSearch:itemsPerPage
+        '/channel/openSearch:totalResults',
+        '/channel/openSearch:startIndex',
+        '/channel/openSearch:itemsPerPage',
 
-           /channel/item
-           /channel/item/source
+        '/channel/item',
+        '/channel/item/source',
 
-           /channel/item/twitter:source
+        '/channel/item/twitter:source',
 
+        # something from radio free france
+        # eg. http://radiofrance-podcast.net/podcast09/rss_10193.xml
+        '/channel/item/podcastRF:businessReference',
 
-           --google-documents-stuff
-           /channel/item/gd:extendedProperty
-        )} = ();
+        # google documents stuff
+        '/channel/item/gd:extendedProperty',
 
-# --weather
-# /channel/item/w:current
-# /channel/item/w:forecast
-# /channel/yweather:location
-# /channel/yweather:units
-# /channel/yweather:wind
-# /channel/yweather:atmosphere
-# /channel/yweather:astronomy
-# /channel/item/yweather:condition
-# /channel/item/yweather:forecast
+        # <cb:statistics> repeats in structured form the rate shown in the text
+        # eg. RBA http://www.rba.gov.au/rss/rss-cb-exchange-rates.xml
+        'channel/item/cb:statistics',
 
-# RBA per http://www.rba.gov.au/rss/rss-cb-exchange-rates.xml
-# <cb:statistics> repeats in structured form the rate shown in the text
-#
-# Fed Reserve per http://www.federalreserve.gov/feeds/press_taf.xml
-# <cb:news> repeats plain text
-#
-# Fed eg. http://www.federalreserve.gov/feeds/speeches.xml
-# FIXME: <cb:speech> may have bit extra detail
-#
-# Fed eg. http://www.federalreserve.gov/feeds/ifdp.xml
-# <cb:paper> repeat in structured form
-# FIXME: except <cb:resource><cb:link> has extra pdf form link
-#
-# <cb:event> guess likewise
-#
-@known{qw(/channel/item/cb:statistics
-          /channel/item/cb:news
-          /channel/item/cb:speech
-          /channel/item/cb:paper
-          /channel/item/cb:event
-        )} = ();
+        # <cb:news> repeats plain text
+        # eg. Fed Reserve http://www.federalreserve.gov/feeds/press_taf.xml
+        '/channel/item/cb:news',
+
+        # FIXME: <cb:speech> may have bit extra detail
+        # Fed eg. http://www.federalreserve.gov/feeds/speeches.xml
+        '/channel/item/cb:speech',
+
+        # <cb:paper> repeat in structured form
+        # <cb:event> guess likewise
+        # Fed eg. http://www.federalreserve.gov/feeds/ifdp.xml
+        # FIXME: except <cb:resource><cb:link> has extra pdf form link
+        '/channel/item/cb:paper',
+        '/channel/item/cb:event',
+       )} = ();
+
+# weather
+# '/channel/item/w:current',
+# '/channel/item/w:forecast',
+# '/channel/yweather:location',
+# '/channel/yweather:units',
+# '/channel/yweather:wind',
+# '/channel/yweather:atmosphere',
+# '/channel/yweather:astronomy',
+# '/channel/item/yweather:condition',
+# '/channel/item/yweather:forecast',
+
 # --central-bank
 # /channel/item/cb:statistics
 # /channel/item/cb:statistics/cb:country
@@ -700,7 +703,7 @@ sub item_to_timet {
 
   require Date::Parse;
   ### $str
-  # print Date::Parse::str2time($str),"\n";
+  # print Date::Parse::str2time($str),"   $str\n";
   return (Date::Parse::str2time($str)
           // do {
             say __x('Unrecognised date "{date}" from {url}',
@@ -1545,6 +1548,7 @@ sub render_maybe {
       # pretty reasonable results by putting wide chars through it.
       # Likewise HTML::FormatText::WithLinks (as of version 0.11).
       #
+      # FIXME: decode() can error out on bad charset
       $content = Encode::decode ($charset, $content);
       local $SIG{'__WARN__'} = \&_warn_suppress_unknown_base;
       $content = $class->format_string
@@ -2057,11 +2061,45 @@ sub http_resp_exiftool_author {
 
 sub http_resp_to_copyright {
   my ($self, $resp) = @_;
-  ### http_resp_to_copyright()
-  if ($resp->content_type =~ m{^text/}) { return; }
-  # PNG Copyright field, perhaps other formats
-  my $copyright = resp_exiftool_info($resp)->{'Copyright'} // return;
-  return Encode::decode_utf8($copyright);
+  ### http_http_resp_to_copyright() ...
+
+  my @copyrights = non_empty($resp->header('X-Meta-Copyright'));
+  unless ($resp->content_type =~ m{^text/}) {
+    # PNG Copyright field, perhaps other formats
+    push @copyrights, non_empty(resp_exiftool_info($resp)->{'Copyright'});
+  }
+  return \@copyrights;
+}
+
+# return a "Keywords:" string, or undef if nothing
+sub http_resp_to_keywords {
+  my ($self, $resp) = @_;
+  ### http_resp_to_keywords() ...
+
+  my @keywords = $resp->header('X-Meta-Keywords');
+
+  if ($resp->headers->content_is_html) {
+    $resp->decode;
+    require HTML::Parser;
+    my $p = HTML::Parser->new
+      (api_version => 3,
+       report_tags => ['meta'],
+       start_h => [ sub {
+                      my ($tagname, $attr) = @_;
+                      # <meta rel="og:type" content="sport"> facebook thing
+                      if ($tagname eq 'meta'
+                          && lc($attr->{'property'}||'') eq 'og:type') {
+                        push @keywords, $attr->{'content'};
+                      }
+
+                    }, "tagname, attr" ]);
+    $p->parse ($resp->decoded_content);
+  }
+  ### @keywords
+
+  return join_non_empty
+    (', ', List::MoreUtils::uniq(map {collapse_whitespace($_)}
+                                 @keywords));
 }
 
 sub fetch_html {
@@ -2113,17 +2151,20 @@ sub fetch_html {
   my $date = $resp->header('Last-Modified');
   my $face = $self->http_resp_to_face($resp);
   my $copyright = $self->http_resp_to_copyright($resp);
+  my $keywords = $self->http_resp_to_keywords($resp);
+
   $self->http_resp_extract_main($resp);
 
   my $top = $self->mime_part_from_response
     ($resp,
      Top                 => 1,
-     'Path:'             => scalar ($self->uri_to_host),
+     'Path:'             => scalar($self->uri_to_host),
      'Newsgroups:'       => $group,
      From                => $from,
      Subject             => $subject,
      Date                => $date,
      'Message-ID'        => $msgid,
+     Keywords            => $keywords,
      'Face:'             => $face,
      'X-Copyright:'      => $copyright);
 
@@ -2144,15 +2185,16 @@ sub http_resp_extract_main {
   $resp->headers->content_is_html() or return;
 
   require HTML::ExtractMain;
+  HTML::ExtractMain->VERSION(0.63); # for output_type=>'html'
   $resp->decode;                        # expand any compression
   my $content = $resp->decoded_content; # as wide-chars
-  $content = HTML::ExtractMain::extract_main_html($content);
-  
-  # extract_main_html() gives back xhtml, avoid &apos; which is an xml-ism
-  # not in the html standards.  &apos; is supported by many browsers, but
-  # not for example by w3m.
-  $content =~ s/&apos;/&#39;/g;
 
+  # Output type 'html' differs from the default xhtml by a few entities, in
+  # particular &apos; which is an xml-ism not in the html standards though
+  # supported by various browsers, but not for example by w3m.
+  $content = HTML::ExtractMain::extract_main_html($content,
+                                                  output_type => 'html');
+  
   if (! defined $content) {
     $self->verbose (1, __(" HTML::ExtractMain no main part found, posting whole"));
     return;
@@ -2265,7 +2307,21 @@ sub atom_link_is_rss {
 
 
 
-# return list of hashrefs
+# return list of hashrefs, each being
+#    { name     => $str,
+#      uri      => $uri_object,
+#      download => $boolean,
+#      priority => $number,
+#    }
+#
+# Links are listed from highest to lowest priority.  The current priority
+# levels are
+#     0     plain links
+#     -10   comment RSS
+#     -20   author home page
+#     -100  geo location text-only
+#     -101  statusnet geo location
+#     -200  <source>, <media:credit>, <itunes:explicit>
 #
 sub item_to_links {
   my ($self, $item) = @_;
@@ -2304,14 +2360,6 @@ sub item_to_links {
                                  )$/ix);
   ### link elts: "@elts"
 
-  # priority levels:
-  #     0     plain links
-  #     -10   comment RSS
-  #     -20   author home page
-  #     -100  geo location text-only
-  #     -101  statusnet geo location
-  #     -200  <source>, <media:credit>, <itunes:explicit>
-
   my @links;
   foreach my $elt (@elts) {
     $self->verbose (2, "link\n", Text::Trim::trim($elt->sprint));
@@ -2327,93 +2375,40 @@ sub item_to_links {
       $l->{$name} = ($elt->att("atom:$name") // $elt->att($name));
     }
 
-    # tags without rel="" attribute
-    #
-    given (non_empty ($elt->att('atom:rel') // $elt->att('rel'))) {
-      when (!defined) {
-        given ($tag) {
-          when ('enclosure') {
-            $l->{'name'} = __('Encl');
-          }
-          when ('dc:source') {
-            $l->{'name'} = __('Source');
-            $l->{'download'} = 0;
-          }
-          when ('wiki:diff') {
-            $l->{'name'} = __('Diff');
-          }
-          when ('wiki:history') {
-            $l->{'name'} = __('History');
-            $l->{'download'} = 0;
-          }
-          when (/foaf:maker|sioc:has_creator/) {
-            $l->{'name'} = __('Author');
-            $l->{'download'} = 0;
-            $l->{'priority'} = -20; # low
-          }
-          when ('statusnet:origin') {
-            $l->{'name'} = __('Geo location');
-            $l->{'download'} = 0;
-            $l->{'priority'} = -101; # just after Geo location
-          }
-          when ('sioc:has_discussion') {
-            $l->{'name'} = __('Discussion');
-            $l->{'download'} = 0;
-          }
-          when ('wfw:commentrss') {
-            if (defined (my $count
-                         = $self->item_elt_comments_count($item,$elt))) {
-              $l->{'name'} = __x('RSS Comments({count})', count => $count);
-            } else {
-              $l->{'name'} = __('RSS Comments');
-            }
-            $l->{'download'} = 0;
-            $l->{'priority'} = -10;
-          }
-          when (/comment/) {  # <comments> or <wfw:comment>
-            if (defined (my $count
-                         = $self->item_elt_comments_count($item,$elt))) {
-              $l->{'name'} = __x('Comments({count})', count => $count);
-            } else {
-              $l->{'name'} = __('Comments');
-            }
-            $l->{'download'} = 0;
-          }
-        }
-      }
-
+    my $rel = non_empty($elt->att('atom:rel') // $elt->att('rel'));
+    if (defined $rel) {
       # Atom rel="..."
-      #
-      when (['self',         # the feed itself (in the channel normally)
-             'edit',         # to edit the item, maybe
-             'service.edit', # to edit the item
-             'license',      # probably only in the channel part normally
-            ]) {
-        $self->verbose (1, '  ', __x('skip link "{type}"', type => $_));
+      # Maybe: if ($rel eq 'next') ... # not sure about "next" link
+
+      if ($rel eq 'self'           # the feed itself (in the channel normally)
+          || $rel eq 'edit'        # to edit the item, maybe
+          || $rel eq 'service.edit' # to edit the item
+          || $rel eq 'license'     # probably only in the channel part normally
+         ) {
+        $self->verbose (1, '  ', __x('skip link "{type}"', type => $rel));
         next;
       }
-      when ('alternate') {
+      if ($rel eq 'alternate') {
         # "alternate" is supposed to be the content as the entry, but in a
         # web page or something.  Not sure that's always quite true, so show
         # it as a plain link.  If no <content> then an "alternate" is
         # supposed to be mandatory.
-      }
-      when ('enclosure') {
+
+      } elsif ($rel eq 'enclosure') {
         $l->{'name'} = __('Encl');
-      }
-      # when ('next') ... # not sure about "next" link
-      when ('ostatus:conversation') {
+
+      } elsif ($rel eq 'ostatus:conversation') {
         $l->{'name'} = __('Conversation');
         $l->{'download'} = 0;
-      }
-      when ('ostatus:attention') {
+
+      } elsif ($rel eq 'ostatus:attention') {
         $l->{'name'} = __('Attention');
         $l->{'download'} = 0;
-      }
-      when ('related') {
+
+      } elsif ($rel eq 'related') {
         $l->{'name'} = __('Related');
-      }
-      when ('replies') {
+
+      } elsif ($rel eq 'replies') {
         # Atom <link rel="replies" per RFC 4685 "thr:" spec
         my $count = $self->item_elt_comments_count($item,$elt);
         if ($self->atom_link_is_rss($elt)) {
@@ -2427,17 +2422,66 @@ sub item_to_links {
                           : __('Replies'));
         }
         $l->{'download'} = 0;
-      }
-      when ('service.post') {
+
+      } elsif ($rel eq 'service.post') {
         $l->{'name'} = __('Comments');
         $l->{'download'} = 0;
-      }
-      when ('via') {
+
+      } elsif ($rel eq 'via') {
         $l->{'name'} = __('Via');
         $l->{'download'} = 0;
+
+      } else {
+        $l->{'name'} = __x('{linkrel}', linkrel => $rel);
       }
-      default {
-        $l->{'name'} = __x('{linkrel}', linkrel => $_);
+
+    } else {   # ! defined $rel
+      # tags without rel="" attribute
+      #
+      if ($tag eq 'enclosure') {
+        $l->{'name'} = __('Encl');
+
+      } elsif ($tag eq 'dc:source') {
+        $l->{'name'} = __('Source');
+        $l->{'download'} = 0;
+
+      } elsif ($tag eq 'wiki:diff') {
+        $l->{'name'} = __('Diff');
+
+      } elsif ($tag eq 'wiki:history') {
+        $l->{'name'} = __('History');
+        $l->{'download'} = 0;
+
+      } elsif ($tag =~ /foaf:maker|sioc:has_creator/) {
+        $l->{'name'} = __('Author');
+        $l->{'download'} = 0;
+        $l->{'priority'} = -20; # low
+
+      } elsif ($tag eq 'statusnet:origin') {
+        $l->{'name'} = __('Geo location');
+        $l->{'download'} = 0;
+        $l->{'priority'} = -101; # just after Geo location
+
+      } elsif ($tag eq 'sioc:has_discussion') {
+        $l->{'name'} = __('Discussion');
+        $l->{'download'} = 0;
+
+      } elsif ($tag eq 'wfw:commentrss') {
+        if (defined (my $count = $self->item_elt_comments_count($item,$elt))) {
+          $l->{'name'} = __x('RSS Comments({count})', count => $count);
+        } else {
+          $l->{'name'} = __('RSS Comments');
+        }
+        $l->{'download'} = 0;
+        $l->{'priority'} = -10;
+
+      } elsif ($tag =~ /comment/) {  # <comments> or <wfw:comment>
+        if (defined (my $count = $self->item_elt_comments_count($item,$elt))) {
+          $l->{'name'} = __x('Comments({count})', count => $count);
+        } else {
+          $l->{'name'} = __('Comments');
+        }
+        $l->{'download'} = 0;
       }
     }
 
@@ -2496,14 +2540,15 @@ sub item_to_links {
     my $str = non_empty (elt_to_rendered_line($elt->first_child('title')))
       // non_empty ($elt->trimmed_text);
     if (defined $str) {
-      push @links, { name => __('Source').': '.$str,
+      push @links, { name => __('Source') . ": $str",
                      download => 0,
                      priority => -200,
                    };
     }
-    foreach my $subelt ($elt,
-                        grep {$self->atom_link_is_rss($_)}
-                        $elt->children('link')) {
+    foreach my $subelt
+      ($elt,
+       grep {$self->atom_link_is_rss($_)} $elt->children('link')
+      ) {
       if (defined $subelt
           && defined (my $url = non_empty ($subelt->att('url'))
                       // non_empty ($subelt->att('href'))
@@ -2569,7 +2614,7 @@ sub item_to_links {
   if (defined (my $str = $self->item_to_lat_long_alt_str ($item))) {
     push @links, { name => $str,
                    download => 0,
-                   priority => -100,  # lat/long last
+                   priority => -100,  # lat/long low priority
                  };
   }
 
@@ -2579,29 +2624,31 @@ sub item_to_links {
     push @links, { name => __x('Credit: {who}',
                                who => scalar(elt_to_rendered_line($elt))),
                    download => 0,
-                   priority => -200,
+                   priority => -200,  # very low priority
                  };
   }
 
   # <itunes:explicit>no</itunes:explicit>
-  # but empty <itunes:explicit/> at http://abc.net.au/rn/podcast/feeds/sci.xml
+  #
+  # Allow for empty <itunes:explicit/> as found
+  # http://abc.net.au/rn/podcast/feeds/sci.xml
   #
   foreach my $elt ($item->children('itunes:explicit')) {
     my $line = elt_to_rendered_line($elt)
       // next; # skip empty <itunes:explicit/>
     push @links, { name => __x('Explicit: {value}', value => $line),
                    download => 0,
-                   priority => -200,
+                   priority => -200,   # very low priority
                  };
   }
 
-  # eg. <slash:department>blasting-it-into-the-sun-is-not-a-viable-option</slash:department>
+  # <slash:department>blasting-it-into-the-sun-is-not-a-viable-option</slash:department>
   # a fun kind of commentary thing
   foreach my $elt ($item->children('slash:department')) {
     push @links, { name => __x('Department: {department}',
                                department => scalar(elt_to_rendered_line($elt))),
                    download => 0,
-                   priority => -200,
+                   priority => -200,   # very low priority
                  };
   }
 
@@ -2662,6 +2709,9 @@ sub item_to_links {
 #   return 0;
 # }
 
+# Return a string which is the latitude, longitude and possibly altitude
+# from the item.  If no location in the item then return undef.
+#
 sub item_to_lat_long_alt_str {
   my ($self, $item) = @_;
   my ($lat, $long, $alt) = $self->item_to_lat_long_alt_values ($item)
@@ -2672,8 +2722,9 @@ sub item_to_lat_long_alt_str {
 
   if (Scalar::Util::looks_like_number($lat)) {
     $lat = ($lat >= 0
-            # TRANSLATORS: the latin1/unicode degree symbol can be used
-            # here instead of " deg"
+            # TRANSLATORS: the latin1/unicode degree symbol can be used here
+            # instead of " deg", if it will be recognised in translation,
+            # etc.
             ? __x('{latitude} deg N', latitude => $lat)
             : __x('{latitude} deg S', latitude => -$lat));
   }
@@ -2695,6 +2746,19 @@ sub item_to_lat_long_alt_str {
   }
 }
 
+# Return a list of values which are the latitude, longitude and possibly
+# altitude extracted from $item.
+#
+#    ($latitude, $longitude, $altitude)
+#    ($latitude, $longitude)
+#    ()
+#
+# If no location then return an empty list.  Some of the values returned
+# might be empty strings if say there's a <geo:lat> but missing <geo:long>.
+#
+# Latitude is degrees North, or negative for South.  Longitude is degrees
+# East, or negative for West.  Both possibly with decimal places.
+#
 sub item_to_lat_long_alt_values {
   my ($self, $item) = @_;
 
@@ -2808,9 +2872,11 @@ use constant DUMMY_EMAIL_ADDRESS => 'nobody@rss2leafnode.dummy';
     );
 
   # Return ($from, $linkhash,$linkhash,...).
-  # $from is a string like "foo@bar.com".
-  # Multiple authors are for example "foo@bar.com, quux@bar.com" as per RFC5322
-  # email, though currently no Sender: is picked out from among them.
+  # $from is a string like "foo@example.com".
+  # Multiple authors are for example "foo@example.com, quux@example.com" as
+  # per RFC5322 email, though currently no Sender: is picked out from among
+  # them.
+  #
   sub item_to_from {
     my ($self, $item) = @_;
     ### item_to_from() ...
@@ -2976,12 +3042,12 @@ sub elt_to_email {
   return $self->email_format_maybe ($maybe, $display, $email);
 }
 
-# $mailbox_re is a mailbox with domain, like "foo@bar.com"
+# $mailbox_re is a mailbox with domain, like "foo@example.com"
 # Allows no dots like "foo@localhost".
-# Allows dashes like "www-something@bar.com".
+# Allows dashes like "www-something@example.com".
 #
 # $mailbox_with_comment_re allows an optional paren comment part like
-# "foo@bar.com (Foo)"
+# "foo@example.com (Foo)"
 #
 # cf Email::Address $addr_spec, but its version 1.890 loosened to allow a
 # domain-less bare "foo", which is no good
@@ -2990,10 +3056,10 @@ my $words_with_dots_re = qr/[[:word:]-]+(\.[[:word:]-]+)*/;
 my $mailbox_re = qr/$words_with_dots_re\@$words_with_dots_re/o;
 my $mailbox_with_comment_re = qr/$mailbox_re(\s*\([^\)]*\))?/os;
 
-# $maybe is some free-form author part possibly including a foo@bar.com
+# $maybe is some free-form author part possibly including a foo@example.com
 # $display is a display part for the email like "Foo", possibly empty ""
-# $email is a mailbox "foo@bar.com", or undef
-# return an rfc822 "Foo <foo@bar.com>"
+# $email is a mailbox "foo@example.com", or undef
+# return an rfc822 "Foo <foo@example.com>"
 #
 sub email_format_maybe {
   my ($self, $maybe, $display, $email) = @_;
@@ -3012,9 +3078,9 @@ sub email_format_maybe {
 
       if (/^\s*(mailto:)?($mailbox_with_comment_re)\s*$/o) {
         ### maybe or display is a mailbox
-        #     "foo@bar.com"
-        #     "mailto:foo@bar.com"
-        #     "foo@bar.com (Foo)"
+        #     "foo@example.com"
+        #     "mailto:foo@example.com"
+        #     "foo@example.com (Foo)"
         $email = $2;
         undef $_;
         last;
@@ -3022,9 +3088,9 @@ sub email_format_maybe {
       } elsif (/(.*)\((mailto:)?($mailbox_re)\)\s*$/o
                || /(.*)<(mailto:)?($mailbox_re)>\s*$/o) {
         ### maybe or display part is display plus mailbox
-        #     "Foo (mailto:foo@bar.com)"
-        #     "Foo (foo@bar.com)"
-        #     "Foo <foo@bar.com>"
+        #     "Foo (mailto:foo@example.com)"
+        #     "Foo (foo@example.com)"
+        #     "Foo <foo@example.com>"
         #
         $_ = $1;
         $email = $3;
@@ -3036,8 +3102,8 @@ sub email_format_maybe {
   $display .= ' '.($maybe//'');
   my $ret;
   if (is_empty($email) && $display =~ /^$mailbox_re$/o) {
-    # display or maybe is a "foo@bar.com" or "foo@bar.com (Foo)", return it
-    # as-is, in particular leave it in "(Foo)" style comment
+    # display or maybe is a "foo@example.com" or "foo@example.com (Foo)",
+    # return it as-is, in particular leave it in "(Foo)" style comment
     $ret = $display;
   } else {
     $ret = $self->email_format ($display, $email);
@@ -3050,8 +3116,8 @@ sub email_format_maybe {
 }
 
 # $display is a display part for the email "Foo", possibly empty ""
-# $email is a mailbox "foo@bar.com", or undef or empty ""
-# return an rfc822 "Foo <foo@bar.com>"
+# $email is a mailbox "foo@example.com", or undef or empty ""
+# return an rfc822 "Foo <foo@example.com>"
 #
 sub email_format {
   my ($self, $display, $email) = @_;
@@ -4107,7 +4173,8 @@ sub fetch_rss_process_one_item {
     # ENHANCE-ME: <itunes:subtitle> might be worthwhile showing at the start
     # as well as <itunes:summary>.
     #
-    my $body = (           # <content:encoded> generally bigger or better than
+    my $body = (
+                # <content:encoded> generally bigger or better than
                 # <description>, so prefer that
                 $item->first_child('content:encoded')
                 || $item->first_child('description')
@@ -4115,12 +4182,12 @@ sub fetch_rss_process_one_item {
                 || $item->first_child('itunes:summary')
                 || do {
                   # Atom spec is for no more than one <content>.
+                  # Exclude "link", and leave "attach" to code below.
                   my $elt = $item->first_child('content');
-                  given (atom_content_flavour($elt)) {
-                    when ('link')   { undef $elt }
-                    when ('attach') { $attach_elt = $elt; undef $elt; }
-                  }
-                  $elt
+                  my $flavour = atom_content_flavour($elt);
+                  ($flavour eq 'link' ? undef
+                   : $flavour eq 'attach' ? do { $attach_elt = $elt; undef }
+                   : $elt)
                 }
                 || $item->first_child('summary')); # Atom
 
@@ -4128,34 +4195,31 @@ sub fetch_rss_process_one_item {
     $self->verbose (3, ' body_type from elt: ', $body_type);
     my $body_charset = 'utf-8';
     my $body_base_url = App::RSS2Leafnode::XML::Twig::Other::elt_xml_base ($body);
-    given ($body_type) {
-      when (! defined) {          # no $body element at all
-        $body = '';
-        $body_type = 'text/plain';
-      }
-      when ('xhtml') {            # Atom
-        $body = elt_xhtml_to_html ($body);
-        $body_type = 'html';
-      }
-      when ('html') {             # RSS or Atom
-        $body = elt_subtext($body);
-      }
-      when ('text') {             # Atom 'text' to be flowed
-        # should be text-only, no sub-elements, but extract sub-elements to
-        # cope with dodgy feeds with improperly escaped html etc
-        $body = $self->text_wrap (elt_subtext ($body));
-        $body_type = 'text/plain';
-      }
-      when (m{^text/}) {          # Atom mime text type
-        $body = elt_subtext ($body);
-      }
-      default {                   # Atom base64 something
-        $body = MIME::Base64::decode ($body->text);
-        $body_charset = undef;
-      }
+    if (! defined $body_type) {           # no $body element at all
+      $body = '';
+      $body_type = 'text/plain';
+
+    } elsif ($body_type eq 'xhtml') {     # Atom
+      $body = elt_xhtml_to_html ($body);
+      $body_type = 'html';
+
+    } elsif ($body_type eq 'html') {      # RSS or Atom
+      $body = elt_subtext($body);
+
+    } elsif ($body_type eq 'text') {      # Atom 'text' to be flowed
+      # should be text-only, no sub-elements, but extract sub-elements to
+      # cope with dodgy feeds with improperly escaped html etc
+      $body = $self->text_wrap (elt_subtext ($body));
+      $body_type = 'text/plain';
+    } elsif ($body_type =~ m{^text/}) {   # Atom mime text type
+      $body = elt_subtext ($body);
+
+    } else {                              # Atom base64 something
+      $body = MIME::Base64::decode ($body->text);
+      $body_charset = undef;
     }
     $self->verbose (3, " body: $body_type charset=",
-                    $body_charset//'undef',"\n",
+                    $body_charset//'undef', "\n",
                     "$body\n");
 
     my $body_is_html = ($body_type ~~ ['html','text/html']);

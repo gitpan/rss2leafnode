@@ -25,33 +25,6 @@ use warnings;
 use Smart::Comments;
 
 {
-  require HTML::ExtractMain;
-  require File::Slurp;
-  # my $str = File::Slurp::slurp('samp/swellnet-daily.html');
-  my $str = File::Slurp::slurp('/tmp/daily');
-  my $main = HTML::ExtractMain::extract_main_html($str);
-  $main =~ s/&apos;/&#39;/;
-
-  print <<HERE;
-<?xml version="1.0" encoding="utf-8" ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html>
-<head>
-</head>
-<body>
-$main
-</body>
-HERE
-  # require HTML::FormatText;
-  # my $formatter = HTML::FormatText->new(rightmargin => 50);
-  require HTML::FormatText::W3m;
-  my $formatter = HTML::FormatText::W3m->new(rightmargin => 50);
-
-  print $formatter->format_string($main);
-  exit 0;
-}
-
-{
   my $str = 'fdjsk fdjsk fjksd fksd jkfs jfk sjkf skjf sk fjks fskjf sdk fsd';
   require Text::WrapI18N;
   local $Text::WrapI18N::columns = 20;

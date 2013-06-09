@@ -15,6 +15,7 @@ devel/file-temp-debug.pl
 devel/grep-author.pl
 devel/html-base.html
 devel/html-enc.pl
+devel/html-extractmain.pl
 devel/html-format.pl
 devel/html-formattext.pl
 devel/html-withlinks.pl

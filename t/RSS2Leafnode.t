@@ -20,7 +20,7 @@
 use 5.010;
 use strict;
 use warnings;
-use Test::More tests => 197;
+use Test::More tests => 198;
 use Locale::TextDomain ('App-RSS2Leafnode');
 
 # uncomment this to run the ### lines
@@ -46,7 +46,7 @@ POSIX::setlocale(POSIX::LC_ALL(), 'C'); # no message translations
 # VERSION
 
 {
-  my $want_version = 71;
+  my $want_version = 72;
   is ($App::RSS2Leafnode::VERSION, $want_version, 'VERSION variable');
   is (App::RSS2Leafnode->VERSION,  $want_version, 'VERSION class method');
 
@@ -92,6 +92,14 @@ HERE
 </rss>
 HERE
 
+                    [[12,''], <<'HERE'],
+<?xml version="1.0"?>
+<rss version="2.0" xmlns:geo="http://www.w3.org/2003/01/geo/wgs84_pos#">
+ <channel>
+  <item><geo:lat>12</geo:lat></item>
+ </channel>
+</rss>
+HERE
                     [[12,34], <<'HERE'],
 <?xml version="1.0"?>
 <rss version="2.0" xmlns:geo="http://www.w3.org/2003/01/geo/wgs84_pos#">
@@ -196,32 +204,32 @@ is (App::RSS2Leafnode::str_ensure_newline("\n\n"), "\n\n");
      # RSS
      ["<author></author>",
       undef],
-     ["<author>\t\nfoo\@bar.com\n\t(Foo)   </author>",
-      'foo@bar.com (Foo)'],
-     ['<author>foo@bar.com (Foo)</author>',
-      'foo@bar.com (Foo)'],
+     ["<author>\t\nfoo\@example.com\n\t(Foo)   </author>",
+      'foo@example.com (Foo)'],
+     ['<author>foo@example.com (Foo)</author>',
+      'foo@example.com (Foo)'],
      ['',
       undef],
-     ['<author>Some Body (foo@bar.com)   </author>',
-      'Some Body <foo@bar.com>'],
-     ['<author>Some Body (mailto:foo@bar.com)   </author>',
-      'Some Body <foo@bar.com>'],
-     ['<author>mailto:foo@bar.com</author>',
-      'foo@bar.com'],
-     ['<author> Some Body &lt;foo@bar.com&gt;   </author>',
-      'Some Body <foo@bar.com>'],
-     ['<author>&lt;foo@bar.com&gt;</author>',
-      'foo@bar.com'], # think stripping the angles is good
+     ['<author>Some Body (foo@example.com)   </author>',
+      'Some Body <foo@example.com>'],
+     ['<author>Some Body (mailto:foo@example.com)   </author>',
+      'Some Body <foo@example.com>'],
+     ['<author>mailto:foo@example.com</author>',
+      'foo@example.com'],
+     ['<author> Some Body &lt;foo@example.com&gt;   </author>',
+      'Some Body <foo@example.com>'],
+     ['<author>&lt;foo@example.com&gt;</author>',
+      'foo@example.com'], # think stripping the angles is good
 
      # Atom
-     ['<author><name>Foo Bar</name><email>foo@bar.com</email></author>',
-      'Foo Bar <foo@bar.com>'],
-     ['<author><name>00</name><email>foo@bar.com</email></author>',
-      '00 <foo@bar.com>'],
-     ['<author><name></name><email>foo@bar.com</email></author>',
-      'foo@bar.com'],
-     ['<author><email>foo@bar.com</email></author>',
-      'foo@bar.com'],
+     ['<author><name>Foo Bar</name><email>foo@example.com</email></author>',
+      'Foo Bar <foo@example.com>'],
+     ['<author><name>00</name><email>foo@example.com</email></author>',
+      '00 <foo@example.com>'],
+     ['<author><name></name><email>foo@example.com</email></author>',
+      'foo@example.com'],
+     ['<author><email>foo@example.com</email></author>',
+      'foo@example.com'],
      ['<author><email>00</email></author>',
       '00'],
      ['<author><name>some (parens)</name></author>',
@@ -233,23 +241,23 @@ is (App::RSS2Leafnode::str_ensure_newline("\n\n"), "\n\n");
      ['<author><name>Foo Bar</name></author>',
       'Foo Bar <nobody@feedhost.com>'],
      ["<author><name>Foo</name><email>
-\t  foo\@bar.com\t
+\t  foo\@example.com\t
 </email></author>",
-      'Foo <foo@bar.com>'],
+      'Foo <foo@example.com>'],
      # name in fact a mailbox noticed
-     ['<author><name>foo@bar.com</name></author>',
-      'foo@bar.com'],
-     ['<author><name>foo@bar.com (Foo)</name></author>',
-      'foo@bar.com (Foo)'],
-     ['<author><name>Foo &lt;foo@bar.com&gt;</name></author>',
-      'Foo <foo@bar.com>'],
+     ['<author><name>foo@example.com</name></author>',
+      'foo@example.com'],
+     ['<author><name>foo@example.com (Foo)</name></author>',
+      'foo@example.com (Foo)'],
+     ['<author><name>Foo &lt;foo@example.com&gt;</name></author>',
+      'Foo <foo@example.com>'],
 
      # itunes
      ['<itunes:owner xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
          <itunes:name>Foo</itunes:name>
-         <itunes:email>foo@bar.com</itunes:email>
+         <itunes:email>foo@example.com</itunes:email>
        </itunes:owner>',   # structured owner
-      'Foo <foo@bar.com>'],
+      'Foo <foo@example.com>'],
      ['<itunes:author xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
          Some Body
        </itunes:author>',  # plain text
@@ -860,14 +868,14 @@ HERE
 </feed>
 HERE
 
-     ['<rss2leafnode.tag:%2C2010-02-09:something@foo.com> <rss2leafnode.tag:%2C2011-03-10:anotherthing@bar.com>', <<'HERE'],
+     ['<rss2leafnode.tag:%2C2010-02-09:something@foo.com> <rss2leafnode.tag:%2C2011-03-10:anotherthing@example.com>', <<'HERE'],
 <feed xmlns="http://www.w3.org/2005/Atom"
       xmlns:thr="http://purl.org/syndication/thread/1.0">
   <entry>
     <title>Item Three</title>
     <updated>2006-03-01T12:12:12Z</updated>
     <thr:in-reply-to ref="tag:foo.com,2010-02-09:something" />
-    <thr:in-reply-to ref="tag:bar.com,2011-03-10:anotherthing" />
+    <thr:in-reply-to ref="tag:example.com,2011-03-10:anotherthing" />
   </entry>
 </feed>
 HERE
@@ -1410,24 +1418,24 @@ HERE
 
      ['<author>
          <name>Foo Bar</name>
-         <email>foo@bar.com</email>
+         <email>foo@example.com</email>
          <uri>http://foo.com/home.html</uri>
        </author>',
-      [ 'Foo Bar <foo@bar.com>',
+      [ 'Foo Bar <foo@example.com>',
         { uri      => URI->new('http://foo.com/home.html'),
           name     => __('Author:'),
           download => 0,
           priority => -20,
         } ] ],
 
-     ['<author><name>Foo Bar</name><email>foo@bar.com</email></author>',
-      [ 'Foo Bar <foo@bar.com>' ] ],
+     ['<author><name>Foo Bar</name><email>foo@example.com</email></author>',
+      [ 'Foo Bar <foo@example.com>' ] ],
 
      ['<author><name>Foo Bar</name></author>',
       [ 'Foo Bar <nobody@feedhost.com>' ] ],
 
-     ['<author><email>foo@bar.com</email></author>',
-      [ 'foo@bar.com' ] ],
+     ['<author><email>foo@example.com</email></author>',
+      [ 'foo@example.com' ] ],
 
      ['<author></author>',
       [ 'nobody@'.$host ] ],
@@ -1503,7 +1511,7 @@ diag "html_title()";
 <html><head></head>
 <body> Hello </body> </html>
 HERE
-  $resp->request (HTTP::Request->new (GET => 'http://foobar.com/index.html'));
+  $resp->request (HTTP::Request->new (GET => 'http://fooexample.com/index.html'));
   $resp->content_type('text/html');
   my $str = App::RSS2Leafnode::html_title ($resp);
   is ($str, undef, 'html_title() no <title>');
@@ -1530,7 +1538,7 @@ SKIP: {
 <html><head><title>A Page</title></head>
 <body>Hello</body></html>
 HERE
-    $resp->request (HTTP::Request->new (GET=>'http://foobar.com/index.html'));
+    $resp->request (HTTP::Request->new (GET=>'http://fooexample.com/index.html'));
     $resp->content_type('text/html');
     my $str = App::RSS2Leafnode::html_title_urititle ($resp);
     is ($str, 'A Page', 'html_title_urititle() with <title>');
@@ -1539,7 +1547,7 @@ HERE
     my $resp = HTTP::Response->new (200, 'OK', undef, <<'HERE');
 <html><head></head><body>Hello</body></html>
 HERE
-    $resp->request (HTTP::Request->new (GET=>'http://foobar.com/index.html'));
+    $resp->request (HTTP::Request->new (GET=>'http://example.com/index.html'));
     $resp->content_type('text/html');
     my $str = App::RSS2Leafnode::html_title_urititle ($resp);
     is ($str, undef, 'html_title_urititle() no <title>');

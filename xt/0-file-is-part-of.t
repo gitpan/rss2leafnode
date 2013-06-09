@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2011, 2012 Kevin Ryde
+# Copyright 2011, 2012, 2013 Kevin Ryde
 
 # 0-file-is-part-of.t is shared by several distributions.
 #
@@ -23,7 +23,7 @@ use Test::More tests => 1;
 
 use lib 't';
 use MyTestHelpers;
-BEGIN { MyTestHelpers::nowarnings() }
+BEGIN { MyTestHelpers::nowarnings(); }
 
 ok (Test::FileIsPartOfDist->check(verbose=>1),
     'Test::FileIsPartOfDist');

@@ -18,6 +18,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 72, June 2013
+    - use HTML::ExtractMain output_type=>html
+
 Version 71, January 2013
     - oops, correction to "&apos;"
 

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2010 Kevin Ryde
+# Copyright 2010, 2013 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -23,7 +23,7 @@ use warnings;
 use Email::Address;
 
 {
-  my $str = 'foo@bar.com';
+  my $str = 'foo@example.com';
    $str = '  ';
   if ($str =~ $Email::Address::mailbox) {
     print "match\n";
