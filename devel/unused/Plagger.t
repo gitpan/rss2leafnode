@@ -25,7 +25,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $want_version = 72;
+my $want_version = 73;
 
 SKIP: {
   if (! eval { require Plagger::Plugin::Publish::Rnews; }) {

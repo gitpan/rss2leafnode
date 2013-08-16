@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 72;
+our $VERSION = 73;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -353,27 +353,29 @@ prevent old articles being re-added when the server discards them.  (It'd be
 better if the news server could be asked for its retention time, but this
 option here is better than nothing.)
 
-=item $html_extract_main (default 0 for all)
+=item $html_extract_main (default 0, false)
 
 =item C<fetch_html ("group", "url", html_extract_main =E<gt> 1)>
 
 =item C<fetch_rss ("group", "url", html_extract_main =E<gt> 1)>
 
 Use L<HTML::ExtractMain> on downloaded HTML to pick out the "main" text from
-the page.  For C<fetch_rss()> this is applied to downloaded link parts (per
-C<rss_get_links> above).
+the page.  For C<fetch_rss()> this is applied to downloaded link parts
+(C<rss_get_links> above).  C<HTML::ExtractMain> version 0.63 or higher is
+required.
 
-C<HTML::ExtractMain> version 0.63 or higher is required.  It's good for
-removing headers or side columns of boilerplate bumf on a page.  For plain
-text those things tend to waste space and may look particularly poor from a
-non-tables renderer such as C<HTML::FormatText> or C<lynx>.
+This is good for removing boilerplate headers or side columns on a page.
+For reading text those things tend to waste space and often look
+particularly poor from a non-tables renderer such as C<HTML::FormatText> or
+C<lynx>.
 
 The algorithm in C<HTML::ExtractMain> is a simple paragraph scoring system
 (as of its version 0.63).  It does a surprisingly good job but you might
-check how much it discards, just in case something good has not been
-reckoned part of the main text.  There's no configuration for ExtractMain,
-but perhaps in the future the "1" here to enable could be some settings for
-it.
+check how much it discards, just in case something good was not reckoned
+part of the main text.  Option value "attach_full" includes the full page
+as an attachment
+
+    $html_extract_main = 'attach_full';
 
 =back
 

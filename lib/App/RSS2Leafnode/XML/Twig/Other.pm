@@ -21,7 +21,7 @@ use strict;
 use Exporter;
 use vars '$VERSION', '@ISA', '@EXPORT_OK';
 
-$VERSION = 72;
+$VERSION = 73;
 @ISA = ('Exporter');
 @EXPORT_OK = (qw(elt_is_empty
                  elt_tree_strip_prefix

@@ -58,7 +58,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 72;
+  $VERSION = 73;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -1063,6 +1063,10 @@ sub mime_build {
   return $top;
 }
 
+# $resp is a HTTP::Response
+# Return a MIME::Entity which contains the response, and any further @headers.
+# If $self->{'render'} is true then render HTML to plain text.
+#
 sub mime_part_from_response {
   my ($self, $resp, @headers) = @_;
 
@@ -1081,7 +1085,7 @@ sub mime_part_from_response {
   }
 
   return $self->mime_build
-    ({ 'Content-Language:' => scalar ($resp->header('Content-Language')),
+    ({ 'Content-Language:' => scalar($resp->header('Content-Language')),
        'Content-Location:' => $url,
        'Content-MD5:'      => $content_md5,
        @headers,
@@ -2104,7 +2108,7 @@ sub http_resp_to_keywords {
 
 sub fetch_html {
   my ($self, $group, $url, %options) = @_;
-  ### fetch_html()
+  ### fetch_html() ...
 
   local @{$self}{keys %options} = values %options;  # hash slice
   $self->verbose (1, __x('page: {url}', url => $url));
@@ -2153,7 +2157,7 @@ sub fetch_html {
   my $copyright = $self->http_resp_to_copyright($resp);
   my $keywords = $self->http_resp_to_keywords($resp);
 
-  $self->http_resp_extract_main($resp);
+  my $part = $self->http_resp_extract_main($resp);
 
   my $top = $self->mime_part_from_response
     ($resp,
@@ -2167,6 +2171,11 @@ sub fetch_html {
      Keywords            => $keywords,
      'Face:'             => $face,
      'X-Copyright:'      => $copyright);
+  if ($part) {
+    ### attach full part ...
+    $top->make_multipart;
+    $top->add_part ($part);
+  }
 
   mime_entity_lines($top);
   $self->nntp_post($top) || return;
@@ -2184,19 +2193,24 @@ sub http_resp_extract_main {
   $self->{'html_extract_main'} or return;
   $resp->headers->content_is_html() or return;
 
+  my $full_part
+    = (defined $self->{'html_extract_main'}
+       && $self->{'html_extract_main'} eq 'attach_full'
+       && $self->mime_part_from_response($resp,
+                                         Disposition => "attachment"));
+
   require HTML::ExtractMain;
   HTML::ExtractMain->VERSION(0.63); # for output_type=>'html'
   $resp->decode;                        # expand any compression
   my $content = $resp->decoded_content; # as wide-chars
 
   # Output type 'html' differs from the default xhtml by a few entities, in
-  # particular &apos; which is an xml-ism not in the html standards though
-  # supported by various browsers, but not for example by w3m.
+  # particular it avoids &apos; which is an xml-ism not in the html standards.
+  # Various browsers support &apos anyway, but not for example by w3m.
   $content = HTML::ExtractMain::extract_main_html($content,
                                                   output_type => 'html');
-  
   if (! defined $content) {
-    $self->verbose (1, __(" HTML::ExtractMain no main part found, posting whole"));
+    $self->verbose(1, __(" HTML::ExtractMain no main part found, posting whole"));
     return;
   }
   ### main extracted: $content
@@ -2204,6 +2218,8 @@ sub http_resp_extract_main {
   my $charset = $resp->content_charset;
   $content = Encode::encode ($charset, $content);
   $resp->content($content);
+
+  return $full_part;
 }
 
 #------------------------------------------------------------------------------
@@ -3702,6 +3718,7 @@ sub item_to_subject {
           /channel/item/slate:menuline   --copy-of-subject-it-seems
           /channel/item/slate:rubric     --blog-title
           /channel/item/slate:blog       --blog-title
+          /channel/item/slate:legacy_url --same-as-link-it-seems
         )} = ();
 
 
@@ -3850,7 +3867,9 @@ sub atom_content_flavour {
     return 'link';
   }
   if (! defined $type
-      || $type ~~ ['html','xhtml','application/xhtml+xml']
+      || $type eq 'html'
+      || $type eq 'xhtml'
+      || $type eq 'application/xhtml+xml'
       || $type =~ m{^text/}) {
     return 'body';
   }
@@ -4222,7 +4241,7 @@ sub fetch_rss_process_one_item {
                     $body_charset//'undef', "\n",
                     "$body\n");
 
-    my $body_is_html = ($body_type ~~ ['html','text/html']);
+    my $body_is_html = ($body_type eq 'html'|| $body_type eq 'text/html');
     my $links_want_html = ($body_is_html && ! $self->{'render'});
     $self->verbose (3, " links_want_html: ",
                     ($links_want_html ? "yes" : "no"));
@@ -4310,7 +4329,7 @@ sub fetch_rss_process_one_item {
         $self->enforce_html_charset_from_content ($resp);
         $headers{'Face:'} ||= $self->http_resp_to_face($resp);
         $self->http_resp_extract_main($resp);
-        push @parts, $self->mime_part_from_response ($resp);
+        push @parts, $self->mime_part_from_response($resp);
       }
     }
     if ($links_want_html && $body_type eq 'html') {

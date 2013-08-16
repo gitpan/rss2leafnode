@@ -2,7 +2,7 @@
 
 # my_pod2html -- convert POD to HTML, with some mangling
 
-# Copyright 2009, 2010, 2011 Kevin Ryde
+# Copyright 2009, 2010, 2011, 2013 Kevin Ryde
 
 # my_pod2html is shared by several distributions.
 #
@@ -88,7 +88,7 @@ sub resolve_pod_link_by_table {
       $url = "http://user42.tuxfamily.org/glib-ex-ob"."jectbits/$1.html";
     }
     if ($to eq 'Gtk2::Ex::Widget'.'Cursor') {
-      $url = "http://user42.tuxfamily.org/glib-ex-widget'.'cursor/Widget'.'Cursor.html";
+      $url = 'http://user42.tuxfamily.org/gtk2-ex-widget'.'cursor/Widget'.'Cursor.html';
     }
     if ($to eq 'Ti'.'e:'.':TZ') {
       $url = 'http://user42.tuxfamily.org/ti'.'e-'.'tz/TZ.html';
