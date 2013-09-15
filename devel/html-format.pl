@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2010 Kevin Ryde
+# Copyright 2010, 2013 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -22,6 +22,43 @@ use strict;
 use warnings;
 use FindBin;
 use Data::Dumper;
+
+{
+  my $html = <<'HERE';
+<html>
+<body>
+This is a para
+
+
+</body>
+</html>
+HERE
+
+# This is a para
+# This is a para
+# This is a para
+# This is a para
+# This is a para
+# This is a para
+# This is a para
+# This is a para
+# This is a para
+# This is a para
+# This is a para
+# This is a para
+# This is a para
+# This is a para
+# This is a para
+# This is a para
+# This is a para
+
+  require HTML::FormatText;
+  my $str = HTML::FormatText->format_string ($html,
+                                             leftmargin => 0,
+                                             rightmargin => 40);
+  print $str;
+  exit 0;
+}
 
 {
   my $html = <<'HERE';

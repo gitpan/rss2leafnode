@@ -185,8 +185,8 @@ msgstr ""
 msgid "page: {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:2130 lib/App/RSS2Leafnode.pm:4309
-#: lib/App/RSS2Leafnode.pm:4526
+#: lib/App/RSS2Leafnode.pm:2130 lib/App/RSS2Leafnode.pm:4312
+#: lib/App/RSS2Leafnode.pm:4531
 #, perl-brace-format
 msgid ""
 "rss2leafnode: {url}\n"
@@ -423,38 +423,38 @@ msgstr ""
 msgid "item: {subject}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4300
+#: lib/App/RSS2Leafnode.pm:4303
 #, perl-brace-format
 msgid "link: \"{name}\" {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4312
+#: lib/App/RSS2Leafnode.pm:4315
 #, perl-brace-format
 msgid ""
 "Cannot download link {url}\n"
 " {status}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4409
+#: lib/App/RSS2Leafnode.pm:4414
 msgid "posted"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4426
+#: lib/App/RSS2Leafnode.pm:4431
 #, perl-brace-format
 msgid "comments count unchanged: {count}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4509
+#: lib/App/RSS2Leafnode.pm:4514
 #, perl-brace-format
 msgid "rss comments: {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4511
+#: lib/App/RSS2Leafnode.pm:4516
 #, perl-brace-format
 msgid "feed: {url}"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4543
+#: lib/App/RSS2Leafnode.pm:4548
 #, perl-brace-format
 msgid ""
 "XML::Twig parse error on\n"
@@ -463,7 +463,7 @@ msgid ""
 "\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4546
+#: lib/App/RSS2Leafnode.pm:4551
 #, perl-brace-format
 msgid ""
 "which redirected to\n"
@@ -472,11 +472,11 @@ msgid ""
 "\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4549
+#: lib/App/RSS2Leafnode.pm:4554
 msgid "Raw XML below.\n"
 msgstr ""
 
-#: lib/App/RSS2Leafnode.pm:4551
+#: lib/App/RSS2Leafnode.pm:4556
 #, perl-brace-format
 msgid "Error parsing {url}"
 msgstr ""

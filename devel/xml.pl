@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2008, 2009, 2010 Kevin Ryde
+# Copyright 2008, 2009, 2010, 2013 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -37,7 +37,7 @@ my $atom = 'http://www.w3.org/2005/Atom';
 #my $filename = "$FindBin::Bin/" . "../samp/andrew-weil.rss";
 # my $filename = "$FindBin::Bin/" . "../samp/cooperhewitt.rss";
 #my $filename = "$FindBin::Bin/" . "../samp/abc-podcast-sci.xml";
-my $filename = '/tmp/atom.xml';
+my $filename = '/tmp/feed.php';
 
 {
   require XML::FeedPP;

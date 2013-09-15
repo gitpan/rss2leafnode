@@ -58,7 +58,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 73;
+  $VERSION = 74;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -4257,24 +4257,27 @@ sub fetch_rss_process_one_item {
     $links_str .= $self->item_common_alert_protocol($item, $links_want_html);
     my @parts;
 
-    # <media:group> elements as either a html part or a
+    # <media:group> elements as either a html part or in the text links
     {
       my $content = join ("\n",
                           map {$self->media_group_to_html($_)}
                           $item->children('media:group'));
-      ($content, my $charset) = html_wrap_fragment ($item, $content);
-      my $content_type = 'text/html';
-      ($content, $content_type, $charset, my $rendered)
-        = $self->render_maybe ($content, $content_type, $charset,
-                               $body_base_url);
-      if ($content_type eq 'text/plain') {
-        $links_str .= $content;
-      } else {
-        $content = Encode::encode ($charset, $content);
-        push @parts, $self->mime_build ({}, # headers
-                                        Type    => $content_type,
-                                        Charset => $charset,
-                                        Data    => $content);
+      if (is_non_empty($content)) {
+        ($content, my $charset) = html_wrap_fragment ($item, $content);
+        my $content_type = 'text/html';
+        ($content, $content_type, $charset, my $rendered)
+          = $self->render_maybe ($content, $content_type, $charset,
+                                 $body_base_url);
+        ### media group content: $content
+        if ($content_type eq 'text/plain') {
+          $links_str .= $content;
+        } else {
+          $content = Encode::encode ($charset, $content);
+          push @parts, $self->mime_build ({}, # headers
+                                          Type    => $content_type,
+                                          Charset => $charset,
+                                          Data    => $content);
+        }
       }
     }
 
@@ -4399,6 +4402,8 @@ sub fetch_rss_process_one_item {
          Encoding => 'base64',
          Data     => MIME::Base64::decode($attach_elt->text));
     }
+
+    $self->verbose (2, 'parts count: ',scalar(@parts));
     foreach my $part (@parts) {
       $top->make_multipart;
       $top->add_part ($part);

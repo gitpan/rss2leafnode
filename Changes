@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 74, September 2013
+    - avoid empty html part if no <media:group> bits
+
 Version 73, August 2013
     - new option html_extract_main="attach_full"
 
