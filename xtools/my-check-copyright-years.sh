@@ -2,7 +2,7 @@
 
 # my-check-copyright-years.sh -- check copyright years in dist
 
-# Copyright 2009, 2010, 2011, 2012 Kevin Ryde
+# Copyright 2009, 2010, 2011, 2012, 2013 Kevin Ryde
 
 # my-check-copyright-years.sh is shared by several distributions.
 #
@@ -52,7 +52,7 @@ do
     | ppport.h \
     | debian/changelog | debian/compat | debian/doc-base \
     | debian/patches/*.diff | debian/source/format \
-    | COPYING | MANIFEST* | SIGNATURE | META.yml \
+    | COPYING | MANIFEST* | SIGNATURE | META.yml | META.json \
     | version.texi | */version.texi \
     | *utf16* | examples/rs''s2lea''fnode.conf \
     | */MathI''mage/ln2.gz | */MathI''mage/pi.gz \

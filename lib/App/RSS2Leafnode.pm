@@ -58,7 +58,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 74;
+  $VERSION = 75;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -2378,7 +2378,11 @@ sub item_to_links {
 
   my @links;
   foreach my $elt (@elts) {
-    $self->verbose (2, "link\n", Text::Trim::trim($elt->sprint));
+    if ($self->{'verbose'} >= 2) {
+      require Text::Wrap;
+      local $Text::Wrap::huge = 'overflow'; # don't break long URLs etc
+      $self->verbose (2, "link\n", Text::Trim::trim($elt->sprint));
+    }
 
     my $tag = lc($elt->tag);
     ### $tag
@@ -2556,6 +2560,7 @@ sub item_to_links {
     my $str = non_empty (elt_to_rendered_line($elt->first_child('title')))
       // non_empty ($elt->trimmed_text);
     if (defined $str) {
+      ### source: $str
       push @links, { name => __('Source') . ": $str",
                      download => 0,
                      priority => -200,
@@ -3971,6 +3976,7 @@ sub item_common_alert_protocol {
 
 sub item_unknowns {
   my ($self, $item, $want_html) = @_;
+  ### item_unknowns() ...
 
   my $xml = '';
   foreach my $elt (map {$_->tag eq 'media:group' # descend into media:group

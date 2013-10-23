@@ -26,7 +26,7 @@ use lib 't';
 use MyTestHelpers;
 BEGIN { MyTestHelpers::nowarnings() }
 
-my $want_version = 74;
+my $want_version = 75;
 is ($News::Rnews::VERSION, $want_version, 'VERSION variable');
 is (News::Rnews->VERSION,  $want_version, 'VERSION class method');
 { ok (eval { News::Rnews->VERSION($want_version); 1 },

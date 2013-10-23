@@ -25,6 +25,19 @@ use warnings;
 use Smart::Comments;
 
 {
+  my @text = ('      <enclosure length="16329588" type="audio/mp3" url="http://mpegmedia.abc.net.au/science/podcast/scienceontriplej/scienceontriplej20130829.mp3"/>'
+              );
+  require Text::Wrap;
+  local $Text::Wrap::columns = 20;
+  local $Text::Wrap::unexpand = 0;       # no tabs in output
+  local $Text::Wrap::huge = 'wrap';  # don't break long words
+  # $str =~ tr/\n/ /;
+  # print Text::Wrap::wrap('xxxxxxxxx', 'yyyyyy', $str);
+  print Text::Wrap::wrap('     ', '     ', @text);
+  exit 0;
+}
+
+{
   my $str = 'fdjsk fdjsk fjksd fksd jkfs jfk sjkf skjf sk fjks fskjf sdk fsd';
   require Text::WrapI18N;
   local $Text::WrapI18N::columns = 20;

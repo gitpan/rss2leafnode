@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 75, October 2013
+    - avoid a bug in Text::Wrap 2012.0818 which comes with Perl 5.18.1
+
 Version 74, September 2013
     - avoid empty html part if no <media:group> bits
 
