@@ -69,6 +69,10 @@
 
 # built - texinfo.tex temporaries
 \.(aux|cp|cps|fn|fns|ky|log|pg|toc|tp|tps|vr)$
+# built - PGF temporary
+\.pgf$
+# tex or latex output, not distributed for now
+\.(dvi|pdf|ps)$
 
 # toplevel .c files built from .xs
 ^[^/]+\.c$

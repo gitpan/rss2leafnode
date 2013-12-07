@@ -30,6 +30,7 @@ devel/lib/Plagger/Plugin/Filter/GoogleListPost.pm
 devel/lib/Plagger/Plugin/Filter/YahooLinks.pm
 devel/lib/Plagger/Plugin/Publish/Rnews.pm
 devel/libxml.pl
+devel/lwp-leafnode.pl
 devel/lwp-title.html
 devel/lwp-title.pl
 devel/mime-entity.pl

@@ -17,6 +17,9 @@ with RSS2Leafnode.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+Version 76, December 2013
+    - show re:rank as for example from stackexchange.com
+
 Version 75, October 2013
     - avoid a bug in Text::Wrap 2012.0818 which comes with Perl 5.18.1
 

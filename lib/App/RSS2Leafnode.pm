@@ -58,7 +58,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 75;
+  $VERSION = 76;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -2639,6 +2639,19 @@ sub item_to_links {
                  };
   }
 
+  # re:rank as for example from stackexchange.com
+  # What does label="" usually show?  Are parens like this good?
+  foreach my $elt ($item->children('re:rank')) {
+    my $label = $elt->att('label');
+    my $value = elt_to_rendered_line($elt);
+    push @links, { name => (defined $label
+                            ? __x('Rank: {value} ({label})', value => $value, label => $label)
+                            : __x('Rank: {value}', value => $value)),
+                   download => 0,
+                   priority => -200,  # low priority
+                 };
+  }
+
   # eg. <media:credit role="publishing company">AFP</media:credit>
   # is there any value in the role="" part?
   foreach my $elt ($item->children('media:credit')) {
@@ -2692,6 +2705,7 @@ sub item_to_links {
            /channel/item/content  --atom
            /channel/item/wiki:diff
            /channel/item/itunes:duration
+           /channel/item/re:rank
 
            /channel/wiki:interwiki
            /channel/wiki:interwiki/rdf:Description
@@ -3290,6 +3304,9 @@ my $map_xmlns
      'http://www.slate.com'                         => 'slate',
      'http://activitystrea.ms/spec/1.0/'            => 'activity',
      'http://ostatus.org/schema/1.0'                => 'ostatus',
+
+     # http://tools.ietf.org/html/draft-snell-atompub-feed-index-10
+     'http://purl.org/atompub/rank/1.0'             => 're',
 
      # per http://docs.jivesoftware.com/latest/documentation/rss.html#output
      'http://www.jivesoftware.com/xmlns/jiveforums/rss' => 'jf',

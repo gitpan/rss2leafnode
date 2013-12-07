@@ -53,7 +53,7 @@ my $r2l = App::RSS2Leafnode->new
     verbose => 0,
    msgidextra => 'b',
 
-   render => 0,
+   render => 1,
    # render => 'vilistextum',
    # render => 'lynx',
    render_width => 50,

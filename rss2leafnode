@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 75;
+our $VERSION = 76;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -526,6 +526,7 @@ text.  Pseudo-link footnotes are shown for,
     <georss:point>
     <statusnet:origin>      possibly with URL target too
     <media:credit>
+    <re:rank>
 
 Unrecognised item fields are shown in XML at the end of the message.  This
 is a bit technical but tries not to drop information, and might suggest
