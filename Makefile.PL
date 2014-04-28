@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2007, 2008, 2009, 2010, 2011, 2012 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2014 Kevin Ryde
 
 # This file is part of RSS2Leafnode.
 #
@@ -30,7 +30,7 @@ WriteMakefile
    ABSTRACT     => 'Download RSS feeds or web pages to an NNTP news server.',
    VERSION_FROM => 'lib/App/RSS2Leafnode.pm',
    AUTHOR       => 'Kevin Ryde <user42@zip.com.au>',
-   LICENSE      => 'gpl',
+   LICENSE      => 'gpl_3',
    SIGN         => 1,
    EXE_FILES    => [ 'rss2leafnode' ],
    MIN_PERL_VERSION => '5.010',

@@ -1,4 +1,4 @@
-# Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -58,7 +58,7 @@ BEGIN {
 
 our $VERSION;
 BEGIN {
-  $VERSION = 76;
+  $VERSION = 77;
 }
 
 ## no critic (ProhibitFixedStringMatches)
@@ -407,6 +407,15 @@ sub do_config_file {
 #------------------------------------------------------------------------------
 # LWP stuff
 
+sub user_agent {
+  my ($self) = @_;
+  if (defined $self->{'user_agent'}) {
+    return $self->{'user_agent'};
+  } else {
+    return 'RSS2leafnode/' . $self->VERSION . ' ';
+  }
+}
+
 sub ua {
   my ($self) = @_;
   return ($self->{'ua'} ||= do {
@@ -416,7 +425,7 @@ sub ua {
     # one connection kept alive
     my $ua = LWP::UserAgent->new (keep_alive => 1);
     Scalar::Util::weaken ($ua->{(__PACKAGE__)} = $self);
-    $ua->agent ('RSS2leafnode/' . $self->VERSION . ' ');
+    $ua->agent ($self->user_agent);
 
     Scalar::Util::weaken (my $weak_self = $self);
     $ua->add_handler (request_send => \&lwp_request_send__verbose);
@@ -578,6 +587,14 @@ $known{'/channel/item/dcterms:audience'} = undef;
         # FIXME: except <cb:resource><cb:link> has extra pdf form link
         '/channel/item/cb:paper',
         '/channel/item/cb:event',
+
+        # <media:hash> is an sha-1 or similar hash of a target media file etc
+        '/channel/item/media:hash',
+
+        # not sure what these are, but don't seem very interesting
+        '/channel/item/slate:slate_plus', # <slate:slate_plus>false</slate:slate_plus>
+        '/channel/item/slate:paywall',    # <slate:paywall>false</slate:paywall>
+        '/channel/item/slate:sponsored',  # <slate:sponsored>false</slate:sponsored>
        )} = ();
 
 # weather
@@ -1427,6 +1444,10 @@ sub status_etagmod_resp {
     $status->{'Last-Modified'} = $resp->header('Last-Modified');
     $status->{'ETag'}          = $resp->header('ETag');
     $status->{'timingfields'}  = $self->twig_to_timingfields ($twig);
+
+    if (! defined $status->{'ETag'} && ! defined $status->{'Last-Modified'}) {
+      $self->verbose (1, " no ETag or Last-Modified");
+    }
     if (defined (my $comments_count = $self->{'comments_count'})) {
       $status->{'comments_count'} = $comments_count;
     }
@@ -3253,7 +3274,7 @@ sub rss_newest_only_items {
 
     my $after = scalar(@items);
     if ($before != $after) {
-      $self->verbose (1, " rss_newest_only reduce $before items to $after items");
+      $self->verbose (1, " rss_newest_only reduce by count from $before items to $after items");
     }
     return @items;
   }
@@ -3265,7 +3286,7 @@ sub rss_newest_only_items {
       @items;
     my $after = scalar(@items);
     if ($before != $after) {
-      $self->verbose (1, " rss_newest_only reduce age $before to $after items");
+      $self->verbose (1, " rss_newest_only reduce by age from $before to $after items");
     }
     return @items;
   }
@@ -3293,7 +3314,10 @@ my $map_xmlns
      'http://www.w3.org/1999/xhtml'                 => 'xhtml',
      'http://www.itunes.com/dtds/podcast-1.0.dtd'   => 'itunes',
      'http://rssnamespace.org/feedburner/ext/1.0'   => 'feedburner',
+
+     # http://www.rssboard.org/media-rss
      'http://search.yahoo.com/mrss'                 => 'media',
+
      'http://www.w3.org/2003/01/geo/wgs84_pos#'     => 'geo',
      'http://www.georss.org/georss'                 => 'georss',
      'http://www.pheedo.com/namespace/pheedo'       => 'pheedo',
@@ -3710,21 +3734,30 @@ sub uri_to_host {
           // 'localhost');
 }
 
-# <dc:subject> is supposed to be a keyword type thing, but might be better
-# than nothing.  Not sure have ever actually seen <dc:subject> without
-# <title>, so perhaps this is pointless.
-#
-# <dc:title> is probably pointless within an item, would it ever be present
-# without a plain <title>?
-#
 sub item_to_subject {
   my ($self, $item) = @_;
 
   # Atom <title> can have type="html" etc in the usual way.
   return
     (elt_to_rendered_line ($item->first_child('title'))
+
+     # <dc:title> is probably pointless within an item, would it ever be
+     # present without a plain <title>?
+     #
      // elt_to_rendered_line ($item->first_child('dc:title'))
+
+     # eg. https://archive.org/services/collection-rss.php has <media:title>
+     # in addition to plain <title>.  Probably would never have
+     # <media:title> without plain <title>, but check anyway.
+     #
+     // elt_to_rendered_line ($item->first_child('media:title'))
+
+     # <dc:subject> is supposed to be a keyword type thing, but might be
+     # better than nothing.  Not sure have ever actually seen <dc:subject>
+     # without <title>, so perhaps this is pointless.
+     #
      // elt_to_rendered_line ($item->first_child('dc:subject'))
+
      // __('no subject'));
 }
 @known{qw(/channel/title
@@ -3734,6 +3767,7 @@ sub item_to_subject {
 
           /channel/item/dc:subject
           /channel/item/title
+          /channel/item/media:title
           /channel/item/dc:title
           /channel/item/itunes:title
           /channel/item/itunes:subtitle  --not-using-this-as-yet
@@ -4688,7 +4722,7 @@ L<http://user42.tuxfamily.org/rss2leafnode/index.html>
 
 =head1 LICENSE
 
-Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013 Kevin Ryde
+Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 Kevin Ryde
 
 RSS2Leafnode is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free

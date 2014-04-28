@@ -2,7 +2,7 @@
 
 # RSS2Leafnode -- copy RSS feeds to a local news spool
 
-# Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013 Kevin Ryde
+# Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 Kevin Ryde
 #
 # This file is part of RSS2Leafnode.
 #
@@ -30,7 +30,7 @@ use PerlIO::encoding; # for fallback
 # fragile duplication)
 use PerlIO::locale 0.06;
 
-our $VERSION = 76;
+our $VERSION = 77;
 
 # locale encoding conversion on the tty, wide-chars everywhere internally
 # for instance $subject from an item might be wide chars printed when --verbose
@@ -45,7 +45,7 @@ exit $r2l->command_line;
 
 __END__
 
-=for stopwords rss2leafnode rss leafnode NNTP config leafnode undef charset utf-8 non-ascii charsets builtins misconfigured Eg Unrendered Google pre-releases Ryde PNG libxml multibyte codings feed's NOAA XHTML unescaping X-From-Url X-RSS-Url X-RSS-Generator eg sn codepage unescape favicon kbytes repost r2l.perl conf ie GPL appication WordPress pre RDF reposted MHTML
+=for stopwords rss2leafnode rss leafnode NNTP config leafnode undef charset UTF-8 non-ascii charsets builtins misconfigured Eg Unrendered Google pre-releases Ryde PNG libxml multibyte codings feed's NOAA XHTML unescaping X-From-Url X-RSS-Url X-RSS-Generator eg sn codepage unescape favicon kbytes repost r2l.perl conf ie GPL appication WordPress pre RDF reposted MHTML perl-mode renderer LWP mis-spelling Unrecognised unrecognised multi-author html recoding
 
 =head1 NAME
 
@@ -62,7 +62,7 @@ NNTP news server.  It's designed to make text items available for reading in
 local newsgroups, not propagating anywhere (though that's not enforced).
 
 Desired feeds are given in a configuration file F<.rss2leafnode.conf> in
-your home directory.  For example to put a feed in group "r2l.perl"
+your home directory.  For example to put a feed into group "r2l.perl"
 
     fetch_rss ('r2l.perl', 'http://log.perl.org/atom.xml');
 
@@ -75,8 +75,8 @@ run C<rss2leafnode> as
 
 You can automate with C<cron> or similar.  If you do it under user C<news>
 it could be just after a normal news fetch.  The C<--config> option below
-lets you run different config files at different times, etc.  (Code in the
-conf file could do that too.)  See F<examples/rss2leafnode.conf> in the
+lets you run different config files at different times, etc.  Code in the
+conf file could do that too.  See F<examples/rss2leafnode.conf> in the
 RSS2Leafnode sources for a complete sample.
 
 Messages are added to the news spool using NNTP "POST" commands.  When a
@@ -123,21 +123,21 @@ becomes available.
 
 HTTP C<ETag> and C<Last-Modified> headers are used, if provided by the
 server, to avoid re-downloading unchanged content (feeds or web pages).  RSS
-C<< <thr:count> >> or C<< <slash:comments> >> are used to check for
-unchanged comments feeds.  Values seen from the last run are saved in a
+C<< <thr:count> >> or C<< <slash:comments> >> are used to skip unchanged
+comments feeds.  Values seen from the last run are saved in a
 F<.rss2leafnode.status> file in your home directory.
 
-If you've got C<XML::RSS::Timing> then it's used for RSS C<ttl>,
-C<updateFrequency>, etc from a feed.  This means the feed is not
+If you've got C<XML::RSS::Timing> then it's used for RSS C<< <ttl> >>,
+C<< <updateFrequency> >>, etc from a feed.  This means the feed is not
 re-downloaded until its declared update times.  But only a few feeds have
 good timing info, most merely have a C<ttl> advising for instance 5 minutes
 between rechecks.
 
-With C<--verbose> the next calculated update time is printed, in case you're
-wondering why nothing is happening.  The easiest way to force a re-download
-is to delete the F<~/.rss2leafnode.status> file.  Old status file entries
-are automatically dropped if you don't fetch a particular feed for a while,
-so that file should normally need no maintenance.
+With C<--verbose> the next calculated update time is printed, in case you
+wonder why nothing is happening.  The easiest way to force a re-download is
+to delete the F<~/.rss2leafnode.status> file.  Old status file entries are
+automatically dropped if you don't fetch a particular feed for a while, so
+that file should normally need no maintenance.
 
 =head2 Leafnode
 
@@ -179,7 +179,7 @@ C<X-Copyright> headers.  Unless the content is in the public domain such
 copyright notices should be retained.
 
 The transformations RSS2Leafnode makes to turn feed items into messages are
-purely mechanical and the author believes for that reason the program's
+purely mechanical and for that reason the author believes the program's
 terms (ie. GPL, per L</"LICENSE"> below) are not imposed on the results.
 
 =head1 COMMAND LINE OPTIONS
@@ -313,7 +313,7 @@ always be worth the extra download.
 C<Image::Magick> is required to process icon images.  Banners much wider
 than high are suppressed as probably advertising and anyway not suited to
 48x48 size limit of the C<Face> header specification.  A 48x48 image might
-add perhaps 4 kbytes or more to each message.
+add around 4 kbytes or more to each message.
 
 For plain RSS and Atom feeds an image is normally a per-channel attribute so
 it's the same for all articles from the feed.  An C<itunes:image> or
@@ -371,9 +371,9 @@ C<lynx>.
 
 The algorithm in C<HTML::ExtractMain> is a simple paragraph scoring system
 (as of its version 0.63).  It does a surprisingly good job but you might
-check how much it discards, just in case something good was not reckoned
-part of the main text.  Option value "attach_full" includes the full page
-as an attachment
+check how much it discards, in case something good was not reckoned part of
+the main text.  Option value "attach_full" includes the full page as an
+attachment
 
     $html_extract_main = 'attach_full';
 
@@ -383,7 +383,29 @@ as an attachment
 
 =over 4
 
-=item $rss_charset_override (default undef)
+=item $user_agent (string, default undef)
+
+=item C<fetch_rss ("group", "url", user_agent =E<gt> "string")>
+
+=item C<fetch_html ("group", "url", user_agent =E<gt> "string")>
+
+Set the C<User-Agent> string which RSS2Leafnode reports in its download
+requests.  The default is RSS2Leafnode and LWP version numbers,
+
+    RSS2Leafnode/123 libwww-perl/456
+
+Occasionally a HTTP server will look at the C<User-Agent> and do something
+different or perhaps even allow access only for certain kinds of clients.
+Generally speaking this is very bad.  The C<user_agent> option here lets
+RSS2Leafnode masquerade as some other client, for instance as a browser if a
+server will only speak properly to a browser.
+
+    $user_agent = 'Mosaic/1.0';
+
+If the string ends with a space then L<LWP::UserAgent> will append itself to
+the string.
+
+=item $rss_charset_override (string, default undef)
 
 =item C<fetch_rss ("group", "url", rss_charset_override =E<gt> "CHARSET")>
 
@@ -392,9 +414,9 @@ irrespective of what the document says.  See L<XML::Parser/ENCODINGS> for
 the charsets supported (it has some builtins and then F<.enc> files under
 F</usr/lib/perl5/XML/Parser/Encodings/>).
 
-Use this option if the document is wrong or has no charset specified and
-isn't the XML default utf-8.  Usually you'll only want this for a particular
-offending feed.  For example,
+Use this option if the document is wrong, or if it has no charset specified
+and isn't the XML default UTF-8.  Usually you'll only want this for a
+particular offending feed.  For example,
 
     # AIR is latin-1, but doesn't have a <?xml> saying that
     fetch_rss ('r2l.finance',
@@ -468,7 +490,7 @@ F<debian/emacsen-startup> in the RSS2Leafnode sources.
 
 =head1 OTHER DETAILS
 
-Non-ascii RSS text, Atom text and rendered HTML text are coded as utf-8 in
+Non-ascii RSS text, Atom text and rendered HTML text are coded as UTF-8 in
 the generated messages so for non-ascii content you'll need a newsreader
 which supports that.  Unrendered HTML is left in the charset the server
 gave, to ensure it matches any C<< <meta http-equiv> >> in the document.  In
@@ -529,8 +551,8 @@ text.  Pseudo-link footnotes are shown for,
     <re:rank>
 
 Unrecognised item fields are shown in XML at the end of the message.  This
-is a bit technical but tries not to drop information, and might suggest
-extra things RSS2Leafnode could present or interpret.
+is a bit technical but tries not to drop information and might suggest extra
+things RSS2Leafnode could present or interpret.
 
 An attempt is made to repair bad XML from a feed with C<XML::Liberal> if you
 have that module.  It uses C<XML::LibXML> and the C<libxml> library and
@@ -543,10 +565,10 @@ escaping.  Too little can turn HTML markup into nested XML elements and
 RSS2Leafnode attempts to treat that as if it was XHTML style sub-elements
 but the result is likely to be imperfect.  Too much escaping results in raw
 or semi-raw HTML C<< <p> >> or C<&foo;> coming through.  C<&apos;> may be
-XHTML instead of HTML, though many browsers support that entity anyway.
-Possibly an option for extra unescaping could improve some bad feeds but in
-practice would probably not be wholly successful.  Every bad feed tends to
-be bad in its own special way.
+from XHTML instead of HTML, though many browsers support that entity anyway.
+Perhaps an option for extra unescaping could improve some bad feeds but in
+practice is unlikely to be wholly successful.  Every bad feed tends to be
+bad in its own special way.
 
 =head2 Message Headers
 
@@ -598,9 +620,9 @@ The channel C<< <title> >> as a final fallback is meant to at least show
 something about where the message came from if there's no author identified.
 An author C<< <url> >> is shown in the message links as described above.
 
-Sometimes there may be multiple C<< <dc:creator> >> elements.  They're
-combined as a multi-author C<From> per RFC5322, though currently without
-attempting to pick out a C<Sender> from among them.
+Sometimes can be multiple C<< <dc:creator> >> elements.  They're combined as
+a multi-author C<From> per RFC 5322, though currently without attempting to
+pick out a C<Sender> from among them.
 
 =item Subject:
 
@@ -755,9 +777,9 @@ element
 Gnus and perhaps other newsreaders can display C<Face:>, see
 L<http://quimby.gnus.org/circus/face>.
 
-It'd be possible to generate an C<X-Face:> as well or instead, but it's
-black and white and converting a colour image from the feeds is unlikely to
-look good.
+It'd be possible to generate an C<X-Face:> as well or instead, but
+C<X-Face:> is black and white and converting a colour image from the feeds
+is unlikely to look good.
 
 =item List-Post:
 
@@ -827,12 +849,12 @@ without duplication.)
 No retries are attempted if a news server disconnects, at least not unless
 posting to a different news server then coming back.  Not sure if that's
 good or bad, but the current repeated error messages for a disconnect are
-unattractive.
+unattractive.  The intention for the future is to attempt a reconnect.
 
 Some pre-releases of leafnode 2 might have trouble posting to local
-newsgroups while a C<fetchnews> run is in progress.  The local articles
-don't show up until after a subsequent further C<fetchnews>.  Or was this
-only for the C<rnews> inject?
+newsgroups while a C<fetchnews> run is in progress.  When this happens the
+local articles don't show up until after a subsequent further C<fetchnews>.
+Or was this only for the C<rnews> inject?
 
 No attention is paid to C<< <atom:updated> >> or other changes in an item.
 Should an updated item be re-posted?  Is the C<Supersedes:> header better,
@@ -859,7 +881,7 @@ though applying the C<rss_newest_only> option would require a first pass to
 choose items.  A progressive parse might help show the first few items if
 there's a fatal syntax error or truncation part-way through.  Some care
 would be needed that small changes by the automated charset recoding or by
-C<XML::Liberal> etc doesn't cause duplicated posts.
+C<XML::Liberal> doesn't cause duplicated posts.
 
 =head1 ENVIRONMENT VARIABLES
 
@@ -913,7 +935,7 @@ L<http://user42.tuxfamily.org/rss2leafnode/index.html>
 
 =head1 LICENSE
 
-Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013 Kevin Ryde
+Copyright 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 Kevin Ryde
 
 RSS2Leafnode is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free
